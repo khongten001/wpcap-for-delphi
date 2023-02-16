@@ -27,7 +27,6 @@ The demo project uses DevExpress libraries
 + UdpFlow
 + Document on function for wcap.wrapper.pas
 + Test wrapper for realtime analyze 
-+ Abstract function for load PCAP offline
 + geoIp with map
 
 # TODO LIST FOR DEMO
