@@ -7,7 +7,7 @@ uses
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, 
   Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, 
   cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,
-  cxGrid,  cxLookAndFeels,
+  cxGrid,  cxLookAndFeels,wpcap.Wrapper,
   cxLookAndFeelPainters, dxSkinsCore, cxStyles, cxFilter, cxData, cxDataStorage,
   cxEdit, cxNavigator, dxDateRanges, dxScrollbarAnnotations, cxGridCustomView,
   cxContainer, cxProgressBar,wpcap.Offline.SQLite,wpcap.StrUtils, FireDAC.Stan.Intf,
@@ -113,10 +113,11 @@ end;
 
 procedure TForm2.OpenPcap(const aFileName:String);
 begin
-  Caption := Format('PCAP Analisys %s',[ExtractFileName(aFileName)]);
+  Caption := Format('PCAP Analisys %s - %s',[ExtractFileName(aFileName),PacketGetVersion]);
   FDConnection1.Close;
   FDGrid.Close;
   SetPositionProgressBar(0);
+  
     {TODO 
       Thread with syncronize
       Database SQLLIte
@@ -130,7 +131,8 @@ begin
       Color for grid
       
     }
-  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+    // filter example dst host 192.0.2.1 but doesn't work  TODO check structure and function definition
+  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),String.Empty,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
 end;
 
 
