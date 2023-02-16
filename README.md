@@ -27,7 +27,5 @@ It enables the capture and analysis of network packets, making it useful for a w
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
 + Grid with port
-+ Grid with Mac
-+ Grid with EthType e IP Proto with hidden column by default...
 + Color for grid
 
