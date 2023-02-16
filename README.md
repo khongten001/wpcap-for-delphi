@@ -28,6 +28,7 @@ The demo project uses DevExpress libraries
 + Document on function for wcap.wrapper.pas
 + Test wrapper for realtime analyze 
 + Abstract function for load PCAP offline
++ geoIp with map
 
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
