@@ -1,9 +1,9 @@
 # wpcap-for-delphi
-The wcap.wrapper Delphi package provides a wrapper for the Windows Capture (WCap) library, which is a low-level packet capture library for Windows.
+The wcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
 The package contains several units including: 
 
-+ **wpcap.Wrapper.pas:**  which wraps the functions of the WCap DLL.
++ **wpcap.Wrapper.pas:**  which wraps the functions of the wpcap DLL.
 + **wpcap.Conts.pas:**   which contains constants used in the library. 
 + **wpcap.Types.pas:**    which contains structures used by the library. 
 + **wpcap.Protocol.pas:** which contains functions for managing protocols.
@@ -27,7 +27,7 @@ The demo project uses DevExpress libraries
 + Packet detail
 + TcpFlow 
 + UdpFlow
-+ Document on function for wcap.wrapper.pas
++ Document on function for wpcap.wrapper.pas
 + Test wrapper for realtime analyze 
 + geoIp with map
 
