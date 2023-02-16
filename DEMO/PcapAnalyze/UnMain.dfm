@@ -2,8 +2,8 @@ object Form2: TForm2
   Left = 0
   Top = 0
   Caption = 'PCAP Analisys'
-  ClientHeight = 612
-  ClientWidth = 1136
+  ClientHeight = 666
+  ClientWidth = 1154
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -15,8 +15,8 @@ object Form2: TForm2
   TextHeight = 13
   object Button1: TButton
     Left = 0
-    Top = 587
-    Width = 1136
+    Top = 641
+    Width = 1154
     Height = 25
     Align = alBottom
     Caption = 'Load PCAP'
@@ -26,8 +26,8 @@ object Form2: TForm2
   object GridPcap: TcxGrid
     Left = 0
     Top = 0
-    Width = 1136
-    Height = 566
+    Width = 1154
+    Height = 620
     Align = alClient
     TabOrder = 1
     LockedStateImageOptions.Effect = lsieDark
@@ -130,10 +130,10 @@ object Form2: TForm2
   end
   object cxProgressBar1: TcxProgressBar
     Left = 0
-    Top = 566
+    Top = 620
     Align = alBottom
     TabOrder = 2
-    Width = 1136
+    Width = 1154
   end
   object OpenDialog1: TOpenDialog
     Left = 272

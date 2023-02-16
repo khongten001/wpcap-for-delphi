@@ -64,9 +64,7 @@ begin
   cxProgressBar1.Position := aNewPos;
   if Trunc( (aNewPos * 100) / cxProgressBar1.Properties.Max) Mod 5 = 0 then                
     cxProgressBar1.Update
-
 end;
-
 
 procedure TForm2.DoPCAPOfflineCallBackPacket(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
                                                 aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
@@ -129,7 +127,7 @@ begin
       Color for grid
       
     }
-  AnalyzePCAPOffline(aFileName,DoPCAPOfflineCallBackPacket,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+  AnalyzePCAPOffline(aFileName,String.Empty,DoPCAPOfflineCallBackPacket,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
 end;
 
 

@@ -4,10 +4,12 @@ uses
   Vcl.Forms,
   UnMain in 'UnMain.pas' {Form2},
   wpcap.Conts in '..\..\Source\wpcap.Conts.pas',
-  wpcap.protocol in '..\..\Source\wpcap.protocol.pas',
+  wpcap.Protocol in '..\..\Source\wpcap.Protocol.pas',
   wpcap.StrUtils in '..\..\Source\wpcap.StrUtils.pas',
   wpcap.Types in '..\..\Source\wpcap.Types.pas',
-  wpcap.wrapper in '..\..\Source\wpcap.wrapper.pas';
+  wpcap.Wrapper in '..\..\Source\wpcap.Wrapper.pas',
+  wpcap.Offline in '..\..\Source\wpcap.Offline.pas',
+  wpcap.IOUtils in '..\..\Source\wpcap.IOUtils.pas';
 
 {$R *.res}
 
