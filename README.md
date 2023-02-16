@@ -11,6 +11,9 @@ The package contains several units including:
 + **wpcap.IOUtils.pas:**  which contains functions for filesystem.
 + **wpcap.Offline.pas:**  which contains abstract function for load PCAP offline.
 + **wpcap.Offline.SQLite.pas:**  which contains abstract function for create SQLiteDB with packet on PCAP.
++ **wpcap.DB.SQLite.pas:**  which contains function SQLiteDB.
+
+
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
@@ -27,6 +30,7 @@ The demo project uses DevExpress libraries
 + Packet detail
 + TcpFlow 
 + UdpFlow
++ Port values
 + Document on function for wpcap.wrapper.pas
 + Test wrapper for realtime analyze 
 + geoIp with map
