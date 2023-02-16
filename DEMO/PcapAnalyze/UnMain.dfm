@@ -22,7 +22,6 @@ object Form2: TForm2
     Caption = 'Load PCAP'
     TabOrder = 0
     OnClick = Button1Click
-    ExplicitWidth = 945
   end
   object GridPcap: TcxGrid
     Left = 0
@@ -33,7 +32,6 @@ object Form2: TForm2
     TabOrder = 1
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
-    ExplicitWidth = 945
     object GridPcapTableView1: TcxGridTableView
       Navigator.Buttons.CustomButtons = <>
       FindPanel.DisplayMode = fpdmAlways
@@ -135,7 +133,6 @@ object Form2: TForm2
     Top = 566
     Align = alBottom
     TabOrder = 2
-    ExplicitWidth = 945
     Width = 1136
   end
   object OpenDialog1: TOpenDialog
