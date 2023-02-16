@@ -4,6 +4,19 @@ interface
 
 uses Winapi.Windows;
 
+///<summary>
+/// Returns the size of the specified file in bytes.
+///</summary>
+///<param name="FileName">
+/// The name of the file for which to retrieve the size.
+///</param>
+///<returns>
+/// The size of the specified file in bytes.
+///</returns>
+///<remarks>
+/// This function returns the size of the specified file in bytes. 
+/// If the specified file does not exist or cannot be accessed, an exception will be raised.
+///</remarks>
 function FileGetSize(const FileName: string): Int64;
 
 implementation
