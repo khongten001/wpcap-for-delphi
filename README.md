@@ -11,6 +11,10 @@ The package contains several units including:
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
+# DEMO
+
+The demo project uses DevExpress libraries
+
 
 # TODO LIST
 
@@ -23,9 +27,12 @@ It enables the capture and analysis of network packets, making it useful for a w
 + UdpFlow
 + Document on function for wcap.wrapper.pas
 + Test wrapper for realtime analyze 
++ Abstract function for load PCAP offline
 
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
 + Grid with port
 + Color for grid
+
+
 
