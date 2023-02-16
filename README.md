@@ -3,11 +3,13 @@ The wcap.wrapper Delphi package provides a wrapper for the Windows Capture (WCap
 
 The package contains several units including: 
 
-+ **wcap.wrapper.pas:**  which wraps the functions of the WCap DLL.
-+ **wcap.consts.pas:**   which contains constants used in the library. 
-+ **wcap.types.pas:**    which contains structures used by the library. 
-+ **wcap.protocol.pas:** which contains functions for managing protocols.
-+ **wcap.StrUtils.pas:** which contains string manipulation functions.
++ **wpcap.Wrapper.pas:**  which wraps the functions of the WCap DLL.
++ **wpcap.Conts.pas:**   which contains constants used in the library. 
++ **wpcap.Types.pas:**    which contains structures used by the library. 
++ **wpcap.Protocol.pas:** which contains functions for managing protocols.
++ **wpcap.StrUtils.pas:** which contains string manipulation functions.
++ **wpcap.IOUtils.pas:**  which contains functions for filesystem.
++ **wpcap.Offline.pas:**  which contains abstract function for load PCAP offline.
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
