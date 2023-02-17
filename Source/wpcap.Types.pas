@@ -153,6 +153,30 @@ type
     Handle          : THandle;                                        // network adapter handle
     Network         : TNetInfoEx;                                     // network information
   end;
+
+  /// <summary>
+  ///   Structure that contains an IP address and network mask associated with a network interface card.
+  /// </summary>
+  Ppcap_addr = ^pcap_addr;
+  pcap_addr = record
+    next      : Ppcap_addr;  // Pointer to the next address structure in the list. 
+    addr      : PSockAddr;   // IP address associated with the network interface card. 
+    netmask   : PSockAddr;   // Network mask associated with the IP address. 
+    broadaddr : PSockAddr;   // Broadcast address associated with the IP address. 
+    dstaddr   : PSockAddr;   // Destination address associated with the IP address. 
+  end;
+  
+  /// <summary>
+  ///   Structure that contains information about a network interface card (NIC).
+  /// </summary> 
+  Ppcap_if = ^pcap_if;
+  pcap_if = record
+    next        : Ppcap_if;       // Pointer to the next network interface card in the list.
+    name        : PAnsiChar;      // Name of the network interface card.
+    description : PAnsiChar;      // Description of the network interface card.
+    addresses   : Ppcap_addr;     // Pointer to the list of IP addresses associated with the network interface card.
+    flags       : bpf_u_int32;    // Flags that contain information about the network interface card.
+  end;  
   
   //The PACKET_OID_DATA structure is used to represent data related to an Object IDentifier (OID).
   //The Oid field represents the OID in question, the Length field represents the length of the data contained in the Data field, while the Data field represents the data itself.
@@ -202,14 +226,6 @@ type
     McAddressCount: Integer;
   end;
   
-  //bf_len represents the length in bytes of the list of BPF instructions contained in bf_insns,
-  //while bf_insns represents a pointer to the BPF instruction list itself.
-  TPacketFilter = record
-    bf_len  : UInt32;
-    bf_insns: PBPF_insn;
-  end;
-
-
   //eader of a packet in the dump file.
   //Each packet in the dump file is prepended with this generic header. 
   //This gets around the problem of different headers for different packet interfaces.
@@ -296,8 +312,16 @@ type
     DestinationAddress: TIPv6AddrBytes;
   end;
   PIPv6Header = ^TIPv6Header;
-  
 
+
+  ppcap_dumper_t = ^pcap_dumper_t;
+  pcap_dumper_t = record
+    fp: Pointer;
+    linktype: Integer;
+  end;  
+  
+  pcap_handler = procedure(user: PAnsiChar; hdr: PTpcap_pkthdr; pkt: PAnsiChar); cdecl;
+  
 implementation
 
 end.
