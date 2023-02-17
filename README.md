@@ -9,11 +9,12 @@ The package contains several units including:
 + **wpcap.Protocol.pas:** which contains functions for managing protocols.
 + **wpcap.StrUtils.pas:** which contains string manipulation functions.
 + **wpcap.IOUtils.pas:**  which contains functions for filesystem.
-+ **wpcap.Offline.pas:**  which contains abstract function for load PCAP offline.
-+ **wpcap.Offline.SQLite.pas:**  which contains abstract function for create SQLiteDB with packet of PCAP.
++ **wpcap.Pcap.pas:**  which contains abstract function for load and save PCAP.
++ **wpcap.PCAP.SQLite.pas:**  which contains abstract function for create SQLiteDB with packet of PCAP.
++ **wpcap.DB.Base:**  which contains base class for managing database.
 + **wpcap.DB.SQLite.pas:**  which contains function SQLiteDB.
 + **wpcap.Filter.pas:**  which contains function for filter PCAP.
-
++ **wpcap.NetDevice:**  which contains function for managing network inteface.
 
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
@@ -27,7 +28,7 @@ The demo project uses DevExpress libraries
 
 + Thread with syncronize
 + Query bulder 
-+ Packet detail
++ Packet detail []
 + TcpFlow 
 + UdpFlow
 + Port values
