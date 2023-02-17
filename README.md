@@ -10,7 +10,7 @@ The package contains several units including:
 + **wpcap.StrUtils.pas:** which contains string manipulation functions.
 + **wpcap.IOUtils.pas:**  which contains functions for filesystem.
 + **wpcap.Offline.pas:**  which contains abstract function for load PCAP offline.
-+ **wpcap.Offline.SQLite.pas:**  which contains abstract function for create SQLiteDB with packet on PCAP.
++ **wpcap.Offline.SQLite.pas:**  which contains abstract function for create SQLiteDB with packet of PCAP.
 + **wpcap.DB.SQLite.pas:**  which contains function SQLiteDB.
 + **wpcap.Filter.pas:**  which contains function for filter PCAP.
 
