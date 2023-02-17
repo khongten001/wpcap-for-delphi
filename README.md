@@ -26,7 +26,6 @@ The demo project uses DevExpress libraries
 
 + Thread with syncronize
 + Query bulder 
-+ Filter WIncap
 + Packet detail
 + TcpFlow 
 + UdpFlow
