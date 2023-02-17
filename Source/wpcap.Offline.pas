@@ -164,7 +164,7 @@ var LHandlePcap      : Ppcap_t;
     LIpDst           : String;
     LPortSrc         : Word;
     LPortDst         : Word;    
-    LFilterCode      : PBPF_program;  
+    LFilterCode      : BPF_program;  
     LNetMask         : bpf_u_int32;
 
     Procedure DoPcapOfflineProgress(aTotalSize,aCurrentSize:Int64);
@@ -219,13 +219,13 @@ begin
   try
     if Not afilter.Trim.IsEmpty then
     begin
-      if pcap_compile(LHandlePcap, LFilterCode, PAnsiChar(AnsiString(afilter)), 1, LNetMask) <> 0 then
+      if pcap_compile(LHandlePcap, @LFilterCode, PAnsiChar(AnsiString(afilter)), 1, LNetMask) <> 0 then
       begin
         aPCAPOfflineCallBackError(aFileName,string(pcap_geterr(LHandlePcap)));            
         Exit;
       end;
       
-      if pcap_setfilter(LHandlePcap,LFilterCode) <>9 then
+      if pcap_setfilter(LHandlePcap,@LFilterCode) <>0 then
       begin
         aPCAPOfflineCallBackError(aFileName,string(pcap_geterr(LHandlePcap)));            
         Exit;

@@ -21,6 +21,12 @@ const
 
   ETH_HEADER_LEN = 14;
 
+
+  DLT_EN10MB = 1; // Ethernet (10Mb) link type identifier
+  
+  MAX_PACKET_SIZE = 65535; // Maximum size of the packets to be captured
+
+
   {IPPROTO}
   IPPROTO_IPV6    = 41;    // IPv6 header
   IPPROTO_ICMPV6  = 58;    // ICMPv6  

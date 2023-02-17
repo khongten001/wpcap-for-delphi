@@ -129,7 +129,25 @@ procedure pcap_close(p: Ppcap_t); cdecl; external 'wpcap.dll';
 /// <returns>A boolean value that indicates whether the operation was successful.</returns>
 function pcap_setfilter(AdapterObject: Ppcap_t; fp: PBPF_program): LongInt; stdcall; external 'wpcap.dll';
 
-function pcap_compile(p: Ppcap_t;var fp: PBPF_program; str: PAnsiChar; optimize: Integer; netmask: UInt32): Integer; cdecl; external 'wpcap.dll';
+/// <summary>
+/// Compile a BPF filter expression into a BPF filter program.
+/// </summary>
+/// <param name="p">A pointer to a pcap_t structure, which has been created by a call to pcap_open_offline() or pcap_create().</param>
+/// <param name="fp">A pointer to a BPF_program struct where the compiled filter will be stored.</param>
+/// <param name="str">A string containing the BPF filter expression.</param>
+/// <param name="optimize">An integer indicating whether the compiled program should be optimized for speed or size. 
+/// Use 0 for no optimization, 1 for optimizing for speed, or 2 for optimizing for size.</param>
+/// <param name="netmask">The network mask to apply to the filter expression.</param>
+/// <returns>An integer indicating whether the compilation was successful (0) or not (-1).</returns>
+function pcap_compile(p: Ppcap_t; fp: PBPF_program; str: PAnsiChar; optimize: Integer; netmask: UInt32): Integer; cdecl; external 'wpcap.dll';
+
+/// <summary>
+/// Opens a new pcap_t data link to be used as a target to write packets into, and returns a handle to the pcap_t.
+/// </summary>
+/// <param name="Linktype">The link layer type for packets that will be written to the pcap_t.</param>
+/// <param name="Snaplen">The maximum number of bytes to be captured for each packet.</param>
+/// <returns>A pointer to the pcap_t handle, or nil if an error occurs.</returns>
+function pcap_open_dead(Linktype: Integer; Snaplen: Integer): ppcap_t; cdecl; external 'wpcap.dll';
 
 
 
