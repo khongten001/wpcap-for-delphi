@@ -7,7 +7,7 @@ uses
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, 
   Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, 
   cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,
-  cxGrid,  cxLookAndFeels,wpcap.Wrapper,
+  cxGrid,  cxLookAndFeels,wpcap.Wrapper,wpcap.Filter,
   cxLookAndFeelPainters, dxSkinsCore, cxStyles, cxFilter, cxData, cxDataStorage,
   cxEdit, cxNavigator, dxDateRanges, dxScrollbarAnnotations, cxGridCustomView,
   cxContainer, cxProgressBar,wpcap.Offline.SQLite,wpcap.StrUtils, FireDAC.Stan.Intf,
@@ -17,7 +17,8 @@ uses
   FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,
   FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView,
   FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
-  FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script;
+  FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,
+  cxTextEdit;
 
 type
   TForm2 = class(TForm)
@@ -59,10 +60,14 @@ type
     GridPcapDBTableView1IP_DST: TcxGridDBColumn;
     GridPcapDBTableView1PORT_SRC: TcxGridDBColumn;
     GridPcapDBTableView1PORT_DST: TcxGridDBColumn;
+    EFilter: TcxTextEdit;
+    Label1: TLabel;
     procedure Button1Click(Sender: TObject);
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
+    procedure EFilterPropertiesValidate(Sender: TObject;
+      var DisplayValue: Variant; var ErrorText: TCaption; var Error: Boolean);
   private
     procedure OpenPcap(const aFileName: String);
     procedure SetPositionProgressBar(aNewPos: Int64);
@@ -120,9 +125,7 @@ begin
   
     {TODO 
       Thread with syncronize
-      Database SQLLIte
       Query bulder 
-      Filter WIncap
       Packet detail
       TcpFlow 
       UdpFlow
@@ -132,7 +135,17 @@ begin
       
     }
     // filter example dst host 192.0.2.1 but doesn't work  TODO check structure and function definition
-  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),String.Empty,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+  DeleteFile(ChangeFileExt(aFileName,'.db'));
+  if Not Trim(EFilter.Text).IsEmpty then
+  begin
+    if not EFilter.ValidateEdit(False) then
+    begin
+      ShowMessage('Invalid filter');
+      Exit;
+    end;
+  end;
+    
+  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),EFilter.Text,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
 end;
 
 
@@ -149,6 +162,19 @@ begin
   if VarIsNull(AValue) then Exit;
   
   AText := SizeToStr(AValue)
+end;
+
+procedure TForm2.EFilterPropertiesValidate(Sender: TObject;
+  var DisplayValue: Variant; var ErrorText: TCaption; var Error: Boolean);
+begin
+   if VarIsNull(DisplayValue) then Exit;
+
+   if not ValidateWinPCAPFilterExpression(DisplayValue) then
+   begin
+      ErrorText := 'Invalid filter';
+      Error     := True;
+   end;
+    
 end;
 
 end.

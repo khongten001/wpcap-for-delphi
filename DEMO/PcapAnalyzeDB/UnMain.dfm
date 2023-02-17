@@ -13,6 +13,16 @@ object Form2: TForm2
   OldCreateOrder = False
   PixelsPerInch = 96
   TextHeight = 13
+  object Label1: TLabel
+    AlignWithMargins = True
+    Left = 3
+    Top = 3
+    Width = 1195
+    Height = 13
+    Align = alTop
+    Caption = 'Filter:'
+    ExplicitWidth = 28
+  end
   object Button1: TButton
     Left = 0
     Top = 641
@@ -22,18 +32,18 @@ object Form2: TForm2
     Caption = 'Load PCAP'
     TabOrder = 0
     OnClick = Button1Click
-    ExplicitWidth = 1154
   end
   object GridPcap: TcxGrid
     Left = 0
-    Top = 0
+    Top = 43
     Width = 1201
-    Height = 620
+    Height = 577
     Align = alClient
     TabOrder = 1
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
-    ExplicitWidth = 1154
+    ExplicitTop = 0
+    ExplicitHeight = 620
     object GridPcapDBTableView1: TcxGridDBTableView
       Navigator.Buttons.CustomButtons = <>
       FindPanel.DisplayMode = fpdmAlways
@@ -137,8 +147,21 @@ object Form2: TForm2
     Top = 620
     Align = alBottom
     TabOrder = 2
-    ExplicitWidth = 1154
     Width = 1201
+  end
+  object EFilter: TcxTextEdit
+    AlignWithMargins = True
+    Left = 3
+    Top = 19
+    Align = alTop
+    ParentShowHint = False
+    Properties.ValidationOptions = [evoShowErrorIcon, evoAllowLoseFocus]
+    Properties.OnValidate = EFilterPropertiesValidate
+    ShowHint = True
+    TabOrder = 3
+    ExplicitLeft = -2
+    ExplicitTop = 43
+    Width = 1195
   end
   object OpenDialog1: TOpenDialog
     Left = 272
@@ -160,6 +183,7 @@ object Form2: TForm2
       FieldName = 'NPACKET'
       Origin = 'NPACKET'
       ProviderFlags = [pfInWhere, pfInKey]
+      ReadOnly = True
     end
     object FDGridPACKET_LEN: TIntegerField
       FieldName = 'PACKET_LEN'

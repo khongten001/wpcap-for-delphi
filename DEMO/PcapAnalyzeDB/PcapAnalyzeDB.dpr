@@ -11,7 +11,8 @@ uses
   wpcap.StrUtils in '..\..\Source\wpcap.StrUtils.pas',
   wpcap.Types in '..\..\Source\wpcap.Types.pas',
   wpcap.Wrapper in '..\..\Source\wpcap.Wrapper.pas',
-  wpcap.DB.SQLite in '..\..\Source\wpcap.DB.SQLite.pas';
+  wpcap.DB.SQLite in '..\..\Source\wpcap.DB.SQLite.pas',
+  wpcap.Filter in '..\..\Source\wpcap.Filter.pas';
 
 {$R *.res}
 
