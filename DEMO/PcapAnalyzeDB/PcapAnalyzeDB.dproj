@@ -99,19 +99,25 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="UnMain.pas">
-            <Form>Form2</Form>
+            <Form>FormMain</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="..\..\Source\wpcap.Offline.SQLite.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.Pcap.SQLite.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Conts.pas"/>
         <DCCReference Include="..\..\Source\wpcap.IOUtils.pas"/>
-        <DCCReference Include="..\..\Source\wpcap.Offline.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.Pcap.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Protocol.pas"/>
         <DCCReference Include="..\..\Source\wpcap.StrUtils.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Types.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Wrapper.pas"/>
         <DCCReference Include="..\..\Source\wpcap.DB.SQLite.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Filter.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.DB.Base.pas"/>
+        <DCCReference Include="UnFormRecording.pas">
+            <Form>FormRecording</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="..\..\Source\wpcap.NetDevice.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
