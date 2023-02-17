@@ -1,4 +1,4 @@
-﻿unit wpcap.wrapper;
+﻿unit wpcap.Wrapper;
 
 interface
 
@@ -149,6 +149,119 @@ function pcap_compile(p: Ppcap_t; fp: PBPF_program; str: PAnsiChar; optimize: In
 /// <returns>A pointer to the pcap_t handle, or nil if an error occurs.</returns>
 function pcap_open_dead(Linktype: Integer; Snaplen: Integer): ppcap_t; cdecl; external 'wpcap.dll';
 
+///<summary>
+/// Opens a dump file for writing packets. This function creates a new <c>pcap_dumper_t</c> for the specified <c>pcap_t</c> and returns a pointer to the <c>pcap_dumper_t</c>.
+///</summary>
+///<param name="p">A pointer to a <c>pcap_t</c> that is obtained by calling <c>pcap_open_live</c>.</param>
+///<param name="fname">The name of the file to which the packets will be written.</param>
+///<returns>A pointer to a <c>pcap_dumper_t</c> that will be used to write the packets to the file.</returns>
+///<remarks>Once the file has been opened, packets can be written to the file using the <c>pcap_dump</c> function.</remarks>
+function pcap_dump_open(p: Ppcap_t; const fname: PAnsiChar): ppcap_dumper_t; cdecl; external 'wpcap.dll'
+
+///<summary>
+/// This function writes the raw packet data to the file that was opened using the
+/// `pcap_dump_open()` function.
+///</summary>
+///<param name="dumper">A pointer to the `pcap_dumper_t` structure that was returned
+/// by `pcap_dump_open()`.</param>
+///<param name="h">A pointer to a `pkt_header` structure that describes the packet.
+///</param>
+///<param name="sp">A pointer to the packet data.</param>
+///<returns>The function returns 0 on success, and -1 on error.</returns>
+///<remarks>
+/// This function writes the raw packet data to the file that was opened using the
+/// `pcap_dump_open()` function. The packet is described by the `pkt_header` structure
+/// pointed to by `h`, and the packet data is pointed to by `sp`.
+///</remarks>
+function pcap_dump(dumper: ppcap_dumper_t; const h: PTpcap_pkthdr; const sp: PByte): Integer; cdecl; external 'wpcap.dll';
+
+/// <summary>
+/// Closes the output dump file associated with the given pcap_dumper_t structure.
+/// </summary>
+/// <param name="dumper">The pcap_dumper_t structure to close.</param>
+/// <returns>Returns 0 on success or -1 on failure.</returns>
+function pcap_dump_close(dumper: ppcap_dumper_t): Longint; cdecl; external 'wpcap.dll';
+
+/// <summary>
+///   Returns a linked list of all network interfaces available on the system.
+/// </summary>
+/// <param name="alldevsp">
+///   Pointer to a pcap_if_t pointer that will be set to point to the first element in the linked list.
+/// </param>
+/// <param name="errbuf">
+///   Pointer to a buffer that will be filled with an error message if the function fails.
+/// </param>
+/// <returns>
+///   0 on success, or a negative value on failure. The error message will be stored in the buffer pointed to by `errbuf`.
+/// </returns>
+function pcap_findalldevs(alldevsp: Ppcap_if; errbuf: PAnsiChar): Integer; cdecl; external 'wpcap.dll';
+
+/// <summary>
+///   Frees the memory associated with the linked list of network interfaces returned by pcap_findalldevs.
+/// </summary>
+/// <param name="alldevsp">
+///   Pointer to the first element in the linked list of network interfaces returned by pcap_findalldevs.
+/// </param>
+procedure pcap_freealldevs(alldevsp: Ppcap_if); cdecl; external 'wpcap.dll';
+
+///<summary>
+/// Opens a network interface for live packet capture using WinPcap.
+///</summary>
+/// <param name="device">
+/// The name of the network interface device to open for packet capture.
+/// </param>
+/// <param name="snaplen">
+/// The maximum number of bytes to capture for each packet.
+/// </param>
+/// <param name="promisc">
+/// A flag that indicates whether to put the interface into promiscuous mode.
+/// </param>
+/// <param name="to_ms">
+/// The read timeout, in milliseconds.
+/// </param>
+/// <param name="errbuf">
+/// A buffer to hold error messages if the function call fails.
+/// </param>
+/// <returns>
+/// A pointer to the `pcap_t` structure that represents the opened interface,
+/// or `nil` if the function call fails.
+/// </returns>
+function pcap_open_live(device: PAnsiChar; snaplen: Integer;promisc: Integer; to_ms: Integer; errbuf: PAnsiChar): Ppcap_t; cdecl;external 'wpcap.dll';  
+
+///<summary>
+/// Captures a specified number of packets and calls a user-provided
+/// callback function for each packet.
+///</summary>
+/// <param name="pcap">
+/// A pointer to the `pcap_t` structure that represents the network interface
+/// to capture packets from.
+/// </param>
+/// <param name="cnt">
+/// The number of packets to capture. A negative value means to capture
+/// packets indefinitely.
+/// </param>
+/// <param name="callback">
+/// A pointer to the user-provided callback function that will be called
+/// for each packet.
+/// </param>
+/// <param name="user">
+/// A pointer to user-defined data that will be passed to the callback function
+/// for each packet.
+/// </param>
+/// <returns>
+/// The number of packets that were captured, or -1 if an error occurred.
+/// </returns>
+function pcap_loop(pcap: Ppcap_t; cnt: Integer;callback: pcap_handler; user: PAnsiChar): Integer; cdecl; external 'wpcap.dll';
+
+/// <summary>
+/// Break a packet capture loop.
+///
+/// This function is used to break out of a packet capture loop created with
+/// pcap_loop or pcap_dispatch.
+/// </summary>
+/// <param name="p">A pointer to a pcap_t structure returned by pcap_open_live or pcap_open_offline.</param>
+function pcap_breakloop(p: Ppcap_t): Integer;cdecl; external 'wpcap.dll';
+
 
 
 
@@ -179,111 +292,6 @@ function PacketGetVersion: PAnsiChar; stdcall; external 'Packet.dll';
 /// This function returns the version number of the NPF driver in use.
 ///</remarks>
 function PacketGetDriverVersion: ULONG; stdcall; external 'Packet.dll';
-
-
-
-//*******************************************************************************************************
-//*                                                                                                     *
-//*                {TODO CHECK ISSUE IN PARAMETER AND TEST AND DLL NAME}                                *
-//*                                                                                                     * 
-//*******************************************************************************************************
-
-
-function PacketOpenAdapter(adapter: PAnsiChar): THandle; stdcall; external 'wpcap.dll';
-function PacketCloseAdapter(Adapter: THandle): boolean; stdcall; external 'wpcap.dll';
-function PacketRequest(Adapter: THandle; SetTo: boolean; OID: ULONG; Buffer: Pointer): boolean;overload; stdcall; external 'wpcap.dll';
-function PacketGetAdapterNames(AdaptersName: Pointer; var Length: ULONG): ULONG; stdcall; external 'wpcap.dll';
-function PacketGetNetType(Adapter: THandle; NetType: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetNetTypeEx(Org: PAnsiChar; var Otype: ULONG; var Desc: PAnsiChar; var DLen: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetReadTimeout(Adapter: THandle; Timeout: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDumpFile(Adapter: THandle; fname: PAnsiChar; mode: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDumpFileLimits(Adapter: THandle; maxfilesize, maxnumpackets: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetUserLevel(Value: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetProtocolEx(Adapter: THandle; Protocol: ULONG; Filter: Pointer; Mode: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetNdisEnvironment(Adapter: THandle; read, write: Pointer): boolean; stdcall; external 'wpcap.dll';
-function PacketGetReadTimeout(Adapter: THandle): ULONG; stdcall; external 'wpcap.dll';
-function PacketSetDumpOpenTimeout(Adapter: THandle; dumpOpenTimeout: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDumpSize(Adapter: THandle; size: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetStatsEx(Adapter: THandle; ps: PPACKET_OID_STATISTICS; oid: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetBpf(Adapter: THandle; code: Pointer; codelen: Integer): boolean;overload; stdcall; external 'wpcap.dll';
-function PacketSetReadEvt(Adapter: THandle): boolean; stdcall; external 'wpcap.dll';
-function PacketSetNumReadTimeouts(Adapter: THandle; NumReadTimeouts: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetBpfEx(Adapter: THandle; code: Pointer; codelen: Integer; flags: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetMaxLookaheadsize(Adapter: THandle; Value: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetNonPersistentMode(Adapter: THandle; NonPersistent: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetNonPersistentMode(Adapter: THandle): ULONG; stdcall; external 'wpcap.dll';
-function PacketSendQueued(Adapter: THandle; Synchronize: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDriverParameter(Adapter: THandle; Code: ULONG; Value: Pointer; ValueLength: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverParameter(Adapter: THandle; Code: ULONG; Value: Pointer; ValueLength: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDontVerifyChecksum(Adapter: THandle; mode: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetAdapterNamesEx(Name: Pointer; len: PULONG; Buffer: PAnsiChar; BufLen: PULONG): ULONG;overload; stdcall; external 'wpcap.dll';
-function PacketGetAdapterNamesAndFlags(Adapter: PChar; Flags: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetBinding(hAdapter: THandle; pStr: PAnsiChar; len: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetBuff(Adapter: THandle; dim_: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetAdapterMode(Adapter: THandle; var mode: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDumpFileName(Adapter: THandle; name: PAnsiChar): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDumpLimit(Adapter: THandle; dumpLimit: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetStats(Adapter: THandle; s: PPACKET_STATS): boolean; stdcall; external 'wpcap.dll';
-function PacketGetStatsEx2(Adapter: THandle; ps: PPACKET_OID_STATISTICS; oid: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketIsDriverLoaded: boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverName(Buffer: PAnsiChar; NameLen: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSendPacket(Adapter: THandle; Buffer: PAnsiChar; Size: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSendPackets(Adapter: THandle; PacketArray: PPACKET; Count: ULONG): ULONG;overload; stdcall; external 'wpcap.dll';
-function PacketSetMinToCopy(Adapter: THandle; nbytes: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetReadBuffer(Adapter: THandle; Size: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetTruncation(Adapter: THandle; trunc: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketSetSnapArrival(Adapter: THandle; snapArrival: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketSetSnapLength(Adapter: THandle; snaplen: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetReadMode(Adapter: THandle; mode: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetAdapterModeEx(AdapterName: PAnsiChar; var Flags: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetReadTimeoutEx(Adapter: THandle; timeout: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetUserBufferWithOrderAdapter(Adapter: THandle; OrderAdapter: THandle; Buffer: PAnsiChar; Size: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetNumWrites(Adapter: THandle; NumWrites: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetSessionMode(Adapter: THandle; Mode: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverType(DriverType: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketIsLoopbackAdapter(AdapterName: PAnsiChar; b: PBOOL): boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverVersionString(VersionString: PAnsiChar; Length: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverDirectory(Directory: PAnsiChar; Length: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketIsNdis6(Adapter: THandle; p: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetRmonAdapterStats(Adapter: THandle; RmonStats: PRMON_STATS): boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverLevel(PacketDriverLevel: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetBpf(Adapter: THandle; SetToBpf: boolean): boolean;overload; stdcall; external 'wpcap.dll';
-function PacketGetWanStatus(Adapter: THandle; Status: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetSyncMode(Adapter: THandle; Sync: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketSetVersionEx(version: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetAdapterNamesEx(Name: Pointer; len: PULONG): ULONG;overload; stdcall; external 'wpcap.dll';
-function PacketRequest(AdapterObject: THandle; SetToBpf: boolean): boolean;overload; stdcall; external 'wpcap.dll';
-function PacketStartOem(P: PAnsiChar; ReadEvt: THANDLE): boolean; stdcall; external 'wpcap.dll';
-function PacketStartNPF(DriverName: PAnsiChar; bAirPcap: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketStop(AdapterObject: THandle): boolean; stdcall; external 'wpcap.dll';
-function PacketFlushAdapter(AdapterObject: THandle): boolean; stdcall; external 'wpcap.dll';
-function PacketSetRandom(Seed: ULONG; OidData: Pointer; OidLen: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetDriverVersionEx(DriverVersion: PAnsiChar; DriverVersionLength: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetBindingAdInfo(hBind: THandle; pAdInfo: PADAPTER_INFO): boolean; stdcall; external 'wpcap.dll';
-function PacketIsolateAdaptersOnSession(Open, Close: boolean): boolean; stdcall; external 'wpcap.dll';
-function PacketSendNotification(NotificationSource: ULONG; NotificationDestination: THandle; NotificationType: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketCreateAdapterInformation(AdInfo: PPACKET_OID_DATA; Size: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetHwFilter(AdapterObject: THandle; Filter: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetOidData(AdapterObject: THandle; OidData: PPACKET_OID_DATA; OidDataLength: ULONG; BytesReturned: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetOidData(AdapterObject: THandle; OidData: PPACKET_OID_DATA; OidDataLength: ULONG; BytesReturned: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetReadEvent(AdapterObject: THandle): THandle; stdcall; external 'wpcap.dll';
-function PacketSetAdapterMode(AdapterObject: THandle; Flags: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetNumRecvBuffers(AdapterObject: THandle; NumToAlloc: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetMacAddresses(AdapterName: PAnsiChar; MacAddr: PAnsiChar): ULONG; stdcall; external 'wpcap.dll';
-function PacketSetAdapterModeEx(AdapterObject: THandle; Flags: ULONG; SizBuf: ULONG; Buffer: Pointer): boolean; stdcall; external 'wpcap.dll';
-function PacketGetAdapterNamesWithWan(Name: PAnsiChar; len: PULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetNumRequests(AdapterObject: THandle; NumToAlloc: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetSnaplen(AdapterObject: THandle; Snaplen: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketSetDumpFormat(AdapterObject: THandle; DumpFormat: Packet_Dump_File_Type): boolean; stdcall; external 'wpcap.dll';
-function PacketSetBpf(AdapterObject: THandle; Filter: PBPF_program): boolean;overload; stdcall; external 'wpcap.dll';
-function PacketSetLoopbackBehavior(AdapterObject: THandle; LoopbackBehavior: ULONG): boolean; stdcall; external 'wpcap.dll';
-function PacketGetTME(AdapterObject: THandle; TME: PTimeVal): boolean; stdcall; external 'wpcap.dll';
-function PacketSetTME(AdapterObject: THandle; TME: PTimeVal): boolean; stdcall; external 'wpcap.dll';
-function PacketSetAdapterIpAddress(AdapterObject: THandle; IpAddress, IpMask: PAnsiChar): boolean; stdcall; external 'wpcap.dll';
-function PacketSetMulticastList(AdapterObject: THandle;const  MulticastList: TMulticastList): boolean; stdcall; external 'wpcap.dll';
-function PacketGetNetInfoEx(Adapter: PAnsiChar; AdapterInfo: PNETINFOSTRUCT): boolean;overload; stdcall; external 'wpcap.dll';
-function PacketSendAdapterNPF(Adapter: THandle;  const Packet: PAnsiChar; PacketSize: Integer): Boolean; stdcall; external 'wpcap.dll';
-function PacketGetTimeInterval(): ULONG; stdcall; external 'wpcap.dll';
 
 
 implementation
