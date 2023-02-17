@@ -36,9 +36,81 @@ function MACAddrToStr(const MACAddr: array of Byte): string;
  /// </summary>
 function TimevalToString(tv: timeval): string;
 
+/// <summary>
+///   Returns a human-readable string representation of the specified size
+/// </summary>
+/// <param name="aSize">The size to convert</param>
+/// <returns>A string representation of the specified size</returns>
 function SizeToStr(aSize: int64) : String;
 
+/// <summary>
+/// Takes a pointer to a byte array and its size, and returns an array of strings, 
+/// each containing a line of hexadecimal representation of the data with the ASCII representation
+/// of the same data line, if printable. Non-printable characters are represented by a dot '.'.
+/// </summary>
+/// <param name="aPByteData">Pointer to a byte array containing data to be displayed in hexadecimal format</param>
+/// <param name="aDataSize">Size of the data to be displayed in bytes</param>
+/// <returns>An array of strings containing the hexadecimal representation of the data</returns>
+function DisplayHexData(aPByteData: PByte; aDataSize: Integer): TArray<String>;
+
 implementation
+
+function DisplayHexData(aPByteData: PByte; aDataSize: Integer): TArray<String>;
+const HEXCHARS: array[0..15] of Char = '0123456789ABCDEF';
+      LENGHT_ROW = 48;
+var I           : Integer;
+    J           : Integer;
+    çRowCount   : Integer;
+    LColumnCount: Integer;
+    LText       : String;
+    LLastLenght : Integer;
+begin
+  // Calculate the number of rows and columns needed to display the hexadecimal data
+  çRowCount := (aDataSize + 15) div 16;
+  LColumnCount := 16;
+
+  // Initialize the array that will hold the hexadecimal data
+  SetLength(Result, çRowCount);
+
+  // Convert each byte in the data to its hexadecimal representation
+  LText := String.Empty;
+  for I := 0 to çRowCount - 1 do
+  begin
+    if not LText.IsEmpty then
+      Result[I-1] := Format('%s  %s',[Result[I-1],LText]);
+    Result[I] := '';
+    LText     := '';
+
+    for J := 0 to LColumnCount - 1 do
+    begin
+      if I * LColumnCount + J < aDataSize then
+      begin
+        Result[I] := Format('%s %s%s',[Result[I],
+                                        HEXCHARS[aPByteData[I * LColumnCount + J] shr 4] ,
+                                        HEXCHARS[aPByteData[I * LColumnCount + J] and $0F]]);
+        {The clear text part -  if it's displayable the do it}
+        if (aPByteData[I * LColumnCount + J]>=32) and 
+           (aPByteData[I * LColumnCount + J]<=127) 
+        then
+          LText := LText + char(aPByteData[I * LColumnCount + J])
+        else
+          LText := LText + '.'; {otherwise display a block char}                                     
+      end
+      else
+        Result[I] := Result[I] + '  ';
+      if J = 7 then
+        Result[I] := Result[I] + ' ';
+    end;
+  end;
+  if not LText.IsEmpty then
+  begin
+    LLastLenght := Length(Result[çRowCount - 1]);
+    for I := LLastLenght to LENGHT_ROW do
+      Result[çRowCount - 1] := Format('%s ',[Result[çRowCount - 1]]);    
+        
+    Result[çRowCount - 1] := Format('%s  %s',[Result[çRowCount - 1],LText]);      
+  end;  
+end;
 
 function IPv6AddressToString(const Address: array of Byte): string;
 var
