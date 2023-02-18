@@ -19,6 +19,7 @@ The package contains several units including:
 + **wpcap.Filter.pas:**  which contains function for filter PCAP.
 + **wpcap.NetDevice:**  which contains function for managing network inteface.
 + **wpcap.Protocol.Base:**  which contains base class engine for protocol detection
++ **wpcap.Graphics:**  which contains function for colors
 
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
