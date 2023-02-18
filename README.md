@@ -1,7 +1,7 @@
 # wpcap-for-delphi
 The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
-![image](https://user-images.githubusercontent.com/11525545/219755080-d503caab-2b39-4ff4-84c6-0d64261447c0.png)
+![image](https://user-images.githubusercontent.com/11525545/219884447-c06aa71f-17cf-47e2-9304-8a3eb7126f2a.png)
 
 
 The package contains several units including: 
@@ -18,6 +18,7 @@ The package contains several units including:
 + **wpcap.DB.SQLite.pas:**  which contains function SQLiteDB.
 + **wpcap.Filter.pas:**  which contains function for filter PCAP.
 + **wpcap.NetDevice:**  which contains function for managing network inteface.
++ **wpcap.Protocol.Base:**  which contains base class engine for protocol detection
 
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
@@ -35,14 +36,14 @@ The demo project uses DevExpress libraries
 + Packet detail 
 + TcpFlow 
 + UdpFlow
-+ Port values
++ Port for TCP protocol
 + Realtime capture 
 + geoIp with map
 
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
-+ Grid with port
-+ Color for grid
++ Grid with port TCP
+
 
 
 
