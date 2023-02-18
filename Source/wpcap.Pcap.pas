@@ -4,7 +4,7 @@ interface
 
 uses
   wpcap.protocol, wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts,WinApi.Windows,
-  wpcap.IOUtils, System.SysUtils, Winsock, DateUtils,System.Generics.Collections;
+  wpcap.IOUtils, System.SysUtils, Winsock, DateUtils,System.Generics.Collections,wpcap.Protocol.UDP;
 
 type
 
@@ -65,7 +65,7 @@ type
 
   TPCAPCallBackPacket        = procedure(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
                                                   aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
-                                                  LaPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word  ) of object;  //Ip info
+                                                  LaPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word;aIdProtoDetected:byte) of object;  //Ip info
 
   ///<summary>
   /// Type definition for a callback procedure to be called when an error occurs during packet processing.
@@ -115,14 +115,16 @@ type
   
   TPCAPUtils = class
   strict private
-    class var FPCAPCallBackPacketRT    : TPCAPCallBackPacket;
+    class var FPCAPCallBackPacket      : TPCAPCallBackPacket;
     class var FPCAPCallBackProgressRT  : TPCAPCallBackProgress;
     class var FAbort                   : Boolean;    
     class var FHandleRT                : THandle;        
     class var FPCapRT                  : Ppcap_t;            
-
   private
-    class procedure PacketHandlerRealtime(user: PAnsiChar; hdr: PTpcap_pkthdr;pkt: PAnsiChar); cdecl;
+    class procedure PacketHandlerRealtime(user: PAnsiChar; aHeader: PTpcap_pkthdr;aPacketData: PByte); cdecl;
+    class procedure AnalyzePacketForCallBack(const aPacketData: Pbyte;aHeader:PTpcap_pkthdr); static;
+    class function CheckWPcapFilter(aHandlePcap: Ppcap_t; const aFileName,
+      aFilter: string; aPCAPCallBackError: TPCAPCallBackError):Boolean; static;
   public
     ///<summary>
     /// Analyzes an packet capture file using a specified set of callbacks.
@@ -194,13 +196,12 @@ type
     ///  <param name="aFilename">
     ///    The name of the pcap file to save to.
     ///  </param>
-    class procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);
+    class procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);static;
   end;
   
 implementation
 
-
-class procedure TPCAPUtils.PacketHandlerRealtime(user: PAnsiChar; hdr: PTpcap_pkthdr; pkt: PAnsiChar); cdecl;
+class procedure TPCAPUtils.AnalyzePacketForCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr);
 var LIPHdr           : PETHHdr;
     LEthType         : Word;
     LIPv6Hdr         : PIPv6Header;
@@ -212,61 +213,66 @@ var LIPHdr           : PETHHdr;
     LIpDst           : String;
     LPortSrc         : Word;
     LPortDst         : Word;    
+    LPUDPHdr         : PUDPHdr;
+    LIdProtoDetected : Byte;
 begin
-  // This function will be called for each captured packet.
-  // Here we just print the packet length and timestamp to the console.
-  //TODO centralize the function.!!!!!
   LIPProtoMapping := String.Empty;
   LIPProto        := 0;
   LIpSrc          := String.Empty;
   LIpDst          := String.Empty;
   LPortSrc        := 0;
   LPortDst        := 0;            
-
-  LIPHdr          := PETHHdr(pkt);
+  LIPHdr          := PETHHdr(aPacketData);
   LEthType        := ntohs(LIPHdr.EtherType);
                                     
   case LEthType of
     ETH_P_IP :
       begin
-        LIPProto        := PIPHeader(pkt + ETH_HEADER_LEN).Protocol; 
+        LIPProto        := PIPHeader(aPacketData + ETH_HEADER_LEN).Protocol; 
         LIPProtoMapping := GetIPv4ProtocolName(LIPProto);
-        LIpSrc          := intToIPV4(PIPHeader(pkt + ETH_HEADER_LEN).SrcIP.Addr );
-        LIpDst          := intToIPV4(PIPHeader(pkt + ETH_HEADER_LEN).DestIP.Addr );
+        LIpSrc          := intToIPV4(PIPHeader(aPacketData + ETH_HEADER_LEN).SrcIP.Addr );
+        LIpDst          := intToIPV4(PIPHeader(aPacketData + ETH_HEADER_LEN).DestIP.Addr );
 
         //TODO other protocol
-        case PIPHeader(pkt + ETH_HEADER_LEN).Protocol of
-          IPPROTO_UDP:
-            begin 
-              if IsL2TPPacketData(PByte(pkt),hdr.len) then
-                LIPProtoMapping := 'L2PT';
-            end;
-
-                      
-        end;                  
+        AnalyzeUDPProtocol(aPacketData,aHeader.len,LIPProtoMapping,LIdProtoDetected);
       end;
     ETH_P_IPV6 : 
       begin
         {IPv6}                       
-        LIPv6Hdr         := PIPv6Header(pkt + ETH_HEADER_LEN);
-        LIPProto         := PIPHeader(pkt + ETH_HEADER_LEN).Protocol;                   
+        LIPv6Hdr         := PIPv6Header(aPacketData + ETH_HEADER_LEN);
+        LIPProto         := PIPHeader(aPacketData + ETH_HEADER_LEN).Protocol;                   
         LIPProtoMapping  := GetIPv6ProtocolName(LIPProto);                    
         LIpSrc           := IPv6AddressToString(LIPv6Hdr.SourceAddress);
         LIpDst           := IPv6AddressToString(LIPv6Hdr.DestinationAddress); 
       end;
   end;  
 
-  if Assigned(FPCAPCallBackProgressRT) then
-    FPCAPCallBackProgressRT(-1,hdr^.len);
+  if GetHeaderUDP(aPacketData,aHeader.len,LPUDPHdr) then
+  begin
+    LPortSrc := ntohs(LPUDPHdr.SrcPort);
+    LPortDst := ntohs(LPUDPHdr.DstPort);
+  end;
   
-  FPCAPCallBackPacketRT(PByte(pkt),hdr.len,UnixToDateTime(hdr.ts.tv_sec,false),// Packet info
+  
+  FPCAPCallBackPacket(PByte(aPacketData),aHeader.len,UnixToDateTime(aHeader.ts.tv_sec,false),// Packet info
                              LEthType,GetEthAcronymName(LEthType),MACAddrToStr(LIPHdr.SrcAddr),MACAddrToStr(LIPHdr.DestAddr), //Eth info
-                             LIPProto,LIPProtoMapping,LIpSrc,LIpDst,LPortSrc,LPortDst ); // IP info 
- if FAbort then
- begin
-   if WaitForSingleObject(FHandleRT, 0) = WAIT_OBJECT_0 then
+                             LIPProto,LIPProtoMapping,LIpSrc,LIpDst,LPortSrc,LPortDst,LIdProtoDetected ); // IP info 
+
+end;
+
+class procedure TPCAPUtils.PacketHandlerRealtime(user: PAnsiChar; aHeader: PTpcap_pkthdr; aPacketData: PByte); cdecl;
+
+begin
+  if Assigned(FPCAPCallBackProgressRT) then
+    FPCAPCallBackProgressRT(-1,aHeader^.len);
+
+  AnalyzePacketForCalLBack(aPacketData,aHeader);
+  
+  if FAbort then
+  begin
+    if WaitForSingleObject(FHandleRT, 0) = WAIT_OBJECT_0 then
       pcap_breakloop(FPcapRT);                             
- end;
+  end;
   
 end;
 
@@ -278,7 +284,6 @@ class procedure TPCAPUtils.AnalyzePCAPRealtime(  const aFilename, aFilter,aInter
 CONST TIME_OUT_READ = 1000;                             
 var Lerrbuf      : array[0..PCAP_ERRBUF_SIZE-1] of AnsiChar;
     LPcapDumper  : ppcap_dumper_t;
-    LFilterCode  : BPF_program;  
 begin
   FAbort := False;
   if not Assigned(aPCAPCallBackError) then
@@ -308,7 +313,7 @@ begin
     Exit;
   end;  
 
-  FPCAPCallBackPacketRT    := aPCAPCallBackPacket;
+  FPCAPCallBackPacket      := aPCAPCallBackPacket;
   FPCAPCallBackProgressRT  := aPCAPCallBackProgress;
   
   // Open the network adapter for capturing
@@ -332,20 +337,7 @@ begin
       FHandleRT := CreateEvent(nil, True, False, nil);
       Try
         // Set the packet filter if one was provided
-        if not aFilter.Trim.IsEmpty then     //TODO Centralize similar code in offline
-        begin
-          if pcap_compile(FPcapRT, @LFilterCode, PAnsiChar(AnsiString(aFilter)), 1, 0) < 0 then
-          begin
-            aPCAPCallBackError(aFileName,Format('Error compiling filter',[string(pcap_geterr(FPcapRT))]));
-            Exit;
-          end;  
-    
-          if pcap_setfilter(FPcapRT, @LFilterCode) < 0 then
-          begin
-            aPCAPCallBackError(aFileName,Format('Error setting filter',[string(pcap_geterr(FPcapRT))]));
-            Exit;
-          end;
-        end;
+        if not CheckWPcapFilter(FPcapRT,aFilename,aFilter,aPCAPCallBackError) then exit;
 
         // Start capturing packets and writing them to the output file
         pcap_loop(FPcapRT, -1, @PacketHandlerRealtime, nil);
@@ -361,6 +353,29 @@ begin
   Finally
     pcap_close(FPcapRT);
   End;
+end;
+
+Class function TPCAPUtils.CheckWPcapFilter(aHandlePcap : Ppcap_t;const aFileName,aFilter: string;aPCAPCallBackError:TPCAPCallBackError) : Boolean;
+var LFilterCode : BPF_program;  
+    LNetMask    : bpf_u_int32;
+begin
+  Result := False;
+  {Filter}
+  if Not aFilter.Trim.IsEmpty then
+  begin
+    if pcap_compile(aHandlePcap, @LFilterCode, PAnsiChar(AnsiString(aFilter)), 1, LNetMask) <> 0 then
+    begin
+      aPCAPCallBackError(aFileName,string(pcap_geterr(aHandlePcap)));            
+      Exit;
+    end;
+      
+    if pcap_setfilter(aHandlePcap,@LFilterCode) <>0 then
+    begin
+      aPCAPCallBackError(aFileName,string(pcap_geterr(aHandlePcap)));
+      Exit;
+    end;
+  end;
+  Result := True;
 end;
 
 class procedure TPCAPUtils.SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);
@@ -416,19 +431,8 @@ var LHandlePcap      : Ppcap_t;
     LHeader          : PTpcap_pkthdr;
     LPktData         : PByte;
     LResultPcapNext  : Integer;
-    LIPHdr           : PETHHdr;
-    LEthType         : Word;
-    LIPv6Hdr         : PIPv6Header;
     LLenAnalyze      : Int64;
     LTolSizePcap     : Int64;
-    LIPProtoMapping  : String;
-    LIPProto         : Word;
-    LIpSrc           : String;
-    LIpDst           : String;
-    LPortSrc         : Word;
-    LPortDst         : Word;    
-    LFilterCode      : BPF_program;  
-    LNetMask         : bpf_u_int32;
 
     Procedure DoPcapProgress(aTotalSize,aCurrentSize:Int64);
     begin
@@ -465,8 +469,9 @@ begin
     Exit;
   end;  
 
-  LTolSizePcap := FileGetSize(aFileName);  
-  LLenAnalyze  := 0;
+  LTolSizePcap         := FileGetSize(aFileName);  
+  FPCAPCallBackPacket  := aPCAPCallBackPacket;              
+  LLenAnalyze          := 0;
   DoPcapProgress(LTolSizePcap,0);
   
   LHandlePcap := pcap_open_offline(PAnsiChar(AnsiString(aFileName)), LErrbuf);
@@ -476,24 +481,9 @@ begin
     aPCAPCallBackError(aFileName,string(LErrbuf));
     Exit;
   end;
-
+  
   try
-    {Filter}
-    if Not afilter.Trim.IsEmpty then
-    begin
-      if pcap_compile(LHandlePcap, @LFilterCode, PAnsiChar(AnsiString(afilter)), 1, LNetMask) <> 0 then
-      begin
-        aPCAPCallBackError(aFileName,string(pcap_geterr(LHandlePcap)));            
-        Exit;
-      end;
-      
-      if pcap_setfilter(LHandlePcap,@LFilterCode) <>0 then
-      begin
-        aPCAPCallBackError(aFileName,string(pcap_geterr(LHandlePcap)));            
-        Exit;
-      end;
-    end;
-    
+    if not CheckWPcapFilter(LHandlePcap,aFilename,aFilter,aPCAPCallBackError) then exit;  
     // Loop over packets in PCAP file
     while True do
     begin
@@ -501,52 +491,11 @@ begin
       LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
       case LResultPcapNext of
         1:  // packet read correctly           
-          begin           
-            LIPProtoMapping := String.Empty;
-            LIPProto        := 0;
-            LIpSrc          := String.Empty;
-            LIpDst          := String.Empty;
-            LPortSrc        := 0;
-            LPortDst        := 0;            
-            Inc(LLenAnalyze,LHeader.len);
+          begin      
+            AnalyzePacketForCalLBack(LPktData,LHeader);
+            Inc(LLenAnalyze,LHeader^.Len);
             DoPcapProgress(LTolSizePcap,LLenAnalyze);
 
-            LIPHdr   := PETHHdr(LPktData);
-            LEthType := ntohs(LIPHdr.EtherType);
-                                    
-            case LEthType of
-              ETH_P_IP :
-                begin
-                  LIPProto        := PIPHeader(LPktData + ETH_HEADER_LEN).Protocol; 
-                  LIPProtoMapping := GetIPv4ProtocolName(LIPProto);
-                  LIpSrc          := intToIPV4(PIPHeader(LPktData + ETH_HEADER_LEN).SrcIP.Addr );
-                  LIpDst          := intToIPV4(PIPHeader(LPktData + ETH_HEADER_LEN).DestIP.Addr );
-
-                  //TODO other protocol
-                  case PIPHeader(LPktData + ETH_HEADER_LEN).Protocol of
-                    IPPROTO_UDP:
-                      begin 
-                        if IsL2TPPacketData(LPktData,LHeader.len) then
-                          LIPProtoMapping := 'L2PT';
-                      end;
-
-                      
-                  end;                  
-                end;
-              ETH_P_IPV6 : 
-                begin
-                  {IPv6}                       
-                  LIPv6Hdr         := PIPv6Header(LPktData + ETH_HEADER_LEN);
-                  LIPProto         := PIPHeader(LPktData + ETH_HEADER_LEN).Protocol;                   
-                  LIPProtoMapping  := GetIPv6ProtocolName(LIPProto);                    
-                  LIpSrc           := IPv6AddressToString(LIPv6Hdr.SourceAddress);
-                  LIpDst           := IPv6AddressToString(LIPv6Hdr.DestinationAddress); 
-                end;
-            end;
-
-            aPCAPCallBackPacket(LPktData,LHeader.len,UnixToDateTime(LHeader.ts.tv_sec,false),// Packet info
-                                       LEthType,GetEthAcronymName(LEthType),MACAddrToStr(LIPHdr.SrcAddr),MACAddrToStr(LIPHdr.DestAddr), //Eth info
-                                       LIPProto,LIPProtoMapping,LIpSrc,LIpDst,LPortSrc,LPortDst ); // IP info    
             if FAbort then break;
             
           end;

@@ -155,6 +155,9 @@ Type
     ///<param name="aPortDst">
     /// The destination port of the packet.
     ///</param>
+    ///<param name="aIdProtoDetected">
+    /// Internal ID for detected protocol 
+    ///</param>
     ///<remarks>
     /// This function inserts a network packet into the database. 
     /// The packet data is provided as a pointer and its length is specified.
@@ -167,7 +170,7 @@ Type
     ///</exception>
     procedure InsertPacket(const aPktData: PByte; aPktLen: LongWord; aPktDate: TDateTime; aEthType: Word;
       const atEthAcronym, aMacSrc, aMacDst: String; LaPProto: Word;
-      const aIPProtoMapping, aIpSrc, aIpDst: String; aPortSrc, aPortDst: Word);
+      const aIPProtoMapping, aIpSrc, aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
     ///<summary>
     /// Rolls back any pending transactions and closes the connection to the SQLite database.
     ///</summary>
@@ -246,8 +249,8 @@ begin
 end;
 
 procedure TWPcapDBBase.InitConnection;
-CONST SQL_INSERT = 'INSERT INTO PACKETS (PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IPPROTO, PROTOCOL, IP_SRC, IP_DST, PORT_SRC, PORT_DST, PACKET_DATA) '+slineBreak+
-                    'VALUES(:pLen,:pDate,:pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIpProto,:pProto,:pIpSrc,:pIpDst,:pPortSrc,:pPortDst,:pPacket)';
+CONST SQL_INSERT = 'INSERT INTO PACKETS (PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IPPROTO, PROTOCOL, IP_SRC, IP_DST, PORT_SRC, PORT_DST, PACKET_DATA,PROTO_DETECT) '+slineBreak+
+                    'VALUES(:pLen,:pDate,:pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIpProto,:pProto,:pIpSrc,:pIpDst,:pPortSrc,:pPortDst,:pPacket,:pProtoDetect)';
 begin
   FConnection                           := TFDConnection.Create( nil );
   FConnection.Params.Values['DriverID'] := GetDriverIDName;
@@ -299,7 +302,6 @@ procedure TWPcapDBBase.CreateDatabase(const aFilename, aUserName,aPassword,aTNS:
 var LTable   : TFdScript;
     I        : Integer;
 begin
-
   if not OpenDatabase(aFilename,aUserName,aPassword,aTNS) then 
     raise Exception.CreateFmt('Unable connect to database %s',[aFilename]);
 
@@ -325,22 +327,23 @@ end;
 procedure TWPcapDBBase.InsertPacket(const aPktData: PByte; aPktLen: LongWord;
   aPktDate: TDateTime; aEthType: Word; const atEthAcronym, aMacSrc,
   aMacDst: String; LaPProto: Word; const aIPProtoMapping, aIpSrc,
-  aIpDst: String; aPortSrc, aPortDst: Word);
+  aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
 var LMemoryStream : TMemoryStream;
 begin   
-  FFDQueryTmp.ParamByName('pLen').AsInteger     := aPktLen;
-  FFDQueryTmp.ParamByName('pDate').AsString     := DateTimeToStr(aPktDate);
-  FFDQueryTmp.ParamByName('pEthType').AsInteger := aEthType;
-  FFDQueryTmp.ParamByName('pEthAcr').AsString   := atEthAcronym;
-  FFDQueryTmp.ParamByName('pMacSrc').AsString   := aMacSrc;
-  FFDQueryTmp.ParamByName('pMacDst').AsString   := aMacDst;
-  FFDQueryTmp.ParamByName('pIpProto').AsInteger := LaPProto;
-  FFDQueryTmp.ParamByName('pProto').AsString    := aIPProtoMapping;
-  FFDQueryTmp.ParamByName('pIpSrc').AsString    := aIpSrc;  
-  FFDQueryTmp.ParamByName('pIpDst').AsString    := aIpDst;
-  FFDQueryTmp.ParamByName('pPortSrc').AsInteger := aPortSrc;  
-  FFDQueryTmp.ParamByName('pPortDst').AsInteger := aPortDst;  
-  FFDQueryTmp.ParamByName('pPacket').DataType   := ftBlob;
+  FFDQueryTmp.ParamByName('pLen').AsInteger         := aPktLen;
+  FFDQueryTmp.ParamByName('pDate').AsString         := DateTimeToStr(aPktDate);
+  FFDQueryTmp.ParamByName('pEthType').AsInteger     := aEthType;
+  FFDQueryTmp.ParamByName('pEthAcr').AsString       := atEthAcronym.Trim;
+  FFDQueryTmp.ParamByName('pMacSrc').AsString       := aMacSrc;
+  FFDQueryTmp.ParamByName('pMacDst').AsString       := aMacDst;
+  FFDQueryTmp.ParamByName('pIpProto').AsInteger     := LaPProto;
+  FFDQueryTmp.ParamByName('pProto').AsString        := aIPProtoMapping;
+  FFDQueryTmp.ParamByName('pIpSrc').AsString        := aIpSrc;  
+  FFDQueryTmp.ParamByName('pIpDst').AsString        := aIpDst;
+  FFDQueryTmp.ParamByName('pPortSrc').AsInteger     := aPortSrc;  
+  FFDQueryTmp.ParamByName('pPortDst').AsInteger     := aPortDst;  
+  FFDQueryTmp.ParamByName('pProtoDetect').AsInteger := aIdProtoDetected;    
+  FFDQueryTmp.ParamByName('pPacket').DataType       := ftBlob;
   LMemoryStream := TMemoryStream.Create; 
   Try
     LMemoryStream.WriteBuffer(aPktData^,aPktLen);

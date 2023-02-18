@@ -14,7 +14,7 @@ type
     class procedure DoPCAPCallBackPacket(const aPktData: PByte;
       aPktLen: LongWord; aPktDate: TDateTime; aEthType: Word;
       const atEthAcronym, aMacSrc, aMacDst: String; aIPProto: Word;
-      const aIPProtoMapping, aIpSrc, aIpDst: String; aPortSrc, aPortDst: Word);
+      const aIPProtoMapping, aIpSrc, aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
     class procedure DoPCAPCallBackEnd(const aFileName:String);
     class procedure DoPCAPCallBackError(const aFileName, aError: String); 
    public
@@ -57,9 +57,9 @@ implementation
 
 class procedure TPCAP2SQLite.DoPCAPCallBackPacket(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
                                                 aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
-                                                aIPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word);
+                                                aIPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word;aIdProtoDetected:byte);
 begin
-  FWPcapDBSqLite.InsertPacket(aPktData,aPktLen,aPktDate,aEthType,atEthAcronym, aMacSrc, aMacDst,aIPProto,aIPProtoMapping, aIpSrc, aIpDst,aPortSrc, aPortDst);
+  FWPcapDBSqLite.InsertPacket(aPktData,aPktLen,aPktDate,aEthType,atEthAcronym, aMacSrc, aMacDst,aIPProto,aIPProtoMapping, aIpSrc, aIpDst,aPortSrc, aPortDst,aIdProtoDetected);
 end;
 
 class procedure TPCAP2SQLite.DoPCAPCallBackError(const aFileName,aError:String);

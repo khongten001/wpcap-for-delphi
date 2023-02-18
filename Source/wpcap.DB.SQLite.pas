@@ -55,12 +55,14 @@ function TWPcapDBSqLite.GetSQLScriptDatabaseSchema: String;
                       '  IP_DST TEXT,                                                 '+sLineBreak+
                       '  PORT_SRC INTEGER,                                            '+sLineBreak+
                       '  PORT_DST NUMERIC,                                            '+sLineBreak+
+                      '  PROTO_DETECT INTEGER,                                        '+sLineBreak+                                            
                       '  PACKET_DATA BLOB                                             '+sLineBreak+
                       ');                                                             ';
                       
            SQL_INDEX = 'CREATE UNIQUE INDEX PACKETS_NPACKET_IDX ON PACKETS (NPACKET);  ';
 
-           SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS SELECT NPACKET, PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM,MAC_SRC, MAC_DST, IPPROTO, PROTOCOL, IP_SRC, IP_DST, PORT_SRC,PORT_DST FROM PACKETS;';
+           SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS SELECT NPACKET, PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM,MAC_SRC, MAC_DST,' +sLineBreak+
+                      ' PROTO_DETECT,IPPROTO, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL, IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST, PORT_SRC,PORT_DST FROM PACKETS;';
 {$ENDREGION}
 begin
 

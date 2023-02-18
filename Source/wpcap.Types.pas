@@ -260,19 +260,7 @@ type
     DestIP  : TIPAddress;  // Destination IP address
   end;
 
- //In this structure for UPD packet, the fields are:
- //
- //uh_sport: the source port (2 bytes)
- //uh_dport: the destination port (2 bytes)
- //uh_ulen : the length of the UDP datagram, header included (2 bytes)
- //uh_sum  : the UDP datagram checksum (2 bytes)
- PUDPHdr = ^TUDPHdr;
-  TUDPHdr = packed record
-    SrcPort   : Word;    // UDP source port
-    DstPort   : Word;    // UDP destination port
-    Lenght    : Word;    // UDP length
-    CheckSum  : Word;    // UDP checksum
-  end;  
+
   
   // This structure contains three fields:
   //

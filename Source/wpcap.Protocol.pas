@@ -2,7 +2,11 @@
 
 interface              
 
-uses wpcap.Conts,WinSock,System.SysUtils,wpcap.Types,Winapi.Winsock2;
+uses
+  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2, wpcap.Protocol.Base,
+  vcl.Graphics, wpcap.Graphics,wpcap.Protocol.DNS, wpcap.Protocol.UDP,System.Generics.Collections,
+  wpcap.Protocol.L2TP,wpcap.Protocol.NTP,wpcap.Protocol.MDNS,wpcap.Protocol.LLMNR;
+
 
 /// <summary>
 /// This function takes a 16-bit IPv6 protocol number and returns its name as a string. 
@@ -22,17 +26,6 @@ function GetIPv6ProtocolName(const Protocol: Byte): string;
 /// </summary>
 function GetIPv4ProtocolName(protocol: Word): string;
  
-/// <summary>
-/// Functions that recognize the NTP protocol   TODO dosnt work
-/// </summary>
-function IsNTPPacket(packet: PByte; packetLen: Integer): Boolean;
-
-/// <summary>
-/// This function takes a pointer to the packet and its length in bytes e
-/// returns True if packet is L2TP Data (does not handle l2TP Command), False otherwise.
-/// It is assumed that the ethernet header is not included in the packet.
-/// </summary>
-function IsL2TPPacketData(const aData: PByte; aSize: Integer): Boolean;
 
 /// <summary>
 ///  Returns a string representing of acronym of the Ethernet protocol identified by the given protocol value.
@@ -42,7 +35,75 @@ function IsL2TPPacketData(const aData: PByte; aSize: Integer): Boolean;
 /// </summary>
 function GetEthAcronymName(protocol: Word): string;
 
+/// <summary>
+/// Returns the color associated with a given IP protocol value, limited to a specific set of protocols.
+/// </summary>
+/// <param name="aEthType">The ETH type value to get the color for.</param>
+/// <param name="aprotocol">The IP protocol value to get the color for.</param>
+/// <param name="aBackGroundColor">Return TColor</param>
+/// <param name="aFontColor">Return TColor for font</param>///
+/// <returns>True if found a color for Protocol</returns>
+function GetProtocolColor(aEthType,aProtocol: Word;var aBackGroundColor:TColor;var aFontColor:TColor): boolean;
+
+
+function IsDropboxPacket(const aUDPPtr: PUDPHdr): Boolean;
+
+function AnalyzeUDPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;
+
+
+
 implementation
+
+function GetProtocolColor(aEthType,aProtocol: Word;var aBackGroundColor:TColor;var aFontColor:TColor): boolean;
+CONST TCP_COLOR   = 16704998;
+      UDP_COLOR   = 16772826;
+      COLOR_ICMP  = 16769276;
+begin
+  Result := True;
+
+  case aEthType of
+     ETH_P_IP : 
+      begin
+        case aProtocol of
+          IPPROTO_ICMPV6,
+          IPPROTO_ICMP   : aBackGroundColor := COLOR_ICMP;
+          IPPROTO_IGMP   : aBackGroundColor := $00FFFF; // Cyan
+          IPPROTO_GGP    : aBackGroundColor := $FFD700; // Gold
+          IPPROTO_TCP    : aBackGroundColor := TCP_COLOR; 
+          IPPROTO_UDP    : aBackGroundColor := UDP_COLOR; 
+          IPPROTO_IPV6   : aBackGroundColor := $B0C4DE; // LightSteelBlue
+          IPPROTO_PUP    : aBackGroundColor := $FFE4E1; // MistyRose
+          IPPROTO_IDP    : aBackGroundColor := $9370DB; // MediumPurple
+          IPPROTO_GRE    : aBackGroundColor := $FFC0CB; // Pink
+          IPPROTO_ESP    : aBackGroundColor := $D8BFD8; // Thistle
+          IPPROTO_AH     : aBackGroundColor := $FFB6C1; // LightPink
+          IPPROTO_ROUTING: aBackGroundColor := $FFFACD; // LemonChiffon
+          IPPROTO_PGM    : aBackGroundColor := $D2B48C; // Tan
+          IPPROTO_SCTP   : aBackGroundColor := $87CEEB; // SkyBlue
+          IPPROTO_RAW    : aBackGroundColor := $F5DEB3; // Wheat
+        else
+          Result := False;
+        end;      
+      end;
+     ETH_P_IPV6 :
+      case aProtocol of
+          0,
+          129 : aBackGroundColor := COLOR_ICMP; //ICMP
+          4   : aBackGroundColor := TCP_COLOR;  //TCP
+          6   : aBackGroundColor := UDP_COLOR;  //TCP
+      else
+        Result := False;              
+      end;
+      ETH_P_ARP : aBackGroundColor := 14151930; //ARP
+
+  else
+    Result := False;
+  end;
+
+  if Result then
+    aFontColor := GetFontColor(aBackGroundColor);
+end;
+
 
 function GetIPv6ProtocolName(const Protocol: Byte): string;
 const
@@ -161,87 +222,64 @@ begin
   end;
 end;
 
-
-function IsNTPPacket(packet: PByte; packetLen: Integer): Boolean;
-type
-  TNTPHeader = packed record
-    LI_VN_MODE    : Byte;
-    Stratum       : Byte;
-    Poll          : Byte;
-    Precision     : Byte;
-    RootDelay     : Cardinal;
-    RootDispersion: Cardinal;
-    ReferenceID   : Cardinal;
-    ReferenceTS   : array[0..7] of Byte;
-    OriginateTS   : array[0..7] of Byte;
-    ReceiveTS     : array[0..7] of Byte;
-    TransmitTS    : array[0..7] of Byte;
-  end;
-  PNTPHeader = ^TNTPHeader;
-  
-var ntpHeader: PNTPHeader;
+function AnalyzeUDPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;
+var LUDPPtr        : PUDPHdr;
+    LUDPPayLoad    : PByte;
+    I              : Integer;
 begin
-  Result := False;
-  if packetLen < SizeOf(TNTPHeader) then Exit;
+  Result        := False;
+  if not GetHeaderUDP(aData,aSize,LUDPPtr) then exit;
+  
+  aIdProtoDetected := DETECT_PROTO_UDP;
+  LUDPPayLoad      := GetUDPPayLoad(aData);
 
-  ntpHeader := PNTPHeader(packet);
-  if (ntpHeader^.LI_VN_MODE and $38) = $18 then // Check the value of the LI_VN_MODE field
+  {HOW can use a List ??}  
+  if TWPcapProtocolL2TP.IsValid(LUDPPtr,LUDPPayLoad,aArcronymName,aIdProtoDetected) then
+  begin
+    Result := true;
+    Exit;
+  end;
+
+  if IsDropboxPacket(LUDPPtr) then
+  begin
+    Result := true;
+    Exit;
+  end;  
+
+  if TWPcapProtocolDNS.IsValid(LUDPPtr,LUDPPayLoad,aArcronymName,aIdProtoDetected) then
+  begin
+    Result := true;
+    Exit;
+  end;  
+
+  if TWPcapProtocolNTP.IsValid(LUDPPtr,LUDPPayLoad,aArcronymName,aIdProtoDetected) then
+  begin
     Result := True;
+    Exit;
+  end;  
+
+  if TWPcapProtocolMDNS.IsValid(LUDPPtr,LUDPPayLoad,aArcronymName,aIdProtoDetected) then
+  begin
+    Result := True;
+    Exit;
+  end;  
+
+  if TWPcapProtocolLLMNR.IsValid(LUDPPtr,LUDPPayLoad,aArcronymName,aIdProtoDetected) then
+  begin
+    Result := True;
+    Exit;
+  end;  
+  
 end;
 
-
-function IsL2TPPacketData(const aData: PByte; aSize: Integer): Boolean;
-const L2TP_MAGIC_COOKIE = 3355574314; 
-      L2TP_VERSION      = 2;  
-type
-  PL2TPHdr = ^TL2TPHdr;
-  TL2TPHdr = packed record
-    Flags     : Byte;      
-    Version   : Byte;
-    Length    : Word;
-    TunnelId  : Word;
-    SessionId : Word; 
-    Ns        : Byte;
-    Nr        : Byte;
-    OffsetSize: Word;
-  end;
-
-var LEthHdr  : PETHHdr;
-    LIPHdr   : PIPHeader;
-    LIPv6Hdr : PIPv6Header;
-    LUDPPtr  : PUDPHdr;
-    LL2TPHdr : PL2TPHdr;
-    Lcoockie : Pcardinal;
+function IsDropboxPacket(const aUDPPtr: PUDPHdr): Boolean;
 begin
-  Result := False;
-
-  if (aSize < ETH_HEADER_LEN + SizeOf(TIPHeader) + SizeOf(TUDPHdr)) then  Exit;
-
-  LEthHdr := PETHHdr(aData);
-  if ntohs(LEthHdr.EtherType) = ETH_P_IP then
-  begin
-    LIPHdr := PIPHeader(aData + ETH_HEADER_LEN);
-    if LIPHdr.Protocol <> IPPROTO_UDP then Exit;
-
-    LUDPPtr   := PUDPHdr(AData + ETH_HEADER_LEN + SizeOf(TIPHeader));    
-    LL2TPHdr  := PL2TPHdr(AData +ETH_HEADER_LEN + SizeOf(TIPHeader)+ SizeOf(TUDPHdr));
-    {4 byte after UDP header for test L2TP_MAGIC_COOKIE}
-    Lcoockie  := PCardinal(AData + ETH_HEADER_LEN + SizeOf(TIPHeader)+SizeOf(TUDPHdr));
-    
-    if ntohl(Lcoockie^) <> L2TP_MAGIC_COOKIE then Exit;
-
-    Result := ( LL2TPHdr.version = L2TP_VERSION) and 
-              ( ntohs(LL2TPHdr.length) = ntohs(LUDPPtr.Lenght)-8)  
-  end
-  else if ntohs(LEthHdr.EtherType) = ETH_P_IPV6 then
-  begin
-    {TODO PCAP for test}
-    if aSize < ETH_HEADER_LEN + SizeOf(TIPv6Header) then Exit;
-
-    LIPv6Hdr := PIPv6Header(aData + ETH_HEADER_LEN);
-    if LIPv6Hdr.NextHeader = IPPROTO_L2TP then
-      Result := True;
-  end;
+  {  by NDPI reader
+   if(protocol == IPPROTO_UDP) {
+    if((sport == dport) && (sport == 17500)) {
+      return(NDPI_PROTOCOL_DROPBOX);
+  }
+  Result := (aUDPPtr.SrcPort = aUDPPtr.DstPort) and (aUDPPtr.SrcPort = 17500);    
 end;
 
 
