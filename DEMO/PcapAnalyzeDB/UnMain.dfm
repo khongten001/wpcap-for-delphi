@@ -19,12 +19,13 @@ object FormMain: TFormMain
   object GridPcap: TcxGrid
     Left = 0
     Top = 65
-    Width = 630
+    Width = 656
     Height = 582
     Align = alClient
     TabOrder = 0
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
+    ExplicitWidth = 630
     ExplicitHeight = 580
     object GridPcapDBTableView1: TcxGridDBTableView
       Navigator.Buttons.CustomButtons = <>
@@ -32,6 +33,7 @@ object FormMain: TFormMain
       FindPanel.Layout = fplCompact
       FindPanel.Location = fplGroupByBox
       ScrollbarAnnotations.CustomAnnotations = <>
+      OnCustomDrawCell = GridPcapDBTableView1CustomDrawCell
       OnFocusedRecordChanged = GridPcapDBTableView1FocusedRecordChanged
       DataController.DataSource = DsGrid
       DataController.Summary.DefaultGroupSummaryItems = <
@@ -42,6 +44,7 @@ object FormMain: TFormMain
       DataController.Summary.FooterSummaryItems = <
         item
           Kind = skSum
+          OnGetText = GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText
           Column = GridPcapDBTableView1PACKET_LEN
         end>
       DataController.Summary.SummaryGroups = <>
@@ -87,10 +90,12 @@ object FormMain: TFormMain
       object GridPcapDBTableView1PORT_DST: TcxGridDBColumn
         Caption = 'Port dst'
         DataBinding.FieldName = 'PORT_DST'
+        Width = 70
       end
       object GridPcapDBTableView1PROTOCOL: TcxGridDBColumn
         Caption = 'Protocol'
         DataBinding.FieldName = 'PROTOCOL'
+        Width = 77
       end
       object GridPcapDBTableView1PACKET_LEN: TcxGridDBColumn
         Caption = 'Len'
@@ -134,33 +139,22 @@ object FormMain: TFormMain
     Width = 1201
   end
   object cxSplitter1: TcxSplitter
-    Left = 630
+    Left = 656
     Top = 65
     Width = 10
     Height = 582
     AlignSplitter = salRight
-    Control = MemoHex
-  end
-  object MemoHex: TcxMemo
-    Left = 640
-    Top = 65
-    Align = alRight
-    Lines.Strings = (
-      '')
-    ParentShowHint = False
-    Properties.ReadOnly = True
-    Properties.ScrollBars = ssBoth
-    ShowHint = True
-    TabOrder = 3
-    Height = 582
-    Width = 561
+    Control = PHexMemo
+    ExplicitLeft = 647
+    ExplicitTop = 68
+    ExplicitHeight = 579
   end
   object cxGroupBox1: TcxGroupBox
     Left = 0
     Top = 22
     Align = alTop
     PanelStyle.Active = True
-    TabOrder = 8
+    TabOrder = 7
     Height = 43
     Width = 1201
     object cxLabel1: TcxLabel
@@ -184,6 +178,44 @@ object FormMain: TFormMain
       ShowHint = True
       TabOrder = 1
       Width = 1067
+    end
+  end
+  object PHexMemo: TcxGroupBox
+    Left = 666
+    Top = 65
+    Align = alRight
+    PanelStyle.Active = True
+    TabOrder = 8
+    ExplicitLeft = 656
+    ExplicitTop = 68
+    ExplicitHeight = 579
+    Height = 582
+    Width = 535
+    object MemoHex: TcxMemo
+      Left = 4
+      Top = 26
+      Align = alClient
+      Lines.Strings = (
+        '')
+      ParentShowHint = False
+      Properties.ReadOnly = True
+      Properties.ScrollBars = ssBoth
+      ShowHint = True
+      TabOrder = 0
+      ExplicitLeft = 640
+      ExplicitTop = 65
+      ExplicitWidth = 561
+      ExplicitHeight = 571
+      Height = 552
+      Width = 527
+    end
+    object dxBarDockControl1: TdxBarDockControl
+      Left = 4
+      Top = 4
+      Width = 527
+      Height = 22
+      Align = dalTop
+      BarManager = dxBarManager1
     end
   end
   object OpenDialog1: TOpenDialog
@@ -254,6 +286,33 @@ object FormMain: TFormMain
       Visible = True
       WholeRow = True
     end
+    object dxBarManager1Bar2: TdxBar
+      AllowClose = False
+      AllowCustomizing = False
+      AllowQuickCustomizing = False
+      AllowReset = False
+      Caption = 'MenuHex'
+      CaptionButtons = <>
+      DockControl = dxBarDockControl1
+      DockedDockControl = dxBarDockControl1
+      DockedLeft = 0
+      DockedTop = 0
+      FloatLeft = 1128
+      FloatTop = 2
+      FloatClientWidth = 0
+      FloatClientHeight = 0
+      ItemLinks = <
+        item
+          Visible = True
+          ItemName = 'BSavePacket'
+        end>
+      NotDocking = [dsNone, dsLeft, dsTop, dsRight, dsBottom]
+      OneOnRow = True
+      Row = 0
+      UseOwnFont = False
+      Visible = True
+      WholeRow = True
+    end
     object BSavePCAP: TdxBarButton
       Caption = 'Save PCAP'
       Category = 0
@@ -281,6 +340,15 @@ object FormMain: TFormMain
       ImageIndex = 2
       PaintStyle = psCaptionGlyph
       OnClick = BStartRecordingClick
+    end
+    object BSavePacket: TdxBarButton
+      Caption = 'Save packet'
+      Category = 0
+      Hint = 'Save packet'
+      Visible = ivAlways
+      ImageIndex = 1
+      PaintStyle = psCaptionGlyph
+      OnClick = BSavePacketClick
     end
   end
   object cxImageList1: TcxImageList

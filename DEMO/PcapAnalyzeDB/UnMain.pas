@@ -3,9 +3,9 @@
 interface
                                                             
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,System.UITypes,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, 
-  Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,
+  Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,wpcap.Graphics,
   cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,DateUtils,
   cxGrid,  cxLookAndFeels,wpcap.Wrapper,wpcap.Filter,System.Generics.Collections,
   cxLookAndFeelPainters, dxSkinsCore, cxStyles, cxFilter, cxData, cxDataStorage,
@@ -16,7 +16,7 @@ uses
   FireDAC.VCLUI.Wait, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf,
   FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,
   FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView, wpcap.DB.SQLite,
-  FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,
+  FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,wpcap.Protocol,
   FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,
   cxTextEdit, cxMemo, cxSplitter, dxBar, System.ImageList, Vcl.ImgList,
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox;
@@ -43,7 +43,6 @@ type
     GridPcapDBTableView1PORT_SRC: TcxGridDBColumn;
     GridPcapDBTableView1PORT_DST: TcxGridDBColumn;
     cxSplitter1: TcxSplitter;
-    MemoHex: TcxMemo;
     dxBarManager1: TdxBarManager;
     dxBarManager1Bar1: TdxBar;
     BSavePCAP: TdxBarButton;
@@ -55,6 +54,11 @@ type
     cxLabel1: TcxLabel;
     EFilter: TcxTextEdit;
     BStartRecording: TdxBarButton;
+    PHexMemo: TcxGroupBox;
+    MemoHex: TcxMemo;
+    dxBarDockControl1: TdxBarDockControl;
+    dxBarManager1Bar2: TdxBar;
+    BSavePacket: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -69,10 +73,15 @@ type
     procedure BLoadPCAPClick(Sender: TObject);
     procedure BSavePCAPClick(Sender: TObject);
     procedure BStartRecordingClick(Sender: TObject);
+    procedure GridPcapDBTableView1CustomDrawCell(Sender: TcxCustomGridTableView;
+      ACanvas: TcxCanvas; AViewInfo: TcxGridTableDataCellViewInfo;
+      var ADone: Boolean);
+    procedure BSavePacketClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLite;
     FPCAPUtils     : TPCAPUtils;
+    FLastPercProg  : Byte;
     procedure OpenPcap(const aFileName: String);
     procedure SetPositionProgressBar(aNewPos: Int64);
     procedure DoPCAPOfflineCallBackEnd(const aFileName: String);
@@ -92,10 +101,15 @@ uses UnFormRecording;
 {$R *.dfm}
 
 Procedure TFormMain.SetPositionProgressBar(aNewPos : Int64);
+var LPercProg: Byte;
 begin
   cxProgressBar1.Position := aNewPos;
-  if Trunc( (aNewPos * 100) / cxProgressBar1.Properties.Max) Mod 5 = 0 then                
-    cxProgressBar1.Update
+
+  LPercProg := Trunc( (aNewPos * 100) / cxProgressBar1.Properties.Max);
+
+  if (LPercProg Mod 5 = 0) and (FLastPercProg <> LPercProg) then                
+    cxProgressBar1.Update;
+  FLastPercProg := LPercProg;
 end;
                                                                                                   
 procedure TFormMain.DoPCAPOfflineCallBackError(const aFileName,aError:String);
@@ -204,6 +218,7 @@ end;
 
 procedure TFormMain.BLoadPCAPClick(Sender: TObject);
 begin
+  OpenDialog1.Filter := 'Pcap file|*.pcap|All files|*.*';
   if OpenDialog1.Execute then
     OpenPcap(OpenDialog1.FileName);
 end;
@@ -215,6 +230,8 @@ var I                : Integer;
     LPcketSize       : Integer;
     LPacketToDump    : PTPacketToDump;
 begin
+  SaveDialog1.Filter     := 'Pcap file|*.pcap';
+  SaveDialog1.DefaultExt := '.pcap'; 
   if SaveDialog1.Execute then
   begin
     LListPacket := TList<PTPacketToDump>.Create;
@@ -254,6 +271,63 @@ begin
    Finally
      FreeAndNil(aFormRecording);
    End;
+end;
+
+procedure TFormMain.GridPcapDBTableView1CustomDrawCell(
+  Sender: TcxCustomGridTableView; ACanvas: TcxCanvas;
+  AViewInfo: TcxGridTableDataCellViewInfo; var ADone: Boolean);
+var LColor     : TColor;
+    LFontColor : TColor;
+begin
+  if AViewInfo.GridRecord.Selected then Exit;
+  if not GetProtocolColor(AViewInfo.GridRecord.Values[GridPcapDBTableView1ETH_TYPE.Index],AViewInfo.GridRecord.Values[GridPcapDBTableView1IPPROTO.Index],LColor,LFontColor) then exit;
+
+  ACanvas.Brush.Color := LColor;
+  ACanvas.Font.Color  := LFontColor;
+end;
+
+procedure TFormMain.BSavePacketClick(Sender: TObject);
+var LListPacket      : TList<PTPacketToDump>;
+    LPacket          : PByte;
+    LPcketSize       : Integer;
+    LPacketToDump    : PTPacketToDump;
+begin
+  SaveDialog1.Filter     := 'Pcap file|*.pcap|Text file|*.txt';
+  SaveDialog1.DefaultExt := '.pcap'; 
+  if SaveDialog1.Execute then
+  begin
+    case SaveDialog1.FilterIndex of
+      1 : begin
+            if GridPcapDBTableView1.Controller.SelectedRowCount = 0 then
+            begin
+              MessageDlg('No row selected',mtWarning,[mbOK],0);
+              Exit;
+            end;
+        
+            LListPacket := TList<PTPacketToDump>.Create;
+            Try
+              LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.Controller.SelectedRows[0].Values[GridPcapDBTableView1NPACKET.Index],LPcketSize);
+              if Assigned(LPacket) then
+              begin
+                New(LPacketToDump);
+                LPacketToDump.PacketLen := LPcketSize;
+                LPacketToDump.packet    := LPacket;
+                LPacketToDump.tv_sec    := DateTimeToUnix(StrToDateTime(GridPcapDBTableView1.Controller.SelectedRows[0].Values[GridPcapDBTableView1PACKET_DATE.Index]),False);            
+                LListPacket.Add(LPacketToDump);        
+              end;
+
+              if LListPacket.Count > 0 then
+                FPCAPUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
+            Finally
+              FreeAndNil(LListPacket);
+            End;
+      
+          end;
+      2: MemoHex.Lines.SaveToFile(ChangeFileExt(SaveDialog1.FileName,'.txt'));
+    end;
+
+  end;
+
 end;
 
 end.

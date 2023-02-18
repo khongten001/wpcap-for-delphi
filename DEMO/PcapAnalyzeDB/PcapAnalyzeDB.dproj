@@ -118,6 +118,14 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\wpcap.NetDevice.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.Graphics.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.DNS.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.UDP.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.L2TP.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.NTP.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.Protocol.Base.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.MDNS.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.LLMNR.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

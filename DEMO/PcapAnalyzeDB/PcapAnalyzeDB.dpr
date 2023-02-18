@@ -15,7 +15,15 @@ uses
   wpcap.Filter in '..\..\Source\wpcap.Filter.pas',
   wpcap.DB.Base in '..\..\Source\wpcap.DB.Base.pas',
   UnFormRecording in 'UnFormRecording.pas' {FormRecording},
-  wpcap.NetDevice in '..\..\Source\wpcap.NetDevice.pas';
+  wpcap.NetDevice in '..\..\Source\wpcap.NetDevice.pas',
+  wpcap.Graphics in '..\..\Source\wpcap.Graphics.pas',
+  wpcap.Protocol.DNS in '..\..\Source\Protocols\wpcap.Protocol.DNS.pas',
+  wpcap.Protocol.UDP in '..\..\Source\Protocols\wpcap.Protocol.UDP.pas',
+  wpcap.Protocol.L2TP in '..\..\Source\Protocols\wpcap.Protocol.L2TP.pas',
+  wpcap.Protocol.NTP in '..\..\Source\Protocols\wpcap.Protocol.NTP.pas',
+  wpcap.Protocol.Base in '..\..\Source\wpcap.Protocol.Base.pas',
+  wpcap.Protocol.MDNS in '..\..\Source\Protocols\wpcap.Protocol.MDNS.pas',
+  wpcap.Protocol.LLMNR in '..\..\Source\Protocols\wpcap.Protocol.LLMNR.pas';
 
 {$R *.res}
 

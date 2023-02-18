@@ -37,7 +37,7 @@ type
     procedure DoPCAPCallBackPacket(const aPktData: PByte; aPktLen: LongWord;
       aPktDate: TDateTime; aEthType: Word; const atEthAcronym, aMacSrc,
       aMacDst: String; aIPProto: Word; const aIPProtoMapping, aIpSrc,
-      aIpDst: String; aPortSrc, aPortDst: Word);
+      aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
     procedure DestroyDatabase;
     { Private declarations }
   public
@@ -81,9 +81,9 @@ end;
 
 procedure TFormRecording.DoPCAPCallBackPacket(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
                                                 aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
-                                                aIPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word);
+                                                aIPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word;aIdProtoDetected:byte);
 begin
-  FWPcapDBSqLite.InsertPacket(aPktData,aPktLen,aPktDate,aEthType,atEthAcronym, aMacSrc, aMacDst,aIPProto,aIPProtoMapping, aIpSrc, aIpDst,aPortSrc, aPortDst);
+  FWPcapDBSqLite.InsertPacket(aPktData,aPktLen,aPktDate,aEthType,atEthAcronym, aMacSrc, aMacDst,aIPProto,aIPProtoMapping, aIpSrc, aIpDst,aPortSrc, aPortDst,aIdProtoDetected);
 end;
 
 
