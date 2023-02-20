@@ -23,6 +23,7 @@ The package contains several units including:
 + **wpcap.Level.Eth:**  which contains class for Ethernet level
 + **wpcap.Level.IP:**  which contains class for IP level
 + **wpcap.IANA.DBPort:**  which contains databse of IANA Db Port to Protocol name
++ **wpcap.Packet.pas:** witch contains internal structure for packet analisys
 
 
 
