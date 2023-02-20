@@ -1,7 +1,7 @@
 # wpcap-for-delphi
 The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
-![image](https://user-images.githubusercontent.com/11525545/219884447-c06aa71f-17cf-47e2-9304-8a3eb7126f2a.png)
+![image](https://user-images.githubusercontent.com/11525545/219985631-ab9cd5a4-b956-4a6f-bb6a-322ad786fb35.png)
 
 
 The package contains several units including: 
@@ -20,14 +20,17 @@ The package contains several units including:
 + **wpcap.NetDevice:**  which contains function for managing network inteface.
 + **wpcap.Protocol.Base:**  which contains base class engine for protocol detection
 + **wpcap.Graphics:**  which contains function for colors
++ **wpcap.Level.Eth:**  which contains class for Ethernet level
++ **wpcap.Level.IP:**  which contains class for IP level
++ **wpcap.IANA.DBPort:**  which contains databse of IANA Db Port to Protocol name
+
 
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
 # DEMO
 
-The demo project uses DevExpress libraries
-
+The demo project uses DevExpress libraries at moment only Database demo is supported
 
 # TODO LIST
 
@@ -35,16 +38,45 @@ The demo project uses DevExpress libraries
 + Aborto loading
 + Query bulder 
 + Packet detail 
+  + ETH --> OK
+  + IP
+    + IPV4 --> OK
+    + IPV6 --> To finish
+  + UPD --> TODO
+  + TCP --> TODO
+  + DETECTED --> TODO
+  + OTHERS --> TODO
 + TcpFlow 
 + UdpFlow
-+ Port for TCP protocol
 + Realtime capture 
+  
 + geoIp with map
++ Whois online ??
 
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
-+ Grid with port TCP
 
+# TODO Other protocols
+
++ STUN
++ HTTP
++ HTTPS
++ IMAP
++ IMAPS
++ POP3
++ POP3S
++ SMTP
++ SMTPS
++ FTP
++ FTP-DATA
++ TFTP
++ DHCP
++ NETBIOS
++ OpenVPN
++ Wiregurad
++ TELNET
++ ICMP
++ OTHERS...
 
 
 
