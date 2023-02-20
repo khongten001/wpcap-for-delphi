@@ -6,10 +6,10 @@ uses
   FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.StrUtils,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Stan.Option, System.Classes,
   FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def,
-  FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,
-  FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt,
-  FireDAC.Comp.Script, FireDAC.Comp.Client, Data.DB, FireDAC.Comp.DataSet,
-  FireDAC.Phys.SQLite,System.SysUtils;
+  FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,wpcap.Level.IP,
+  FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt,wpcap.Types,
+  FireDAC.Comp.Script, FireDAC.Comp.Client, Data.DB, FireDAC.Comp.DataSet,wpcap.Level.Eth,
+  FireDAC.Phys.SQLite,System.SysUtils,wpcap.Packet,Math,System.Generics.Collections;
 
 Type
   TWPcapDBBase = Class(TObject)
@@ -116,47 +116,8 @@ Type
     ///<summary>
     /// Inserts a network packet into the database.
     ///</summary>
-    ///<param name="aPktData">
-    /// A pointer to the packet data.
-    ///</param>
-    ///<param name="aPktLen">
-    /// The length of the packet data.
-    ///</param>
-    ///<param name="aPktDate">
-    /// The date and time the packet was captured.
-    ///</param>
-    ///<param name="aEthType">
-    /// The Ethernet type of the packet.
-    ///</param>
-    ///<param name="atEthAcronym">
-    /// The acronym for the Ethernet type of the packet.
-    ///</param>
-    ///<param name="aMacSrc">
-    /// The source MAC address of the packet.
-    ///</param>
-    ///<param name="aMacDst">
-    /// The destination MAC address of the packet.
-    ///</param>
-    ///<param name="LaPProto">
-    /// The protocol of the packet at the link layer.
-    ///</param>
-    ///<param name="aIPProtoMapping">
-    /// The mapping of the IP protocol of the packet.
-    ///</param>
-    ///<param name="aIpSrc">
-    /// The source IP address of the packet.
-    ///</param>
-    ///<param name="aIpDst">
-    /// The destination IP address of the packet.
-    ///</param>
-    ///<param name="aPortSrc">
-    /// The source port of the packet.
-    ///</param>
-    ///<param name="aPortDst">
-    /// The destination port of the packet.
-    ///</param>
-    ///<param name="aIdProtoDetected">
-    /// Internal ID for detected protocol 
+    ///<param name="aInternalPacket">
+    /// A pointer to internal packet structure.
     ///</param>
     ///<remarks>
     /// This function inserts a network packet into the database. 
@@ -168,9 +129,7 @@ Type
     ///<exception cref="EDatabaseError">
     /// An EDatabaseError exception is raised if an error occurs while inserting the packet.
     ///</exception>
-    procedure InsertPacket(const aPktData: PByte; aPktLen: LongWord; aPktDate: TDateTime; aEthType: Word;
-      const atEthAcronym, aMacSrc, aMacDst: String; LaPProto: Word;
-      const aIPProtoMapping, aIpSrc, aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
+    procedure InsertPacket(const aInternalPacket : PTInternalPacket);
     ///<summary>
     /// Rolls back any pending transactions and closes the connection to the SQLite database.
     ///</summary>
@@ -215,7 +174,7 @@ Type
     /// </summary>
     /// <param name="aNPacket">The number of packet to display (starting from 0)</param>
     /// <returns>A list of string containing the hexadecimal dump of the packet data</returns>
-    function GetListHexPacket(aNPacket: Integer): TArray<String>;        
+    function GetListHexPacket(aNPacket: Integer;var aListDetail:TList<THeaderString>): TArray<String>;        
    
     property Connection  : TFDConnection read FConnection  write FConnection;  
     
@@ -249,8 +208,8 @@ begin
 end;
 
 procedure TWPcapDBBase.InitConnection;
-CONST SQL_INSERT = 'INSERT INTO PACKETS (PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IPPROTO, PROTOCOL, IP_SRC, IP_DST, PORT_SRC, PORT_DST, PACKET_DATA,PROTO_DETECT) '+slineBreak+
-                    'VALUES(:pLen,:pDate,:pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIpProto,:pProto,:pIpSrc,:pIpDst,:pPortSrc,:pPortDst,:pPacket,:pProtoDetect)';
+CONST SQL_INSERT = 'INSERT INTO PACKETS (PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IPPROTO, PROTOCOL, IP_SRC, IP_DST, PORT_SRC, PORT_DST, PACKET_DATA,PROTO_DETECT,IANA_PROTO,IS_IPV6) '+slineBreak+
+                    'VALUES(:pLen,:pDate,:pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIpProto,:pProto,:pIpSrc,:pIpDst,:pPortSrc,:pPortDst,:pPacket,:pProtoDetect,:pProtoIANA,:pIsIPV6)';
 begin
   FConnection                           := TFDConnection.Create( nil );
   FConnection.Params.Values['DriverID'] := GetDriverIDName;
@@ -324,29 +283,45 @@ begin
    CreateDatabase(aFilename,String.Empty,String.Empty,String.Empty)
 end;
 
-procedure TWPcapDBBase.InsertPacket(const aPktData: PByte; aPktLen: LongWord;
-  aPktDate: TDateTime; aEthType: Word; const atEthAcronym, aMacSrc,
-  aMacDst: String; LaPProto: Word; const aIPProtoMapping, aIpSrc,
-  aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
+procedure TWPcapDBBase.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
 begin   
-  FFDQueryTmp.ParamByName('pLen').AsInteger         := aPktLen;
-  FFDQueryTmp.ParamByName('pDate').AsString         := DateTimeToStr(aPktDate);
-  FFDQueryTmp.ParamByName('pEthType').AsInteger     := aEthType;
-  FFDQueryTmp.ParamByName('pEthAcr').AsString       := atEthAcronym.Trim;
-  FFDQueryTmp.ParamByName('pMacSrc').AsString       := aMacSrc;
-  FFDQueryTmp.ParamByName('pMacDst').AsString       := aMacDst;
-  FFDQueryTmp.ParamByName('pIpProto').AsInteger     := LaPProto;
-  FFDQueryTmp.ParamByName('pProto').AsString        := aIPProtoMapping;
-  FFDQueryTmp.ParamByName('pIpSrc').AsString        := aIpSrc;  
-  FFDQueryTmp.ParamByName('pIpDst').AsString        := aIpDst;
-  FFDQueryTmp.ParamByName('pPortSrc').AsInteger     := aPortSrc;  
-  FFDQueryTmp.ParamByName('pPortDst').AsInteger     := aPortDst;  
-  FFDQueryTmp.ParamByName('pProtoDetect').AsInteger := aIdProtoDetected;    
+  FFDQueryTmp.ParamByName('pLen').AsInteger         := aInternalPacket.PacketSize;
+  FFDQueryTmp.ParamByName('pDate').AsString         := DateTimeToStr(aInternalPacket.PacketDate);
+  FFDQueryTmp.ParamByName('pEthType').AsInteger     := aInternalPacket.Eth.EtherType;
+  FFDQueryTmp.ParamByName('pEthAcr').AsString       := aInternalPacket.Eth.Acronym.Trim;
+  FFDQueryTmp.ParamByName('pMacSrc').AsString       := aInternalPacket.Eth.SrcAddr;
+  FFDQueryTmp.ParamByName('pMacDst').AsString       := aInternalPacket.Eth.DestAddr;
+  FFDQueryTmp.ParamByName('pIpProto').AsInteger     := aInternalPacket.IP.IpProto;
+  FFDQueryTmp.ParamByName('pPortSrc').AsInteger     := aInternalPacket.IP.PortSrc;  
+  FFDQueryTmp.ParamByName('pPortDst').AsInteger     := aInternalPacket.IP.PortDst;  
+  FFDQueryTmp.ParamByName('pIsIPV6').AsInteger      := ifthen(aInternalPacket.IP.IsIPv6,1,0);  
+  FFDQueryTmp.ParamByName('pProtoDetect').AsInteger := aInternalPacket.IP.DetectedIPProto;    
+  FFDQueryTmp.ParamByName('pProtoIANA').AsString    := aInternalPacket.IP.IANAProtoStr;  
   FFDQueryTmp.ParamByName('pPacket').DataType       := ftBlob;
+    
+  FFDQueryTmp.ParamByName('pProto').DataType        := ftString;
+  FFDQueryTmp.ParamByName('pIpSrc').DataType        := ftString;
+  FFDQueryTmp.ParamByName('pIpDst').DataType        := ftString;  
+
+  if aInternalPacket.IP.IpProtoAcronym.Trim.IsEmpty then
+    FFDQueryTmp.ParamByName('pProto').Clear
+  else
+    FFDQueryTmp.ParamByName('pProto').AsString := aInternalPacket.IP.IpProtoAcronym;
+    
+  if aInternalPacket.IP.Src.Trim.IsEmpty then
+    FFDQueryTmp.ParamByName('pIpSrc').Clear
+  else
+    FFDQueryTmp.ParamByName('pIpSrc').AsString := aInternalPacket.IP.Src;  
+
+  if aInternalPacket.IP.Dst.Trim.IsEmpty then
+    FFDQueryTmp.ParamByName('pIpDst').Clear
+  else
+    FFDQueryTmp.ParamByName('pIpDst').AsString := aInternalPacket.IP.Dst;
+    
   LMemoryStream := TMemoryStream.Create; 
   Try
-    LMemoryStream.WriteBuffer(aPktData^,aPktLen);
+    LMemoryStream.WriteBuffer(aInternalPacket.PacketData^,aInternalPacket.PacketSize);
 
     FFDQueryTmp.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob);
     FFDQueryTmp.ExecSQL;
@@ -367,7 +342,7 @@ begin
     FConnection.Rollback;
   FConnection.Connected := False;
   if FileExists(FFilenameDB) then
-    DeleteFile(FFilenameDB);  
+    DeleteFile(FFilenameDB);
 end;
 
 function TWPcapDBBase.GetSQLScriptDatabaseSchema: String;
@@ -425,7 +400,7 @@ begin
   FFDGetPacketData.Close;  
 end;
 
-Function TWPcapDBBase.GetListHexPacket(aNPacket:Integer):TArray<String>;
+Function TWPcapDBBase.GetListHexPacket(aNPacket:Integer;var aListDetail:TList<THeaderString>):TArray<String>;
 var LPacket     : PByte;
     LPacketSize : Integer;
 begin
@@ -433,7 +408,14 @@ begin
 
   LPacket := GetPacketDataFromDatabase(aNPacket,LPacketSize);
   if Assigned(LPacket) then
-    Result := DisplayHexData(LPacket,LPacketSize);
+  begin
+    Result      := DisplayHexData(LPacket,LPacketSize);
+    aListDetail := TWpcapEthHeader.HeaderToString(LPacket,LPacketSize);
+    if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
+    begin
+      //Todo UDP e TCP
+    end;
+  end;
 end;
 
 

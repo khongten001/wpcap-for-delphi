@@ -55,7 +55,7 @@ type
     /// <summary>
     /// Determines whether the given UDP packet contains a valid L2TP header and payload.
     /// </summary>
-    class function IsValid(const aUDPPtr: PUDPHdr;const aUDPPayLoad:Pbyte;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;override;
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer;const aUDPPtr: PUDPHdr;const aUDPPayLoad:Pbyte;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;override;
 
     /// <summary>
     /// Returns a pointer to the L2TP header within the given UDP payload.
@@ -95,8 +95,7 @@ begin
   Result := SizeOf(TL2TPHdr)
 end;
 
-class function TWPcapProtocolL2TP.IsValid(const aUDPPtr: PUDPHdr;
-  const aUDPPayLoad: Pbyte; var aAcronymName: String;
+class function TWPcapProtocolL2TP.IsValid(const aPacket:PByte;aPacketSize:Integer;const aUDPPtr: PUDPHdr;const aUDPPayLoad: Pbyte; var aAcronymName: String;
   var aIdProtoDetected: Byte): Boolean;
 
 const L2TP_MAGIC_COOKIE = 3355574314; 
@@ -114,7 +113,7 @@ begin
   if ntohl(Lcoockie^) <> L2TP_MAGIC_COOKIE then Exit;
 
   Result := ( LL2TPHdr.version = L2TP_VERSION) and 
-            ( ntohs(LL2TPHdr.length) = ntohs(aUDPPtr.Lenght)-8);
+            ( ntohs(LL2TPHdr.length) = ntohs(aUDPPtr.Length)-8);
   if Result then
   begin
     aAcronymName     := AcronymName;

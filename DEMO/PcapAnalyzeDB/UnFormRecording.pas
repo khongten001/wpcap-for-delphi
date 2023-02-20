@@ -4,9 +4,9 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, cxGraphics, cxControls, cxLookAndFeels,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, cxGraphics, cxControls, cxLookAndFeels,wpcap.Packet,
   cxLookAndFeelPainters, cxContainer, cxEdit, dxSkinsCore, dxSkinBasic, wpcap.Filter,
-  Vcl.Menus, Vcl.StdCtrls, cxButtons, cxGroupBox, cxCheckBox, cxCustomListBox,
+  Vcl.Menus, Vcl.StdCtrls, cxButtons, cxGroupBox, cxCheckBox, cxCustomListBox,system.UITypes ,
   cxCheckListBox, cxLabel,wpcap.NetDevice, cxTextEdit,wpcap.DB.SQLite,wpcap.PCAP;
 
 type
@@ -34,10 +34,7 @@ type
     FPCAPUtils      : TPCAPUtils;
     procedure DoPCAPCallBackError(const aFileName, aError: String);
     procedure DoPCAPCallBackProgress(aTotalSize, aCurrentSize: Int64);
-    procedure DoPCAPCallBackPacket(const aPktData: PByte; aPktLen: LongWord;
-      aPktDate: TDateTime; aEthType: Word; const atEthAcronym, aMacSrc,
-      aMacDst: String; aIPProto: Word; const aIPProtoMapping, aIpSrc,
-      aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
+    procedure DoPCAPCallBackPacket(const aInternalPacket: PTInternalPacket);
     procedure DestroyDatabase;
     { Private declarations }
   public
@@ -79,11 +76,9 @@ begin
   cxLabel1.Caption := Format('Captured packet of length %d total size %d',[aCurrentSize,FTotalSize]);
 end;
 
-procedure TFormRecording.DoPCAPCallBackPacket(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
-                                                aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
-                                                aIPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word;aIdProtoDetected:byte);
+procedure TFormRecording.DoPCAPCallBackPacket(const aInternalPacket: PTInternalPacket);
 begin
-  FWPcapDBSqLite.InsertPacket(aPktData,aPktLen,aPktDate,aEthType,atEthAcronym, aMacSrc, aMacDst,aIPProto,aIPProtoMapping, aIpSrc, aIpDst,aPortSrc, aPortDst,aIdProtoDetected);
+  FWPcapDBSqLite.InsertPacket(aInternalPacket);
 end;
 
 

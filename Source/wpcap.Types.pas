@@ -236,71 +236,6 @@ type
   end;
   PTpcap_pkthdr = ^Tpcap_pkthdr;
 
-  
-  TIPAddrBytes = array [0 .. 3] of Byte;
-  TIPAddress = record
-      case Integer of
-        0: (Bytes: TIPAddrBytes);
-        1: (Addr: Cardinal);
-    end;
-
-
-  // equivalent to the Internet Protocol Version 4 section of wireshark in the package detail
-  PIPHeader = ^TIPHeader;
-  TIPHeader = packed record
-    VerLen  : Byte;        // Version and length
-    TOS     : Byte;        // of service
-    TotalLen: Word;        // Length
-    ID      : Word;        // Identification
-    FlagsOff: Word;        // Flags and fragment offset
-    TTL     : Byte;        // Time to live
-    Protocol: Byte;        // Protocol
-    Checksum: Word;        // Checksum
-    SrcIP   : TIPAddress;  // Source IP address
-    DestIP  : TIPAddress;  // Destination IP address
-  end;
-
-
-  
-  // This structure contains three fields:
-  //
-  // DestAddr : 6 byte array containing destination MAC address
-  // SrcAddr  : 6 byte array that contains the source MAC address
-  // EtherType: 16-bit field indicating the type of higher protocol (for example, IPv4 or ARP).
-  PETHHdr = ^TETHHdr;
-  TETHHdr = packed record
-    DestAddr : array [0..5] of Byte; // Indirizzo MAC di destinazione
-    SrcAddr  : array [0..5] of Byte;  // Indirizzo MAC di origine
-    EtherType: Word;                // Tipo di protocollo superiore
-  end;  
-
-  // The structure contains the following fields:
-  //
-  // Version           : indicates the version of the IPv6 protocol (fixed 6-bit value equal to 0110);
-  // TrafficClass      : indicates the traffic class, divided into 6 bits of DSCP (Differentiated Services Code Point) and 2 bits of ECN (Explicit Congestion Notification);
-  // FlowLabel         : it is a 20-bit value which is used to identify the data flow, so as to be able to apply quality of service policies;
-  // PayloadLength     : indicates the length of the packet payload (excluding headers and any trailers);
-  // NextHeader        : indicates the type of header following the IPv6 header; it can assume values defined in the IANA "Protocol Numbers" register;
-  // HopLimit          : indicates the maximum number of hops that the packet can go through before being dropped;
-  // SourceAddress 
-  // DestinationAddress: contain the source and destination IPv6 addresses of the packet.
-  //
-  // The constant TIPv6AddrBytes indicates an array of 16 bytes representing an IPv6 address,
-  // where each pair of bytes is represented in hexadecimal format, separated by a colon.
-  TIPv6AddrBytes = array [0..15] of Byte;
-
-  TIPv6Header = packed record
-    Version           : Byte;
-    TrafficClass      : Byte;
-    FlowLabel         : Word;
-    PayloadLength     : Word;
-    NextHeader        : Byte;
-    HopLimit          : Byte;
-    SourceAddress     : TIPv6AddrBytes;
-    DestinationAddress: TIPv6AddrBytes;
-  end;
-  PIPv6Header = ^TIPv6Header;
-
 
   ppcap_dumper_t = ^pcap_dumper_t;
   pcap_dumper_t = record
@@ -309,6 +244,15 @@ type
   end;  
   
   pcap_handler = procedure(user: PAnsiChar; hdr: PTpcap_pkthdr; pkt: PAnsiChar); cdecl;
+
+  /// <summary>
+  ///  Record containing string representations of packet header information
+  /// </summary>
+  THeaderString = Record
+    Level       : Byte;    // Level of detail for string output
+    Description : String;  // Descriptive text for the header information
+    Hex         : String;  // Hexadecimal representation of the header information
+  End;  
   
 implementation
 

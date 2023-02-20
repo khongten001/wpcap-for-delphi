@@ -55,14 +55,16 @@ function TWPcapDBSqLite.GetSQLScriptDatabaseSchema: String;
                       '  IP_DST TEXT,                                                 '+sLineBreak+
                       '  PORT_SRC INTEGER,                                            '+sLineBreak+
                       '  PORT_DST NUMERIC,                                            '+sLineBreak+
-                      '  PROTO_DETECT INTEGER,                                        '+sLineBreak+                                            
+                      '  PROTO_DETECT INTEGER,                                        '+sLineBreak+         
+                      '  IS_IPV6 INTEGER,                                             '+sLineBreak+                               
+                      '  IANA_PROTO TEXT,                                             '+sLineBreak+                          
                       '  PACKET_DATA BLOB                                             '+sLineBreak+
                       ');                                                             ';
                       
            SQL_INDEX = 'CREATE UNIQUE INDEX PACKETS_NPACKET_IDX ON PACKETS (NPACKET);  ';
 
-           SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS SELECT NPACKET, PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM,MAC_SRC, MAC_DST,' +sLineBreak+
-                      ' PROTO_DETECT,IPPROTO, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL, IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST, PORT_SRC,PORT_DST FROM PACKETS;';
+           SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS SELECT NPACKET, PACKET_LEN, PACKET_DATE, ETH_TYPE, ETH_ACRONYM,MAC_SRC, MAC_DST,IS_IPV6,' +sLineBreak+
+                      ' IANA_PROTO,PROTO_DETECT,IPPROTO, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL, IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST, PORT_SRC,PORT_DST FROM PACKETS;';
 {$ENDREGION}
 begin
 
@@ -76,8 +78,7 @@ begin
   FreeAndNIl(FDriverLink);
 end;
 
-procedure TWPcapDBSqLite.SetCredentialConnection(const aUsername,
-  aPassword: String);
+procedure TWPcapDBSqLite.SetCredentialConnection(const aUsername,aPassword: String);
 begin
   //
 end;

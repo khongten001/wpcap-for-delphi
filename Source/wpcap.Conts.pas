@@ -19,7 +19,6 @@ const
 
   PCAP_ERRBUF_SIZE = 256;
 
-  ETH_HEADER_LEN = 14;
 
 
   DLT_EN10MB = 1; // Ethernet (10Mb) link type identifier
@@ -27,16 +26,23 @@ const
   MAX_PACKET_SIZE = 65535; // Maximum size of the packets to be captured
 
 
-  {IPPROTO}
-  IPPROTO_IPV6    = 41;    // IPv6 header
-  IPPROTO_ICMPV6  = 58;    // ICMPv6  
+  {IPPROTO IPV4}
   IPPROTO_GRE     = 47;
-  IPPROTO_ESP     = 50;
-  IPPROTO_AH      = 51;
-  IPPROTO_ROUTING = 42;    // Routing
+  IPPROTO_ESP     = 50;    // Encapsulation Security Payload
+  IPPROTO_AH      = 51;    // Authentication header
+  IPPROTO_ROUTING = 42;    // Routing header
   IPPROTO_PGM     = 113;
   IPPROTO_SCTP    = 132;
 
+  {IPPROTO IPV6}  
+  IPPROTO_IPV6       = 41;   // IPv6 header
+  IPPROTO_ROUTINGV6  = 43;   // IPv6 routing header
+  IPPROTO_FRAGMENT   = 44;   // IPv6 fragmentation header
+  IPPROTO_ICMPV6     = 58;   // ICMPv6
+  IPPROTO_NONE       = 59;   // IPv6 no next header
+  IPPROTO_DSTOPTS    = 60;   // IPv6 destination options
+  IPPROTO_MH         = 135;  // Mobility header
+  IPPROTO_ICMPV62    = 128;  
   {ETHERNET TYPE}
   ETH_P_LOOP      = $0060;  // Ethernet Loopback packet
   ETH_P_PUP       = $0200;  // Xerox PUP packet
@@ -125,6 +131,7 @@ const
  PROTO_MDNS_PORT  = 5353;   
  PROTO_NTP_PORT   = 123;
  PROTO_L2TP_PORT  = 1701;
+ PROTO_TLS_PORT   = 443;
 
  {ID DETECTED PROTO}
 
@@ -136,9 +143,8 @@ const
  DETECT_PROTO_DROPBOX  = 6;  
  DETECT_PROTO_MDNS     = 7;    
  DETECT_PROTO_LLMNR    = 8;     
+ DETECT_PROTO_TLS      = 9; 
 
-
-  
 
 implementation
 

@@ -51,11 +51,13 @@ function SizeToStr(aSize: int64) : String;
 /// <param name="aPByteData">Pointer to a byte array containing data to be displayed in hexadecimal format</param>
 /// <param name="aDataSize">Size of the data to be displayed in bytes</param>
 /// <returns>An array of strings containing the hexadecimal representation of the data</returns>
-function DisplayHexData(aPByteData: PByte; aDataSize: Integer): TArray<String>;
+function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
+
 
 implementation
 
-function DisplayHexData(aPByteData: PByte; aDataSize: Integer): TArray<String>;
+
+function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
 const HEXCHARS: array[0..15] of Char = '0123456789ABCDEF';
       LENGHT_ROW = 48;
 var I           : Integer;
@@ -76,7 +78,7 @@ begin
   LText := String.Empty;
   for I := 0 to çRowCount - 1 do
   begin
-    if not LText.IsEmpty then
+    if not LText.IsEmpty and addInfo then
       Result[I-1] := Format('%s  %s',[Result[I-1],LText]);
     Result[I] := '';
     LText     := '';
@@ -102,7 +104,7 @@ begin
         Result[I] := Result[I] + ' ';
     end;
   end;
-  if not LText.IsEmpty then
+  if not LText.IsEmpty and addInfo then
   begin
     LLastLenght := Length(Result[çRowCount - 1]);
     for I := LLastLenght to LENGHT_ROW do

@@ -95,9 +95,6 @@ object FormRecording: TFormRecording
     Align = alTop
     PanelStyle.Active = True
     TabOrder = 3
-    ExplicitLeft = -577
-    ExplicitTop = 22
-    ExplicitWidth = 1201
     Height = 43
     Width = 624
     object cxLabel2: TcxLabel
@@ -108,7 +105,6 @@ object FormRecording: TFormRecording
       Caption = 'Filter by WinPCAP API:'
       Properties.Alignment.Vert = taVCenter
       Transparent = True
-      ExplicitTop = 8
       AnchorY = 22
     end
     object EFilter: TcxTextEdit
@@ -122,7 +118,7 @@ object FormRecording: TFormRecording
       ShowHint = True
       TabOrder = 1
       ExplicitLeft = 134
-      ExplicitWidth = 1060
+      ExplicitHeight = 21
       Width = 490
     end
   end

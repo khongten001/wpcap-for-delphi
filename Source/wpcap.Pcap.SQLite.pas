@@ -2,7 +2,7 @@
 
 interface
 
-uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite;
+uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite,wpcap.Packet;
 
 type
   TPCAP2SQLite = class
@@ -11,10 +11,7 @@ type
     class var FPCAPCallBackError: TPCAPCallBackError;
     class var FWPcapDBSqLite    : TWPcapDBSqLite;
   private
-    class procedure DoPCAPCallBackPacket(const aPktData: PByte;
-      aPktLen: LongWord; aPktDate: TDateTime; aEthType: Word;
-      const atEthAcronym, aMacSrc, aMacDst: String; aIPProto: Word;
-      const aIPProtoMapping, aIpSrc, aIpDst: String; aPortSrc, aPortDst: Word;aIdProtoDetected:byte);
+    class procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
     class procedure DoPCAPCallBackEnd(const aFileName:String);
     class procedure DoPCAPCallBackError(const aFileName, aError: String); 
    public
@@ -55,11 +52,9 @@ implementation
 
 { TPCAP2SQLite }
 
-class procedure TPCAP2SQLite.DoPCAPCallBackPacket(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
-                                                aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
-                                                aIPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word;aIdProtoDetected:byte);
+class procedure TPCAP2SQLite.DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
 begin
-  FWPcapDBSqLite.InsertPacket(aPktData,aPktLen,aPktDate,aEthType,atEthAcronym, aMacSrc, aMacDst,aIPProto,aIPProtoMapping, aIpSrc, aIpDst,aPortSrc, aPortDst,aIdProtoDetected);
+  FWPcapDBSqLite.InsertPacket(aInternalPacket);
 end;
 
 class procedure TPCAP2SQLite.DoPCAPCallBackError(const aFileName,aError:String);

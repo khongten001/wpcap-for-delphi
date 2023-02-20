@@ -23,7 +23,13 @@ uses
   wpcap.Protocol.NTP in '..\..\Source\Protocols\wpcap.Protocol.NTP.pas',
   wpcap.Protocol.Base in '..\..\Source\wpcap.Protocol.Base.pas',
   wpcap.Protocol.MDNS in '..\..\Source\Protocols\wpcap.Protocol.MDNS.pas',
-  wpcap.Protocol.LLMNR in '..\..\Source\Protocols\wpcap.Protocol.LLMNR.pas';
+  wpcap.Protocol.LLMNR in '..\..\Source\Protocols\wpcap.Protocol.LLMNR.pas',
+  wpcap.Protocol.TCP in '..\..\Source\Protocols\wpcap.Protocol.TCP.pas',
+  wpcap.Protocol.TLS in '..\..\Source\Protocols\wpcap.Protocol.TLS.pas',
+  wpcap.IANA.DbPort in '..\..\Source\wpcap.IANA.DbPort.pas',
+  wpcap.Packet in '..\..\Source\wpcap.Packet.pas',
+  wpcap.Level.Eth in '..\..\Source\wpcap.Level.Eth.pas',
+  wpcap.Level.IP in '..\..\Source\wpcap.Level.IP.pas';
 
 {$R *.res}
 

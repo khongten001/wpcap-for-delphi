@@ -25,7 +25,6 @@ object FormMain: TFormMain
     TabOrder = 0
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
-    ExplicitWidth = 630
     ExplicitHeight = 580
     object GridPcapDBTableView1: TcxGridDBTableView
       Navigator.Buttons.CustomButtons = <>
@@ -125,6 +124,15 @@ object FormMain: TFormMain
         DataBinding.FieldName = 'IPPROTO'
         Visible = False
       end
+      object GridPcapDBTableView1PROTO_DETECT: TcxGridDBColumn
+        DataBinding.FieldName = 'PROTO_DETECT'
+        Visible = False
+        VisibleForCustomization = False
+      end
+      object GridPcapDBTableView1IANA_PROTO: TcxGridDBColumn
+        Caption = 'IANA_Protocol'
+        DataBinding.FieldName = 'IANA_PROTO'
+      end
     end
     object GridPcapLevel1: TcxGridLevel
       GridView = GridPcapDBTableView1
@@ -145,16 +153,13 @@ object FormMain: TFormMain
     Height = 582
     AlignSplitter = salRight
     Control = PHexMemo
-    ExplicitLeft = 647
-    ExplicitTop = 68
-    ExplicitHeight = 579
   end
   object cxGroupBox1: TcxGroupBox
     Left = 0
     Top = 22
     Align = alTop
     PanelStyle.Active = True
-    TabOrder = 7
+    TabOrder = 5
     Height = 43
     Width = 1201
     object cxLabel1: TcxLabel
@@ -186,15 +191,13 @@ object FormMain: TFormMain
     Align = alRight
     PanelStyle.Active = True
     TabOrder = 8
-    ExplicitLeft = 656
-    ExplicitTop = 68
-    ExplicitHeight = 579
+    ExplicitHeight = 580
     Height = 582
     Width = 535
     object MemoHex: TcxMemo
       Left = 4
-      Top = 26
-      Align = alClient
+      Top = 328
+      Align = alBottom
       Lines.Strings = (
         '')
       ParentShowHint = False
@@ -202,11 +205,7 @@ object FormMain: TFormMain
       Properties.ScrollBars = ssBoth
       ShowHint = True
       TabOrder = 0
-      ExplicitLeft = 640
-      ExplicitTop = 65
-      ExplicitWidth = 561
-      ExplicitHeight = 571
-      Height = 552
+      Height = 250
       Width = 527
     end
     object dxBarDockControl1: TdxBarDockControl
@@ -216,6 +215,56 @@ object FormMain: TFormMain
       Height = 22
       Align = dalTop
       BarManager = dxBarManager1
+    end
+    object cxSplitter2: TcxSplitter
+      Left = 4
+      Top = 320
+      Width = 527
+      Height = 8
+      AlignSplitter = salBottom
+      Control = MemoHex
+      ExplicitTop = -157
+    end
+    object ListPacketDetail: TcxTreeList
+      Left = 4
+      Top = 26
+      Width = 527
+      Height = 294
+      Align = alClient
+      Bands = <
+        item
+        end>
+      FindPanel.DisplayMode = fpdmAlways
+      FindPanel.Layout = fplCompact
+      Navigator.Buttons.CustomButtons = <>
+      OptionsBehavior.CellHints = True
+      OptionsData.CancelOnExit = False
+      OptionsData.Editing = False
+      OptionsData.Deleting = False
+      OptionsView.CellEndEllipsis = True
+      OptionsView.ColumnAutoWidth = True
+      ScrollbarAnnotations.CustomAnnotations = <>
+      TabOrder = 3
+      ExplicitLeft = 136
+      ExplicitTop = 200
+      ExplicitWidth = 250
+      ExplicitHeight = 150
+      object ListPacketDetailColumn1: TcxTreeListColumn
+        Width = 301
+        Position.ColIndex = 0
+        Position.RowIndex = 0
+        Position.BandIndex = 0
+        Summary.FooterSummaryItems = <>
+        Summary.GroupFooterSummaryItems = <>
+      end
+      object ListPacketDetailColumn2: TcxTreeListColumn
+        Width = 100
+        Position.ColIndex = 1
+        Position.RowIndex = 0
+        Position.BandIndex = 0
+        Summary.FooterSummaryItems = <>
+        Summary.GroupFooterSummaryItems = <>
+      end
     end
   end
   object OpenDialog1: TOpenDialog
@@ -316,6 +365,7 @@ object FormMain: TFormMain
     object BSavePCAP: TdxBarButton
       Caption = 'Save PCAP'
       Category = 0
+      Enabled = False
       Hint = 'Save PCAP'
       Visible = ivAlways
       ImageIndex = 1
@@ -333,9 +383,9 @@ object FormMain: TFormMain
       OnClick = BLoadPCAPClick
     end
     object BStartRecording: TdxBarButton
-      Caption = 'Recording'
+      Caption = 'Capture'
       Category = 0
-      Hint = 'Recording'
+      Hint = 'Capture'
       Visible = ivAlways
       ImageIndex = 2
       PaintStyle = psCaptionGlyph
@@ -344,6 +394,7 @@ object FormMain: TFormMain
     object BSavePacket: TdxBarButton
       Caption = 'Save packet'
       Category = 0
+      Enabled = False
       Hint = 'Save packet'
       Visible = ivAlways
       ImageIndex = 1

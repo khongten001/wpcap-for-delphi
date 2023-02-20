@@ -4,7 +4,7 @@ interface
                                                             
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,System.UITypes,
-  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, 
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,Wpcap.types, 
   Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,wpcap.Graphics,
   cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,DateUtils,
   cxGrid,  cxLookAndFeels,wpcap.Wrapper,wpcap.Filter,System.Generics.Collections,
@@ -19,7 +19,8 @@ uses
   FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,wpcap.Protocol,
   FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,
   cxTextEdit, cxMemo, cxSplitter, dxBar, System.ImageList, Vcl.ImgList,
-  cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox;
+  cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
+  cxTLdxBarBuiltInMenu, cxInplaceContainer;
 
 type
   TFormMain = class(TForm)
@@ -59,6 +60,12 @@ type
     dxBarDockControl1: TdxBarDockControl;
     dxBarManager1Bar2: TdxBar;
     BSavePacket: TdxBarButton;
+    GridPcapDBTableView1PROTO_DETECT: TcxGridDBColumn;
+    GridPcapDBTableView1IANA_PROTO: TcxGridDBColumn;
+    cxSplitter2: TcxSplitter;
+    ListPacketDetail: TcxTreeList;
+    ListPacketDetailColumn1: TcxTreeListColumn;
+    ListPacketDetailColumn2: TcxTreeListColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -125,14 +132,13 @@ end;
 
 procedure TFormMain.DoPCAPOfflineCallBackEnd(const aFileName:String);
 begin
- MessageDlg(Format('PCAP %s analyze compleate',[aFileName]),mtInformation,[mbOK],0);
-
   FWPcapDBSqLite.OpenDatabase(ChangeFileExt(aFileName,'.db'));
 
   if FWPcapDBSqLite.Connection.Connected then  
   begin
     DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
     FWPcapDBSqLite.FDQueryGrid.Open;
+    BSavePCAP.Enabled := True;
   end;
 end;
 
@@ -192,16 +198,56 @@ end;
 procedure TFormMain.GridPcapDBTableView1FocusedRecordChanged(
   Sender: TcxCustomGridTableView; APrevFocusedRecord,
   AFocusedRecord: TcxCustomGridRecord; ANewItemRecordFocusingChanged: Boolean);
-var LHexList : TArray<String>;
-    I        : Integer;
+var LHexList    : TArray<String>;
+    I           : Integer;
+    LListDetail : TList<THeaderString> ;
+    LParentNode : TcxTreeListNode;
+    LCurrentNode: TcxTreeListNode;
+    function FindParentNode(Level: Integer): TcxTreeListNode;
+    var
+      I: Integer;
+    begin
+      Result := nil;
+      for I := ListPacketDetail.Count - 1 downto 0 do
+      begin
+        if (ListPacketDetail.Items[I].Level = Level) then
+        begin
+          Result := ListPacketDetail.Items[I];
+          Break;
+        end;
+      end;
+    end;
+    
 begin
   MemoHex.Lines.Clear;
-  if Assigned(AFocusedRecord) then
+  ListPacketDetail.Clear;
+
+  if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
-     LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index]);
+     LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],LListDetail);
+
+     if Assigned(LListDetail) then
+     begin
+       LCurrentNode := nil;
+       LParentNode  := nil;
+       for I := 0 to LListDetail.Count -1 do
+       begin
+          if LListDetail[I].Level > 0 then
+            LParentNode := FindParentNode(LListDetail[I].Level - 1)
+          else
+            LParentNode := nil;
+            
+         LCurrentNode := ListPacketDetail.AddChild(LParentNode);
+         LCurrentNode.Values[0] := LListDetail[I].Description;
+         LCurrentNode.Values[1] := LListDetail[I].Hex;         
+       end;         
+     end;
+     
      for I := Low(LHexList) to High(LHexList) do
       MemoHex.Lines.Add(LHexList[I]);     
   end;  
+  
+  BSavePCAP.Enabled := MemoHex.Lines.Count >0;  
 end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
@@ -280,7 +326,9 @@ var LColor     : TColor;
     LFontColor : TColor;
 begin
   if AViewInfo.GridRecord.Selected then Exit;
-  if not GetProtocolColor(AViewInfo.GridRecord.Values[GridPcapDBTableView1ETH_TYPE.Index],AViewInfo.GridRecord.Values[GridPcapDBTableView1IPPROTO.Index],LColor,LFontColor) then exit;
+  if not GetProtocolColor(AViewInfo.GridRecord.Values[GridPcapDBTableView1ETH_TYPE.Index],
+                          AViewInfo.GridRecord.Values[GridPcapDBTableView1IPPROTO.Index],
+                          AViewInfo.GridRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index],LColor,LFontColor) then exit;
 
   ACanvas.Brush.Color := LColor;
   ACanvas.Font.Color  := LFontColor;

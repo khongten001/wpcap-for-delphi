@@ -3,8 +3,9 @@
 interface
 
 uses
-  wpcap.protocol, wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts,WinApi.Windows,
-  wpcap.IOUtils, System.SysUtils, Winsock, DateUtils,System.Generics.Collections,wpcap.Protocol.UDP;
+  wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts,wpcap.IANA.DbPort,
+  WinApi.Windows, wpcap.Packet, wpcap.IOUtils, System.SysUtils, Winsock,wpcap.Level.Eth,wpcap.Level.IP,
+  DateUtils, System.Generics.Collections;
 
 type
 
@@ -18,44 +19,8 @@ type
   ///<summary>
   /// Type definition for a callback to be called when an offline packet is processed.
   ///</summary>
-  ///<param name="aPktData">
-  /// A pointer to the packet data.
-  ///</param>
-  ///<param name="aPktLen">
-  /// The length of the packet data.
-  ///</param>
-  ///<param name="aPktDate">
-  /// The date and time when the packet was captured.
-  ///</param>
-  ///<param name="aEthType">
-  /// The Ethernet type of the packet.
-  ///</param>
-  ///<param name="atEthAcronym">
-  /// The acronym of the Ethernet type.
-  ///</param>
-  ///<param name="aMacSrc">
-  /// The MAC source address of the packet.
-  ///</param>
-  ///<param name="aMacDst">
-  /// The MAC destination address of the packet.
-  ///</param>
-  ///<param name="LaPProto">
-  /// The Layer 3 protocol of the packet.
-  ///</param>
-  ///<param name="aIPProtoMapping">
-  /// The mapping of the Layer 3 protocol to a string representation.
-  ///</param>
-  ///<param name="aIpSrc">
-  /// The source IP address of the packet.
-  ///</param>
-  ///<param name="aIpDst">
-  /// The destination IP address of the packet.
-  ///</param>
-  ///<param name="aPortSrc">
-  /// The source port of the packet.
-  ///</param>
-  ///<param name="aPortDst">
-  /// The destination port of the packet.
+  ///<param name="aInternalPacket">
+  /// Internal rappresentazion of packet in TInternalPacket structure
   ///</param>
   ///<remarks>
   /// This type definition is used for a callback procedure that is called by the packet capture module when a packet is processed. 
@@ -63,9 +28,7 @@ type
   //  Ethernet type, MAC addresses, Layer 3 protocol, IP addresses, and port numbers, is passed to the callback procedure as parameters.
   ///</remarks>
 
-  TPCAPCallBackPacket        = procedure(  const aPktData:PByte;aPktLen:LongWord;aPktDate:TDateTime;//Packet info
-                                                  aEthType:Word;const atEthAcronym,aMacSrc,aMacDst:String; // Eth info
-                                                  LaPProto:Word;const aIPProtoMapping,aIpSrc,aIpDst:String;aPortSrc,aPortDst:Word;aIdProtoDetected:byte) of object;  //Ip info
+  TPCAPCallBackPacket        = procedure(const aInternalPacket : PTInternalPacket) of object; 
 
   ///<summary>
   /// Type definition for a callback procedure to be called when an error occurs during packet processing.
@@ -119,12 +82,42 @@ type
     class var FPCAPCallBackProgressRT  : TPCAPCallBackProgress;
     class var FAbort                   : Boolean;    
     class var FHandleRT                : THandle;        
-    class var FPCapRT                  : Ppcap_t;            
+    class var FPCapRT                  : Ppcap_t;         
+    class var FIANADictionary          : TDictionary<String,TIANARow>;                
   private
-    class procedure PacketHandlerRealtime(user: PAnsiChar; aHeader: PTpcap_pkthdr;aPacketData: PByte); cdecl;
-    class procedure AnalyzePacketForCallBack(const aPacketData: Pbyte;aHeader:PTpcap_pkthdr); static;
-    class function CheckWPcapFilter(aHandlePcap: Ppcap_t; const aFileName,
-      aFilter: string; aPCAPCallBackError: TPCAPCallBackError):Boolean; static;
+    /// <summary>
+    /// This is a class procedure that handles a packet in real time. 
+    /// It takes three parameters: a pointer to the user, a pointer to the packet header, and a pointer to the packet data.
+    /// </summary>
+    /// <param name="user">A pointer to the user.</param>
+    /// <param name="aHeader">A pointer to the packet header.</param>
+    /// <param name="aPacketData">A pointer to the packet data.</param>
+    /// <remarks>
+    /// This function uses cdecl calling convention.
+    /// </remarks>
+    class procedure PacketHandlerRealtime(user: PByte; aHeader: PTpcap_pkthdr; aPacketData: PByte); cdecl;
+
+    /// <summary>
+    /// This is a static class procedure that analyzes a packet. It takes two parameters: a pointer to the packet data and a pointer to the packet header.
+    /// </summary>
+    /// <param name="aPacketData">A pointer to the packet data.</param>
+    /// <param name="aHeader">A pointer to the packet header.</param>
+    class procedure AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr); static;
+
+    /// <summary>
+    /// This is a static class function that checks a wpcap filter. It takes four parameters: a handle to the pcap file, the name of the file, the filter to check, and a callback function to handle errors.
+    /// </summary>
+    /// <param name="aHandlePcap">A handle to the pcap file.</param>
+    /// <param name="aFileName">The name of the pcap file.</param>
+    /// <param name="aFilter">The filter to check.</param>
+    /// <param name="aPCAPCallBackError">A callback function to handle errors.</param>
+    /// <returns>True if the filter is valid; otherwise, False.</returns>
+    class function CheckWPcapFilter(aHandlePcap: Ppcap_t; const aFileName, aFilter: string; aPCAPCallBackError: TPCAPCallBackError): Boolean; static;
+    
+    /// <summary>
+    /// This static class procedure initializes an IANA dictionary.
+    /// </summary>
+    class procedure InitIANADictionary; static;
   public
     ///<summary>
     /// Analyzes an packet capture file using a specified set of callbacks.
@@ -186,7 +179,11 @@ type
                                     aPCAPCallBackError   : TPCAPCallBackError;
                                     aPCAPCallBackProgress: TPCAPCallBackProgress = nil);static;                     
 
-    class procedure StopAnalyze;static;
+    /// <summary>
+    /// This is a static class procedure that stops the analysis process.
+    /// </summary>
+    class procedure StopAnalyze; static;
+
     ///  <summary>
     ///    Saves a list of packets to a pcap file.
     ///  </summary>
@@ -201,79 +198,39 @@ type
   
 implementation
 
-class procedure TPCAPUtils.AnalyzePacketForCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr);
-var LIPHdr           : PETHHdr;
-    LEthType         : Word;
-    LIPv6Hdr         : PIPv6Header;
-    LLenAnalyze      : Int64;
-    LTolSizePcap     : Int64;
-    LIPProtoMapping  : String;
-    LIPProto         : Word;
-    LIpSrc           : String;
-    LIpDst           : String;
-    LPortSrc         : Word;
-    LPortDst         : Word;    
-    LPUDPHdr         : PUDPHdr;
-    LIdProtoDetected : Byte;
+class procedure TPCAPUtils.AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr);
+var LInternalPacket  : PTInternalPacket;  
 begin
-  LIPProtoMapping := String.Empty;
-  LIPProto        := 0;
-  LIpSrc          := String.Empty;
-  LIpDst          := String.Empty;
-  LPortSrc        := 0;
-  LPortDst        := 0;            
-  LIPHdr          := PETHHdr(aPacketData);
-  LEthType        := ntohs(LIPHdr.EtherType);
-                                    
-  case LEthType of
-    ETH_P_IP :
-      begin
-        LIPProto        := PIPHeader(aPacketData + ETH_HEADER_LEN).Protocol; 
-        LIPProtoMapping := GetIPv4ProtocolName(LIPProto);
-        LIpSrc          := intToIPV4(PIPHeader(aPacketData + ETH_HEADER_LEN).SrcIP.Addr );
-        LIpDst          := intToIPV4(PIPHeader(aPacketData + ETH_HEADER_LEN).DestIP.Addr );
+  New(LInternalPacket); 
+  Try
+    LInternalPacket.PacketData        := aPacketData;
+    LInternalPacket.PacketSize        := aHeader.Len;
+    LInternalPacket.PacketDate        := UnixToDateTime(aHeader.ts.tv_sec,false);
+    
+    if not TWpcapEthHeader.InternalETH(aPacketData,LInternalPacket.PacketSize,@(LInternalPacket.eth)) then exit; // ??Rais exception ?? o callback invalid packet ??
+    TWpcapIPHeader.InternalIP(aPacketData,LInternalPacket.PacketSize,FIANADictionary,@(LInternalPacket.IP));
 
-        //TODO other protocol
-        AnalyzeUDPProtocol(aPacketData,aHeader.len,LIPProtoMapping,LIdProtoDetected);
-      end;
-    ETH_P_IPV6 : 
-      begin
-        {IPv6}                       
-        LIPv6Hdr         := PIPv6Header(aPacketData + ETH_HEADER_LEN);
-        LIPProto         := PIPHeader(aPacketData + ETH_HEADER_LEN).Protocol;                   
-        LIPProtoMapping  := GetIPv6ProtocolName(LIPProto);                    
-        LIpSrc           := IPv6AddressToString(LIPv6Hdr.SourceAddress);
-        LIpDst           := IPv6AddressToString(LIPv6Hdr.DestinationAddress); 
-      end;
-  end;  
-
-  if GetHeaderUDP(aPacketData,aHeader.len,LPUDPHdr) then
-  begin
-    LPortSrc := ntohs(LPUDPHdr.SrcPort);
-    LPortDst := ntohs(LPUDPHdr.DstPort);
-  end;
+    {TODO SCTP}    
   
-  
-  FPCAPCallBackPacket(PByte(aPacketData),aHeader.len,UnixToDateTime(aHeader.ts.tv_sec,false),// Packet info
-                             LEthType,GetEthAcronymName(LEthType),MACAddrToStr(LIPHdr.SrcAddr),MACAddrToStr(LIPHdr.DestAddr), //Eth info
-                             LIPProto,LIPProtoMapping,LIpSrc,LIpDst,LPortSrc,LPortDst,LIdProtoDetected ); // IP info 
+    FPCAPCallBackPacket(LInternalPacket);
 
+  Finally
+    Dispose(LInternalPacket);
+  end;                        
 end;
 
-class procedure TPCAPUtils.PacketHandlerRealtime(user: PAnsiChar; aHeader: PTpcap_pkthdr; aPacketData: PByte); cdecl;
-
+class procedure TPCAPUtils.PacketHandlerRealtime(user: PByte; aHeader: PTpcap_pkthdr; aPacketData: PByte); cdecl;
 begin
   if Assigned(FPCAPCallBackProgressRT) then
     FPCAPCallBackProgressRT(-1,aHeader^.len);
 
-  AnalyzePacketForCalLBack(aPacketData,aHeader);
+  AnalyzePacketCallBack(aPacketData,aHeader);
   
   if FAbort then
   begin
     if WaitForSingleObject(FHandleRT, 0) = WAIT_OBJECT_0 then
       pcap_breakloop(FPcapRT);                             
-  end;
-  
+  end;  
 end;
 
 class procedure TPCAPUtils.AnalyzePCAPRealtime(  const aFilename, aFilter,aInterfaceName: string;
@@ -420,6 +377,14 @@ begin
   End;
 end;
 
+class Procedure TPCAPUtils.InitIANADictionary;
+var aRow : TIANARow;
+begin
+  FIANADictionary := TDictionary<String,TIANARow>.Create;
+  for aRow in PROTOCOL_IANA_PORTS do
+    FIANADictionary.Add(Format('%d_%d',[aRow.PortNumber,aRow.IPPROTP]), aRow);
+end;
+
 class procedure TPCAPUtils.AnalyzePCAPOffline( const aFilename,aFilter:String;
                               aPCAPCallBackPacket  : TPCAPCallBackPacket;
                               aPCAPCallBackError   : TPCAPCallBackError;
@@ -485,40 +450,45 @@ begin
   try
     if not CheckWPcapFilter(LHandlePcap,aFilename,aFilter,aPCAPCallBackError) then exit;  
     // Loop over packets in PCAP file
-    while True do
-    begin
-      // Read the next packet
-      LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
-      case LResultPcapNext of
-        1:  // packet read correctly           
-          begin      
-            AnalyzePacketForCalLBack(LPktData,LHeader);
-            Inc(LLenAnalyze,LHeader^.Len);
-            DoPcapProgress(LTolSizePcap,LLenAnalyze);
+    Try
+      InitIANADictionary;
+      while True do
+      begin
+        // Read the next packet
+        LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
+        case LResultPcapNext of
+          1:  // packet read correctly           
+            begin      
+              AnalyzePacketCallBack(LPktData,LHeader);
+              Inc(LLenAnalyze,LHeader^.Len);
+              DoPcapProgress(LTolSizePcap,LLenAnalyze);
 
-            if FAbort then break;
+              if FAbort then break;
             
-          end;
-        0: 
-          begin
-            // No packets available at the moment
-            Continue;
-          end;
-        -1: 
-          begin
-            // Error reading packet
-            aPCAPCallBackError(aFileName,string(pcap_geterr(LHandlePcap)));            
-            Break;
-          end;
-        -2:
-          begin
-            // No packets available, the pcap file instance has been closed
-            DoPcapProgress(LTolSizePcap,LTolSizePcap);
+            end;
+          0: 
+            begin
+              // No packets available at the moment
+              Continue;
+            end;
+          -1: 
+            begin
+              // Error reading packet
+              aPCAPCallBackError(aFileName,string(pcap_geterr(LHandlePcap)));            
+              Break;
+            end;
+          -2:
+            begin
+              // No packets available, the pcap file instance has been closed
+              DoPcapProgress(LTolSizePcap,LTolSizePcap);
 
-            aPCAPCallBackEnd(aFileName);
-            Break;
-          end;
+              aPCAPCallBackEnd(aFileName);
+              Break;
+            end;
+        end;
       end;
+    finally
+      FreeAndNil(FIANADictionary);
     end;
   finally
     // Close PCAP file
@@ -526,10 +496,9 @@ begin
   end;
 end;
 
-
 class procedure TPCAPUtils.StopAnalyze;
 begin
- FAbort := true;
+  FAbort := true;
 end;
 
 end.

@@ -2,9 +2,10 @@
 
 interface
 
-uses wpcap.Protocol.UDP,System.SysUtils,WinSock;
+uses wpcap.Protocol.UDP,wpcap.Protocol.TCP,System.SysUtils,WinSock,System.Types;
 
 Type
+
 
   /// <summary>
   /// Base class for all protocols in a packet capture. 
@@ -53,8 +54,14 @@ Type
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;
-      var aIdProtoDetected: Byte): Boolean; virtual;
-end;
+      var aIdProtoDetected: Byte): Boolean;overload; virtual;
+
+    /// <summary>
+    /// Checks whether the packet has the default port for the protocol.
+    /// This function is marked as virtual, which means that it can be overridden by subclasses.
+    /// </summary>
+    class function HeaderToString:String;virtual;
+  end;
 
   /// <summary>
   /// Base class for all protocols that use the User Datagram Protocol (UDP).
@@ -77,7 +84,7 @@ end;
     /// Checks whether the packet is valid for the protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
-    class function IsValid(const aUDPPtr: PUDPHdr; const aUDPPayLoad: PByte; var aAcronymName: String;
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer;const aUDPPtr: PUDPHdr; const aUDPPayLoad: PByte; var aAcronymName: String;
       var aIdProtoDetected: Byte): Boolean; virtual;
 
     /// <summary>
@@ -89,12 +96,52 @@ end;
     /// Returns the destination port number for the UDP packet.
     /// </summary>
     class function DstPort(const aUDPPtr: PUDPHdr): Word; static;   
-  End;
+  end;
+
+  /// <summary>
+  /// Base class for all protocols that use the TCP stands for Transmission Control Protocol. (TCP).
+  /// This class extends the TWPcapProtocolBase class with TCP-specific functions.
+  /// </summary>
+  TWPcapProtocolBaseTCP = Class(TWPcapProtocolBase)
+  protected
+    /// <summary>
+    /// Checks whether the length of the payload is valid for the protocol.
+    /// This function is marked as virtual, which means that it can be overridden by subclasses.
+    /// </summary>
+    class function PayLoadLengthIsValid(const aTCPPtr: PTCPHdr): Boolean; virtual;
+    
+  public
+    /// <summary>
+    /// Returns the length of the TCP payload.
+    /// </summary>
+    class function TCPPayLoadLength(const aTCPPtr: PTCPHdr): Word; static;
+
+    /// <summary>
+    /// Checks whether the packet is valid for the protocol.
+    /// This function is marked as virtual, which means that it can be overridden by subclasses.
+    /// </summary>
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer;const aTCPPtr: PTCPHdr; const aTCPPayLoad: PByte; var aAcronymName: String;
+      var aIdProtoDetected: Byte): Boolean; virtual;
+
+    /// <summary>
+    /// Returns the source port number for the TCP packet.
+    /// </summary>
+    class function SrcPort(const aTCPPtr: PTCPHdr): Word; static;
+
+    /// <summary>
+    /// Returns the destination port number for the TCP packet.
+    /// </summary>
+    class function DstPort(const aTCPPtr: PTCPHdr): Word; static;   
+    /// <summary>
+    /// Checks whether the packet has the default port for the protocol.
+    /// </summary>
+    class function IsValidByDefaultPort(aDstPort: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;overload;    
+  end;      
 
   
 implementation
 
-{ TWPcapProtocol }
+{ TWPcapProtocolBase }
 
 class function TWPcapProtocolBase.DetailInfo: String;
 begin
@@ -132,6 +179,16 @@ begin
    aIdProtoDetected := IDDetectProto;   
 end;
 
+class function TWPcapProtocolBase.ProtoName: String;
+begin
+  Result := String.Empty;
+end;
+
+class function TWPcapProtocolBase.HeaderToString: String;
+begin
+  Result := String.Empty;
+end;
+
 {TWPcapProtocolBaseUDP}
 
 class function TWPcapProtocolBaseUDP.PayLoadLengthIsValid(const aUDPPtr: PUDPHdr): Boolean;
@@ -141,16 +198,16 @@ end;
 
 class function TWPcapProtocolBaseUDP.UDPPayLoadLength(const aUDPPtr: PUDPHdr): word;
 begin
-  Result := ntohs(aUDPPtr.Lenght);
+  Result := ntohs(aUDPPtr.Length);
 end;
 
-class function TWPcapProtocolBaseUDP.IsValid(const aUDPPtr: PUDPHdr;
+class function TWPcapProtocolBaseUDP.IsValid(const aPacket:PByte;aPacketSize:Integer;const aUDPPtr: PUDPHdr;
   const aUDPPayLoad: Pbyte;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;
 begin
   Result := False;
   if not PayLoadLengthIsValid(aUDPPtr) then  Exit;
 
-  Result := IsValidByDefaultPort(SrcPort(aUDPPtr),DstPort(aUDPPtr),aAcronymName,aIdProtoDetected)
+  Result := IsValidByDefaultPort(SrcPort(aUDPPtr),DstPort(aUDPPtr),aAcronymName,aIdProtoDetected);
 end;
 
 class function TWPcapProtocolBaseUDP.SrcPort(const aUDPPtr: PUDPHdr): Word;
@@ -163,9 +220,49 @@ begin
   Result := ntohs(aUDPPtr.DstPort);
 end;
 
-class function TWPcapProtocolBase.ProtoName: String;
+{ TWPcapProtocolBaseTCP }
+class function TWPcapProtocolBaseTCP.PayLoadLengthIsValid(const aTCPPtr: PTCPHdr): Boolean;
 begin
-  Result := String.Empty;
+   Result := TCPPayLoadLength(aTCPPtr)> HeaderLength;
+end;
+
+class function TWPcapProtocolBaseTCP.TCPPayLoadLength(const aTCPPtr: PTCPHdr): Word;
+var DataOffset: Integer;
+begin
+  // Get the data offset in bytes
+  DataOffset := ((aTCPPtr^.DataOff and $F0) shr 4) * SizeOf(DWORD);
+
+  // Calculate the length of the payload
+  Result := 1000; //PacketLength - SizeOf(TCPHdr) - DataOffset;    TODO Change class to pass packet
+end;
+
+class function TWPcapProtocolBaseTCP.IsValid(const aPacket:PByte;aPacketSize:Integer;const aTCPPtr: PTCPHdr;const aTCPPayLoad: PByte; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
+begin
+  Result := False;
+  if not PayLoadLengthIsValid(aTCPPtr) then  Exit;
+
+  Result := IsValidByDefaultPort(DstPort(aTCPPtr),aAcronymName,aIdProtoDetected)
+end;
+
+class function TWPcapProtocolBaseTCP.SrcPort(const aTCPPtr: PTCPHdr): Word;
+begin
+  Result := ntohs(aTCPPtr.SrcPort);
+end;
+
+class function TWPcapProtocolBaseTCP.DstPort(const aTCPPtr: PTCPHdr): Word;
+begin
+  Result := ntohs(aTCPPtr.DstPort);
+end;
+
+class function TWPcapProtocolBaseTCP.IsValidByDefaultPort(aDstPort: Integer;
+  var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
+begin
+   Result := ( aDstPort = DefaultPort );
+
+   if not Result then exit;
+
+   aAcronymName     := AcronymName;
+   aIdProtoDetected := IDDetectProto;   
 end;
 
 end.
