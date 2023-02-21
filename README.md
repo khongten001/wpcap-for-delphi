@@ -1,7 +1,7 @@
 # wpcap-for-delphi
 The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
-![image](https://user-images.githubusercontent.com/11525545/219985631-ab9cd5a4-b956-4a6f-bb6a-322ad786fb35.png)
+![image](https://user-images.githubusercontent.com/11525545/220234461-6588d737-a420-4ece-ac63-f57bee5a9f6a.png)
 
 
 The package contains several units including: 
@@ -39,12 +39,6 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + Aborto loading
 + Query bulder 
 + Packet detail 
-  + ETH --> OK
-  + IP
-    + IPV4 --> OK
-    + IPV6 --> To finish
-  + UPD --> TODO
-  + TCP --> TODO
   + DETECTED --> TODO
   + OTHERS --> TODO
 + TcpFlow 
