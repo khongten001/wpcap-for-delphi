@@ -55,7 +55,7 @@ type
     /// <summary>
     /// Determines whether the given UDP packet contains a valid L2TP header and payload.
     /// </summary>
-    class function IsValid(const aPacket:PByte;aPacketSize:Integer;const aUDPPtr: PUDPHdr;const aUDPPayLoad:Pbyte;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;override;
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;override;
 
     /// <summary>
     /// Returns a pointer to the L2TP header within the given UDP payload.
@@ -95,25 +95,28 @@ begin
   Result := SizeOf(TL2TPHdr)
 end;
 
-class function TWPcapProtocolL2TP.IsValid(const aPacket:PByte;aPacketSize:Integer;const aUDPPtr: PUDPHdr;const aUDPPayLoad: Pbyte; var aAcronymName: String;
-  var aIdProtoDetected: Byte): Boolean;
+class function TWPcapProtocolL2TP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
 
 const L2TP_MAGIC_COOKIE = 3355574314; 
       L2TP_VERSION      = 2;  
-var LL2TPHdr : PL2TPHdr;
-    Lcoockie : Pcardinal;
+var LL2TPHdr    : PL2TPHdr;
+    Lcoockie    : Pcardinal;
+    LPUDPHdr    : PUDPHdr;
+    LUDPPayLoad : Pbyte;
 begin
   Result := False;
-  if Not PayLoadLengthIsValid(aUDPPtr) then Exit;
+  if not HeaderUDP(aPacket,aPacketSize,LPUDPHdr) then Exit;
+  if not PayLoadLengthIsValid(LPUDPHdr) then  Exit;
+  LUDPPayLoad := GetUDPPayLoad(aPacket,aPacketSize);
     
-  LL2TPHdr  := Header(aUDPPayLoad);
+  LL2TPHdr  := Header(LUDPPayLoad);
   {4 byte after UDP header for test L2TP_MAGIC_COOKIE}
-  Lcoockie  := PCardinal(aUDPPayLoad);
+  Lcoockie  := PCardinal(LUDPPayLoad);
     
   if ntohl(Lcoockie^) <> L2TP_MAGIC_COOKIE then Exit;
 
   Result := ( LL2TPHdr.version = L2TP_VERSION) and 
-            ( ntohs(LL2TPHdr.length) = ntohs(aUDPPtr.Length)-8);
+            ( ntohs(LL2TPHdr.length) = UDPPayLoadLength(LPUDPHdr)-8);
   if Result then
   begin
     aAcronymName     := AcronymName;

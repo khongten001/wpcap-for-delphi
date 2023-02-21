@@ -66,6 +66,7 @@ type
     ListPacketDetail: TcxTreeList;
     ListPacketDetailColumn1: TcxTreeListColumn;
     ListPacketDetailColumn2: TcxTreeListColumn;
+    ListPacketDetailColumn3: TcxTreeListColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -200,7 +201,7 @@ procedure TFormMain.GridPcapDBTableView1FocusedRecordChanged(
   AFocusedRecord: TcxCustomGridRecord; ANewItemRecordFocusingChanged: Boolean);
 var LHexList    : TArray<String>;
     I           : Integer;
-    LListDetail : TList<THeaderString> ;
+    LListDetail : TListHeaderString;
     LParentNode : TcxTreeListNode;
     LCurrentNode: TcxTreeListNode;
     function FindParentNode(Level: Integer): TcxTreeListNode;
@@ -208,11 +209,11 @@ var LHexList    : TArray<String>;
       I: Integer;
     begin
       Result := nil;
-      for I := ListPacketDetail.Count - 1 downto 0 do
+      for I := ListPacketDetail.AbsoluteCount - 1 downto 0 do
       begin
-        if (ListPacketDetail.Items[I].Level = Level) then
+        if (ListPacketDetail.AbsoluteItems[I].Level = Level) then
         begin
-          Result := ListPacketDetail.Items[I];
+          Result := ListPacketDetail.AbsoluteItems[I];
           Break;
         end;
       end;
@@ -224,30 +225,34 @@ begin
 
   if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
+    LListDetail := TListHeaderString.Create;
+    Try
      LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],LListDetail);
 
-     if Assigned(LListDetail) then
-     begin
-       LCurrentNode := nil;
-       LParentNode  := nil;
-       for I := 0 to LListDetail.Count -1 do
-       begin
+      if Assigned(LListDetail) then
+      begin
+        for I := 0 to LListDetail.Count -1 do
+        begin
           if LListDetail[I].Level > 0 then
             LParentNode := FindParentNode(LListDetail[I].Level - 1)
           else
             LParentNode := nil;
             
-         LCurrentNode := ListPacketDetail.AddChild(LParentNode);
+         LCurrentNode           := ListPacketDetail.AddChild(LParentNode);
          LCurrentNode.Values[0] := LListDetail[I].Description;
-         LCurrentNode.Values[1] := LListDetail[I].Hex;         
-       end;         
-     end;
+         LCurrentNode.Values[1] := LListDetail[I].Value;
+         LCurrentNode.Values[2] := LListDetail[I].Hex;         
+        end;         
+      end;
+    finally
+      FreeAndNil(LListDetail);
+    end;
      
-     for I := Low(LHexList) to High(LHexList) do
+    for I := Low(LHexList) to High(LHexList) do
       MemoHex.Lines.Add(LHexList[I]);     
   end;  
   
-  BSavePCAP.Enabled := MemoHex.Lines.Count >0;  
+  BSavePacketClick.Enabled := MemoHex.Lines.Count >0;  
 end;
 
 procedure TFormMain.FormCreate(Sender: TObject);

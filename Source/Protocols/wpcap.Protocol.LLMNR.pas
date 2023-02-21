@@ -2,7 +2,7 @@
 
 interface
 
-uses wpcap.Protocol.Base,wpcap.Conts;
+uses wpcap.Protocol.UDP,wpcap.Conts;
 
 type
 

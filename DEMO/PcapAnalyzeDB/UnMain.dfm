@@ -159,7 +159,7 @@ object FormMain: TFormMain
     Top = 22
     Align = alTop
     PanelStyle.Active = True
-    TabOrder = 5
+    TabOrder = 4
     Height = 43
     Width = 1201
     object cxLabel1: TcxLabel
@@ -218,18 +218,17 @@ object FormMain: TFormMain
     end
     object cxSplitter2: TcxSplitter
       Left = 4
-      Top = 320
+      Top = 318
       Width = 527
-      Height = 8
+      Height = 10
       AlignSplitter = salBottom
       Control = MemoHex
-      ExplicitTop = -157
     end
     object ListPacketDetail: TcxTreeList
       Left = 4
       Top = 26
       Width = 527
-      Height = 294
+      Height = 292
       Align = alClient
       Bands = <
         item
@@ -245,12 +244,8 @@ object FormMain: TFormMain
       OptionsView.ColumnAutoWidth = True
       ScrollbarAnnotations.CustomAnnotations = <>
       TabOrder = 3
-      ExplicitLeft = 136
-      ExplicitTop = 200
-      ExplicitWidth = 250
-      ExplicitHeight = 150
       object ListPacketDetailColumn1: TcxTreeListColumn
-        Width = 301
+        Width = 290
         Position.ColIndex = 0
         Position.RowIndex = 0
         Position.BandIndex = 0
@@ -258,8 +253,16 @@ object FormMain: TFormMain
         Summary.GroupFooterSummaryItems = <>
       end
       object ListPacketDetailColumn2: TcxTreeListColumn
-        Width = 100
+        Width = 118
         Position.ColIndex = 1
+        Position.RowIndex = 0
+        Position.BandIndex = 0
+        Summary.FooterSummaryItems = <>
+        Summary.GroupFooterSummaryItems = <>
+      end
+      object ListPacketDetailColumn3: TcxTreeListColumn
+        Width = 117
+        Position.ColIndex = 2
         Position.RowIndex = 0
         Position.BandIndex = 0
         Summary.FooterSummaryItems = <>

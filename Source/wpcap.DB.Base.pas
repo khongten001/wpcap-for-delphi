@@ -174,7 +174,7 @@ Type
     /// </summary>
     /// <param name="aNPacket">The number of packet to display (starting from 0)</param>
     /// <returns>A list of string containing the hexadecimal dump of the packet data</returns>
-    function GetListHexPacket(aNPacket: Integer;var aListDetail:TList<THeaderString>): TArray<String>;        
+    function GetListHexPacket(aNPacket: Integer;var aListDetail:TListHeaderString): TArray<String>;        
    
     property Connection  : TFDConnection read FConnection  write FConnection;  
     
@@ -229,7 +229,7 @@ end;
 
 function TWPcapDBBase.OpenDatabase(const aFilename: String): Boolean;
 begin
-   OpenDatabase(aFilename,String.Empty,String.Empty,String.Empty);
+   Result := OpenDatabase(aFilename,String.Empty,String.Empty,String.Empty);
 end;
 
 function TWPcapDBBase.OpenDatabase(const aFilename,aUserName,aPassword,aTNS: String): Boolean;
@@ -259,7 +259,6 @@ end;
 
 procedure TWPcapDBBase.CreateDatabase(const aFilename, aUserName,aPassword,aTNS: String);
 var LTable   : TFdScript;
-    I        : Integer;
 begin
   if not OpenDatabase(aFilename,aUserName,aPassword,aTNS) then 
     raise Exception.CreateFmt('Unable connect to database %s',[aFilename]);
@@ -400,7 +399,7 @@ begin
   FFDGetPacketData.Close;  
 end;
 
-Function TWPcapDBBase.GetListHexPacket(aNPacket:Integer;var aListDetail:TList<THeaderString>):TArray<String>;
+Function TWPcapDBBase.GetListHexPacket(aNPacket:Integer;var aListDetail:TListHeaderString):TArray<String>;
 var LPacket     : PByte;
     LPacketSize : Integer;
 begin
@@ -409,12 +408,18 @@ begin
   LPacket := GetPacketDataFromDatabase(aNPacket,LPacketSize);
   if Assigned(LPacket) then
   begin
-    Result      := DisplayHexData(LPacket,LPacketSize);
-    aListDetail := TWpcapEthHeader.HeaderToString(LPacket,LPacketSize);
-    if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
-    begin
-      //Todo UDP e TCP
-    end;
+    Result := DisplayHexData(LPacket,LPacketSize);
+    Try
+      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
+      if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
+      begin
+
+        
+        //Todo UDP e TCP
+      end;
+    Finally
+
+    End;
   end;
 end;
 

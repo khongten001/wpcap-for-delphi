@@ -47,6 +47,4 @@ Type
 
 implementation
 
-uses wpcap.Level.Eth;
-
 end.

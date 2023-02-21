@@ -4,10 +4,10 @@ interface
 
 uses
   System.Generics.Collections, wpcap.Packet, winSock, wpcap.StrUtils,
-  wpcap.Conts, System.SysUtils,wpcap.Types;
+  wpcap.Conts, System.SysUtils,wpcap.Types,Variants;
 
 type  
-  TIpClaseType = (imtNone,imtIpv4,imtIpv6);
+
   // This structure contains three fields:
   //
   // DestAddr : 6 byte array containing destination MAC address
@@ -24,29 +24,30 @@ type
   /// This is a class that provides functions for working with Ethernet headers in a packet. It has several class functions:
   /// </summary>
   TWpcapEthHeader = class
+   private
     /// <summary>
     /// This function checks if the size of the packet is valid. 
     //It takes an integer representing the size of the packet as a parameter and returns a Boolean value indicating whether the size is valid.
     /// </summary>
-    class function isValidSize(aPacketSize: Integer): Boolean;
+    class function isValidSize(aPacketSize: Integer): Boolean; overload;
   public
 
     /// <summary>
     /// This function returns a pointer to the Ethernet header of the packet. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a pointer to the Ethernet header.
     /// </summary>
-    class function Header(const aPacketData: PByte; aPacketSize: Integer): PETHHdr; static;
+    class function HeaderEth(const aPacketData: PByte; aPacketSize: Integer): PETHHdr; static;
 
     /// <summary>
     /// This function returns the size of the Ethernet header.
     /// </summary>
-    class function HeaderSize: Word; static;
+    class function HeaderEthSize: Word;static;
 
     /// <summary>
     /// This function returns a dictionary of strings representing the fields in the Ethernet header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer): TList<THeaderString>; static;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;virtual;
 
     /// <summary>
     /// This function returns a Boolean value indicating whether the packet is a valid Ethernet packet and fills out an internal Ethernet record. 
@@ -125,49 +126,65 @@ begin
   end;
 end;
 
-class function TWpcapEthHeader.Header(const aPacketData: PByte;aPacketSize: Integer): PETHHdr;
+class function TWpcapEthHeader.HeaderEth(const aPacketData: PByte;aPacketSize: Integer): PETHHdr;
 begin
   Result := nil;
   if not isValidSize(aPacketSize) then exit;
   Result := PETHHdr(aPacketData)
 end;
 
-class function TWpcapEthHeader.HeaderSize: Word;
+class function TWpcapEthHeader.HeaderEthSize: Word;
 begin
   Result := SizeOf(TETHHdr);
 end;
 
-class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer): TList<THeaderString>;
+class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;
 var LHederInfo  : THeaderString;
     LInternalEth: PTIntenalETH;
     LHeader     : PETHHdr;
 begin
-  Result := nil;
+  Result := False;
   new(LInternalEth);
   Try
     if not InternalETH(aPacketData,aPacketSize,LInternalEth) then exit;
-    LHeader                := Header(aPacketData,aPacketSize);
-    Result                 := TList<THeaderString>.Create;
+    LHeader                := HeaderEth(aPacketData,aPacketSize);
+
+    if not Assigned(AListDetail) then
+      AListDetail := TListHeaderString.Create;
+
 
     LHederInfo.Level       := 0;
+    LHederInfo.Description := Format('Frame packet size: %s',[SizeToStr(aPacketSize)]);
+    LHederInfo.Value       := NUlL;
+    LHederInfo.Hex         := String.Empty;
+    AListDetail.Add(LHederInfo);
+          
+    LHederInfo.Level       := 0;
     LHederInfo.Description := Format('Ethernet II, Src: %s, Dst %s ',[LInternalEth.SrcAddr,LInternalEth.DestAddr]);
-    LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(LHeader),HeaderSize,False));
-    Result.Add(LHederInfo);
+    LHederInfo.Value       := Null;    
+    LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(LHeader),HeaderEthSize,False));
+    
+    AListDetail.Add(LHederInfo);
 
     LHederInfo.Level       := 1;
-    LHederInfo.Description := Format('Destination: %s ',[LInternalEth.DestAddr]);
+    LHederInfo.Description := 'Destination:';
+    LHederInfo.Value       := LInternalEth.DestAddr;    
     LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeader.DestAddr)),5,False));
-    Result.Add(LHederInfo);
+    AListDetail.Add(LHederInfo);
     
     LHederInfo.Level       := 1;
-    LHederInfo.Description := Format('Source; %s ',[LInternalEth.SrcAddr]);
+    LHederInfo.Description := 'Source:';
+    LHederInfo.Value       := LInternalEth.SrcAddr;
     LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeader.SrcAddr)),5,False));
-    Result.Add(LHederInfo);
+    AListDetail.Add(LHederInfo);
 
     LHederInfo.Level       := 1;
-    LHederInfo.Description := Format('Type; %s [%d]',[LInternalEth.Acronym,LInternalEth.EtherType]);
+    LHederInfo.Description := 'Type:';
+    LHederInfo.Value       := Format('%s [%d]',[LInternalEth.Acronym,LInternalEth.EtherType]);
     LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeader.EtherType)),2,False));
-    Result.Add(LHederInfo);
+    AListDetail.Add(LHederInfo);
+
+    Result := True;
   finally               
     Dispose(LInternalEth)
   end;
@@ -177,7 +194,7 @@ class function TWpcapEthHeader.InternalETH(const aPacketData: PByte;aPacketSize:
 var aPETHHdr : PETHHdr;
 begin
   Result           := False;
-  aPETHHdr         := Header(aPacketData,aPacketSize);
+  aPETHHdr         := HeaderEth(aPacketData,aPacketSize);
 
   if not Assigned(aPETHHdr) then exit;
 
@@ -190,14 +207,14 @@ end;
 
 class function TWpcapEthHeader.isValidSize(aPacketSize: Integer): Boolean;
 begin
-  result := aPacketSize > HeaderSize;
+  result := aPacketSize > HeaderEthSize;
 end;
 
 class function TWpcapEthHeader.IpClassType(const aPacketData: PByte;aPacketSize: Integer): TIpClaseType;
 var aPETHHdr : PETHHdr;
 begin
   Result           := imtNone;
-  aPETHHdr         := Header(aPacketData,aPacketSize);
+  aPETHHdr         := HeaderEth(aPacketData,aPacketSize);
 
   if not Assigned(aPETHHdr) then exit;
     

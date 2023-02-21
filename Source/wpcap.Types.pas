@@ -2,7 +2,9 @@
 
 interface
 
-uses Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,wpcap.Conts,WinSock;
+uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, wpcap.Conts,
+  WinSock, System.Generics.Collections;
 
 
 type
@@ -252,7 +254,12 @@ type
     Level       : Byte;    // Level of detail for string output
     Description : String;  // Descriptive text for the header information
     Hex         : String;  // Hexadecimal representation of the header information
+    Value       : Variant;
   End;  
+
+  TIpClaseType = (imtNone,imtIpv4,imtIpv6);  
+
+  TListHeaderString = class(TList<THeaderString>);
   
 implementation
 

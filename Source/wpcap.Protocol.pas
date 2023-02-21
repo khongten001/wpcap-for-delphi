@@ -53,6 +53,7 @@ var FListProtolsUDPDetected : TList<TWPcapProtocolBaseUDP>;
 
 implementation
 
+
 function GetProtocolColor(aEthType,aProtocol: Word;aDetectProto:Byte;var aBackGroundColor:TColor;var aFontColor:TColor): boolean;
 CONST TCP_COLOR     = 16704998;
       UDP_COLOR     = 16772826;

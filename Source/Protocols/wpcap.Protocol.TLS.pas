@@ -4,7 +4,7 @@ interface
 
 uses
   wpcap.Protocol.Base, wpcap.Conts, Wpcap.protocol.TCP, wpcap.StrUtils,
-  wpcap.Types, Vcl.Dialogs, System.StrUtils, System.Classes, wpcap.Level.Eth;
+  wpcap.Types, Vcl.Dialogs, System.StrUtils, System.Classes;
 
 type
   TTLSHandshakeType = (
@@ -113,7 +113,7 @@ type
     /// <summary>
     /// Checks whether the packet is valid for the TLS protocol.
     /// </summary>
-    class function IsValid(const aPacket:PByte;aPacketSize:Integer;const aTCPPtr: PTCPHdr; const aTCPPayLoad: PByte; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
 End;
 
 
@@ -121,24 +121,11 @@ implementation
 
 { TWPcapProtocolTLS }
 
-class function TWPcapProtocolTLS.IsValid(const aPacket:PByte;aPacketSize:Integer;const aTCPPtr: PTCPHdr; const aTCPPayLoad: PByte; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
-var LRecordType  : Byte;
-    LPayloadSize : Integer;
-function JoinStringArray( const aSeparator: string;const aArray: array of string): string;
-var
-  i: Integer;
+class function TWPcapProtocolTLS.IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
+//var LRecordType  : Byte;
+//    LPayloadSize : Integer;
 begin
-  Result := '';
-  for i := Low(aArray) to High(aArray) do
-  begin
-    if i > Low(aArray) then
-      Result := Result + aSeparator;
-    Result := Result + aArray[i];
-  end;
-end;
-
-begin
-   Result := inherited IsValid(aPacket,aPacketSize,aTCPPtr,aTCPPayLoad,aAcronymName,aIdProtoDetected);
+   Result := inherited IsValid(aPacket,aPacketSize,aAcronymName,aIdProtoDetected);
   // Check if packet is using TCP
  // if not PayLoadLengthIsValid(aTCPPtr) then  Exit;
   
