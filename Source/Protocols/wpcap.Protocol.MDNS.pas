@@ -2,35 +2,18 @@
 
 interface
 
-uses wpcap.Protocol.UDP,wpcap.Conts;
+uses
+  wpcap.Protocol.DNS, wpcap.Conts, System.SysUtils,wpcap.Types;
 
 type
-
-  //TODO When mDNS is used with IPv6, it is transmitted to a specific multicast address (FF02::FB).
-  {
-    // Check if the packet is using the mDNS multicast address
-    if (LIPv6Hdr.ip6_dst.u6_addr32[0] = 0xFF020000) and
-       (LIPv6Hdr.ip6_dst.u6_addr32[1] = 0x00000000) and
-       (LIPv6Hdr.ip6_dst.u6_addr32[2] = 0x00000000) and
-       (LIPv6Hdr.ip6_dst.u6_addr32[3] = 0x000000FB) then
-    begin
-  }
   
-
-  TmDNSHeader = packed record
-    ID           : Word;  // An identifier assigned by the program that generates any kind of query
-    Flags        : Word;  // Various bit flags
-    Questions    : Word;  // Number of questions in the Question Section
-    AnswerRRs    : Word;  // Number of resource records in the Answer Section
-    AuthorityRRs : Word;  // Number of resource records in the Authority Section
-    AdditionalRRs: Word;  // Number of resource records in the Additional Section
-  end;
-  PTmDNSHeader = ^TmDNSHeader;
-
+  
   /// <summary>
   ///  mDNS (Multicast DNS) protocol class, subclass of TWPcapProtocolDNS.
   /// </summary>
-  TWPcapProtocolMDNS = Class(TWPcapProtocolBaseUDP)
+  TWPcapProtocolMDNS = Class(TWPcapProtocolDNS)
+  private
+    class function IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
   public
     /// <summary>
     ///  Returns the default port number for mDNS protocol, which is 5353.
@@ -40,7 +23,7 @@ type
     /// <summary>
     ///  Returns the unique ID for mDNS protocol, which is 6.
     /// </summary>
-    class Function IDDetectProto: Integer; override;
+    class Function IDDetectProto: byte; override;
     
     /// <summary>
     ///  Returns the name of the mDNS protocol, which is "Multicast DNS".
@@ -53,17 +36,17 @@ type
     class function AcronymName: String; override;
 
     /// <summary>
-    ///  Returns the length of the mDNS header.
+    /// This function returns a TListHeaderString of strings representing the fields in the MDSNS header. 
+    //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderLength: word; override;    
 
-    /// <summary>
-    ///  Returns a pointer to the mDNS header.
-    /// </summary>
-    class function Header(const aUDPPayLoad: PByte): PTmDNSHeader; static;    
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;
+
   end;
 
 implementation
+
+uses wpcap.Level.Ip;
 
 { TWPcapProtocolMDNS }
 
@@ -72,14 +55,14 @@ begin
   Result := PROTO_MDNS_PORT;
 end;
 
-class function TWPcapProtocolMDNS.IDDetectProto: Integer;
+class function TWPcapProtocolMDNS.IDDetectProto: byte;
 begin
   Result := DETECT_PROTO_MDNS
 end;
 
 class function TWPcapProtocolMDNS.ProtoName: String;
 begin
-  Result := 'Multicast DNS';
+  Result := 'Multicast Domain Name System';
 end;
 
 class function TWPcapProtocolMDNS.AcronymName: String;
@@ -87,14 +70,43 @@ begin
   Result := 'MDNS';
 end;
 
-class function TWPcapProtocolMDNS.HeaderLength: word;
-begin
-  Result := SizeOf(TmDNSHeader)
-end;
 
-class function TWPcapProtocolMDNS.Header(const aUDPPayLoad: PByte): PTmDNSHeader;
+class function TWPcapProtocolMDNS.IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean;
+{IPv6 Dest = F02::FB}
+const MulticastPrefix: TIPv6AddrBytes = (255, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,251); 
 begin
-  Result := PTmDNSHeader(aUDPPayLoad)
+  Result := CompareMem(@aAddress, @MulticastPrefix, SizeOf(MulticastPrefix));
+end;  
+
+class function TWPcapProtocolMDNS.IsValid(const aPacket: PByte;
+  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
+var LAcronymNameTmp     : String;  
+    LIdProtoDetectedTmp : Byte;
+    aHederIPv6          : PIpv6Header;
+    aIPClass            : TIpClaseType;  
+begin
+  Result  := inherited IsValid(aPacket,aPacketSize,LAcronymNameTmp,LIdProtoDetectedTmp);  
+  aIPClass:= IpClassType(aPacket,aPacketSize); 
+  if result then
+  begin
+    if aIPClass = imtIpv6 then
+    begin
+      aHederIPv6 := TWpcapIPHeader.HeaderIPv6(aPacket,aPacketSize);
+      Result     := IsMulticastIPv6Address(aHederIPv6.DestinationAddress);
+    end;
+  end
+  else if aIPClass = imtIpv6 then
+  begin
+    aHederIPv6 := TWpcapIPHeader.HeaderIPv6(aPacket,aPacketSize);
+    Result     := IsMulticastIPv6Address(aHederIPv6.DestinationAddress);  
+  end;
+        
+  if result then
+  begin
+    aAcronymName     := LAcronymNameTmp;
+    aIdProtoDetected := LIdProtoDetectedTmp;
+  end;  
+  
 end;
 
 end.

@@ -22,34 +22,45 @@ function IsDropboxPacket(const aUDPPtr: PUDPHdr): Boolean;
 
 
 type
+
+  TListProtolsUDPDetected = Class(TList<TWPcapProtocolBaseUDP>)
+  public 
+    function GetListByIDProtoDetected(const aIpProtoDetected: byte):TWPcapProtocolBaseUDP;
+  end;
+  
+  TListProtolsTCPDetected = Class(TList<TWPcapProtocolBaseTCP>)
+  public 
+    function GetListByIDProtoDetected(const aIpProtoDetected: byte):TWPcapProtocolBaseTCP;
+  end;
+
   /// <summary>
   /// Factory class for creating instances of objects that inherit from TWPcapProtocolBaseTCP.
   /// </summary>
   TProtocolFactoryUPD = class
-public
-  /// <summary>
-  /// Creates a new instance of a class that inherits from TWPcapProtocolBaseTCP.
-  /// </summary>
-  /// <typeparam name="T">The class type to create an instance of.</typeparam>
-  /// <returns>An instance of the specified class type.</returns>
-  class function CreateInstance<T: TWPcapProtocolBaseUDP, constructor>: T;
-end;
+    public
+    /// <summary>
+    /// Creates a new instance of a class that inherits from TWPcapProtocolBaseTCP.
+    /// </summary>
+    /// <typeparam name="T">The class type to create an instance of.</typeparam>
+    /// <returns>An instance of the specified class type.</returns>
+    class function CreateInstance<T: TWPcapProtocolBaseUDP, constructor>: T;
+  end;
 
   /// <summary>
   /// Factory class for creating instances of objects that inherit from TWPcapProtocolBaseUDP.
   /// </summary>
   TProtocolFactoryTCP = class
   public
-  /// <summary>
-  /// Creates a new instance of a class that inherits from TWPcapProtocolBaseUDP.
-  /// </summary>
-  /// <typeparam name="T">The class type to create an instance of.</typeparam>
-  /// <returns>An instance of the specified class type.</returns>
-  class function CreateInstance<T: TWPcapProtocolBaseTCP, constructor>: T;
-end;
+    /// <summary>
+    /// Creates a new instance of a class that inherits from TWPcapProtocolBaseUDP.
+    /// </summary>
+    /// <typeparam name="T">The class type to create an instance of.</typeparam>
+    /// <returns>An instance of the specified class type.</returns>
+    class function CreateInstance<T: TWPcapProtocolBaseTCP, constructor>: T;
+  end;
 
-var FListProtolsUDPDetected : TList<TWPcapProtocolBaseUDP>;
-    FListProtolsTCPDetected : TList<TWPcapProtocolBaseTCP>;
+var FListProtolsUDPDetected : TListProtolsUDPDetected;
+    FListProtolsTCPDetected : TListProtolsTCPDetected;
 
 implementation
 
@@ -155,18 +166,48 @@ end;
 procedure DoRegisterListProtocolsDetected;
 begin
   {UDP}
-  FListProtolsUDPDetected := TList<TWPcapProtocolBaseUDP>.Create;
+  FListProtolsUDPDetected := TListProtolsUDPDetected.Create;
 
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolL2TP>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolDNS>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolNTP>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolMDNS>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolLLMNR>);
-
   
   {TCP}  
-  FListProtolsTCPDetected := TList<TWPcapProtocolBaseTCP>.Create;  
+  FListProtolsTCPDetected := TListProtolsTCPDetected.Create;  
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolTLS>);
+end;
+
+{ TListProtolsTCPDetected }
+
+function TListProtolsTCPDetected.GetListByIDProtoDetected(const aIpProtoDetected: byte): TWPcapProtocolBaseTCP;
+var I: Integer;
+begin
+  Result := nil;
+  for I := 0 to Count -1 do
+  begin
+    if self[I].IDDetectProto = aIpProtoDetected then
+    begin
+      Result := Self[I];
+      Break;
+    end;
+  end;
+end;
+
+{ TListProtolsUDPDetected }
+function TListProtolsUDPDetected.GetListByIDProtoDetected(const aIpProtoDetected: byte): TWPcapProtocolBaseUDP;
+var I: Integer;
+begin
+  Result := nil;
+  for I := 0 to Count -1 do
+  begin
+    if self[I].IDDetectProto = aIpProtoDetected then
+    begin
+      Result := Self[I];
+      Break;
+    end;
+  end;
 end;
 
 initialization

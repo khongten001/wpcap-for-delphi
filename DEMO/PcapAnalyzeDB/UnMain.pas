@@ -12,7 +12,7 @@ uses
   cxEdit, cxNavigator, dxDateRanges, dxScrollbarAnnotations, cxGridCustomView,
   cxContainer, cxProgressBar,wpcap.Pcap.SQLite,wpcap.StrUtils, FireDAC.Stan.Intf,
   FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
-  FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
+  FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,UnitGridUtils,
   FireDAC.VCLUI.Wait, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf,
   FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,
   FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView, wpcap.DB.SQLite,
@@ -20,7 +20,8 @@ uses
   FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,
   cxTextEdit, cxMemo, cxSplitter, dxBar, System.ImageList, Vcl.ImgList,
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
-  cxTLdxBarBuiltInMenu, cxInplaceContainer;
+  cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,
+  cxGridCustomPopupMenu, cxGridPopupMenu;
 
 type
   TFormMain = class(TForm)
@@ -67,6 +68,11 @@ type
     ListPacketDetailColumn1: TcxTreeListColumn;
     ListPacketDetailColumn2: TcxTreeListColumn;
     ListPacketDetailColumn3: TcxTreeListColumn;
+    BSaveListPacket: TdxBarButton;
+    BSaevGrid: TdxBarButton;
+    cxGridPopupMenu1: TcxGridPopupMenu;
+    PopupGrid: TdxBarPopupMenu;
+    BCopyGrid: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -85,6 +91,9 @@ type
       ACanvas: TcxCanvas; AViewInfo: TcxGridTableDataCellViewInfo;
       var ADone: Boolean);
     procedure BSavePacketClick(Sender: TObject);
+    procedure BSaevGridClick(Sender: TObject);
+    procedure BSaveListPacketClick(Sender: TObject);
+    procedure BCopyGridClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLite;
@@ -140,12 +149,15 @@ begin
     DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
     FWPcapDBSqLite.FDQueryGrid.Open;
     BSavePCAP.Enabled := True;
+    BSaevGrid.Enabled := True;
   end;
 end;
 
 procedure TFormMain.OpenPcap(const aFileName:String);
 begin
-  Caption := Format('PCAP Analisys %s - %s',[ExtractFileName(aFileName),PacketGetVersion]);
+  Caption           := Format('PCAP Analisys %s - %s',[ExtractFileName(aFileName),PacketGetVersion]);
+  BSavePCAP.Enabled := False;
+  BSaevGrid.Enabled := False;
   FWPcapDBSqLite.Connection.Close;
   FWPcapDBSqLite.FDQueryGrid.Close;
   SetPositionProgressBar(0);
@@ -154,11 +166,7 @@ begin
     Thread with syncronize
     Query bulder 
     Packet detail [TreeView Like wireshark with syncronize with memo ???? HOW ?]
-    TcpFlow 
-    UdpFlow
     ChartStatistics by protocol
-    Grid with port
-    Color for grid
       
   }
   // filter example dst host 192.0.2.1 but doesn't work  TODO check structure and function definition
@@ -238,21 +246,30 @@ begin
           else
             LParentNode := nil;
             
-         LCurrentNode           := ListPacketDetail.AddChild(LParentNode);
-         LCurrentNode.Values[0] := LListDetail[I].Description;
-         LCurrentNode.Values[1] := LListDetail[I].Value;
-         LCurrentNode.Values[2] := LListDetail[I].Hex;         
+          LCurrentNode           := ListPacketDetail.AddChild(LParentNode);
+          LCurrentNode.Values[0] := LListDetail[I].Description;
+          LCurrentNode.Values[1] := LListDetail[I].Value;
+          LCurrentNode.Values[2] := LListDetail[I].Hex;         
         end;         
       end;
     finally
       FreeAndNil(LListDetail);
     end;
+
+    if Assigned(LCurrentNode) then
+    begin
+      LParentNode := FindParentNode(0);
+      if Assigned(LParentNode) then
+        LParentNode.Expand(True)  
+      
+    end;  
      
     for I := Low(LHexList) to High(LHexList) do
       MemoHex.Lines.Add(LHexList[I]);     
   end;  
   
-  BSavePacketClick.Enabled := MemoHex.Lines.Count >0;  
+  BSavePacket.Enabled     := MemoHex.Lines.Count >0;  
+  BSaveListPacket.Enabled := MemoHex.Lines.Count >0;  
 end;
 
 procedure TFormMain.FormCreate(Sender: TObject);
@@ -381,6 +398,21 @@ begin
 
   end;
 
+end;
+
+procedure TFormMain.BSaevGridClick(Sender: TObject);
+begin
+  SaveGrid(GridPcap,SaveDialog1);
+end;
+
+procedure TFormMain.BSaveListPacketClick(Sender: TObject);
+begin
+  SaveList(ListPacketDetail,SaveDialog1);
+end;
+
+procedure TFormMain.BCopyGridClick(Sender: TObject);
+begin
+  CopyCellValue(GridPcapDBTableView1);
 end;
 
 end.

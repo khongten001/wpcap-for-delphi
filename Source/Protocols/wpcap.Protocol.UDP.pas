@@ -3,8 +3,8 @@
 interface
 
 uses
-  wpcap.Conts, wpcap.Types, WinSock, wpcap.Protocol.Base, wpcap.StrUtils,
-  System.Variants, System.SysUtils;
+  wpcap.Conts, wpcap.Types, WinSock, wpcap.Protocol.Base,System.SysUtils,System.Variants,
+  wpcap.StrUtils;
 
 type
   //In this structure for UPD packet, the fields are:
@@ -38,7 +38,7 @@ type
     class function AcronymName: String; override;
     class function DefaultPort: Word; override;
     class function HeaderLength: word; override;
-    class function IDDetectProto: Integer; override;  
+    class function IDDetectProto: byte; override;  
     /// <summary>
     /// Returns the length of the UDP payload.
     /// </summary>
@@ -98,9 +98,12 @@ type
     ///    True if a supported protocol was detected, False otherwise.
     ///  </returns>
     class function AnalyzeUDPProtocol(const aData: PByte; aSize: Integer; var aArcronymName: string; var aIdProtoDetected: Byte): Boolean;static;
-
-    
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;override;        
+   
+    /// <summary>
+    /// This function returns a TListHeaderString of strings representing the fields in the UDP header. 
+    //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
+    /// </summary>
+    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;override;            
   end;
 
 implementation
@@ -114,7 +117,7 @@ begin
   Result := 0; 
 end;
 
-class function TWPcapProtocolBaseUDP.IDDetectProto: Integer;
+class function TWPcapProtocolBaseUDP.IDDetectProto: byte;
 begin
   Result := DETECT_PROTO_UDP;
 end;
@@ -197,69 +200,32 @@ begin
 end;
 
 class function TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;
-var LUDPPtr        : PUDPHdr;
-    I              : Integer;
+var LUDPPtr : PUDPHdr;
+    I       : Integer;
 begin
-  Result        := False;
+  Result  := False;
   if not HeaderUDP(aData,aSize,LUDPPtr) then exit;
   
-  aIdProtoDetected := DETECT_PROTO_UDP;
-
+  aIdProtoDetected := IDDetectProto;
+  Result           := True;
   for I := 0 to FListProtolsUDPDetected.Count-1 do
   begin
-    if FListProtolsUDPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then
-    begin
-      Result := True;
-      Exit;
-    end;
+    if FListProtolsUDPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then Exit;
   end;
 end;
 
-class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;
-  aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
-var LPUDPHdr  : PUDPHdr;
-    LHederInfo: THeaderString;
+class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+var LPUDPHdr          : PUDPHdr;
 begin
-
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then exit;
   
-  
-  LHederInfo.Level       := 0;
-  LHederInfo.Description := Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]);
-  LHederInfo.Value       := Null;
-  LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(Pbyte(LPUDPHdr),HeaderLength,False));
-  AListDetail.Add(LHederInfo);    
-
-  
-  LHederInfo.Level       := 1;
-  LHederInfo.Description := 'Source port:';
-  LHederInfo.Value       := SrcPort(LPUDPHdr);
-  LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LPUDPHdr.SrcPort)),SizeOf(LPUDPHdr.SrcPort),False));
-  AListDetail.Add(LHederInfo);    
-
-  LHederInfo.Level       := 1;
-  LHederInfo.Description := 'Destination port:';
-  LHederInfo.Value       := DstPort(LPUDPHdr);
-  LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LPUDPHdr.DstPort)),SizeOf(LPUDPHdr.DstPort),False));
-  AListDetail.Add(LHederInfo);    
-
-  LHederInfo.Level       := 1;
-  LHederInfo.Description := 'Length:';
-  LHederInfo.Value       := SizeToStr(UDPPayLoadLength(LPUDPHdr));
-  LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LPUDPHdr.Length)),SizeOf(LPUDPHdr.Length),False));
-  AListDetail.Add(LHederInfo);    
-
-  LHederInfo.Level       := 1;
-  LHederInfo.Description := 'Checksum:';
-  LHederInfo.Value       := ntohs(LPUDPHdr.CheckSum);
-  LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LPUDPHdr.CheckSum)),SizeOf(LPUDPHdr.CheckSum),False));
-  AListDetail.Add(LHederInfo);
-
-  LHederInfo.Level       := 1;
-  LHederInfo.Description := 'Payload length:';
-  LHederInfo.Value       := SizeToStr(UDPPayLoadLength(LPUDPHdr)-8);
-  LHederInfo.Hex         := String.Empty;
-  AListDetail.Add(LHederInfo);  
+  AListDetail.Add(AddHeaderInfo(0,Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]),null,Pbyte(LPUDPHdr),HeaderLength));
+  AListDetail.Add(AddHeaderInfo(1,'Source port:',SrcPort(LPUDPHdr),@(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort)));
+  AListDetail.Add(AddHeaderInfo(1,'Destination port:',DstPort(LPUDPHdr),@(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort)));
+  AListDetail.Add(AddHeaderInfo(1,'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)),@(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length)));  
+  AListDetail.Add(AddHeaderInfo(1,'Checksum:',ntohs(LPUDPHdr.CheckSum),@(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum)));    
+  AListDetail.Add(AddHeaderInfo(1,'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8),nil,0));      
+  Result := True;
 end;
 
 end.

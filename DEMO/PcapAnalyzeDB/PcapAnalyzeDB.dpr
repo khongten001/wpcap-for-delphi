@@ -29,7 +29,9 @@ uses
   wpcap.IANA.DbPort in '..\..\Source\wpcap.IANA.DbPort.pas',
   wpcap.Packet in '..\..\Source\wpcap.Packet.pas',
   wpcap.Level.Eth in '..\..\Source\wpcap.Level.Eth.pas',
-  wpcap.Level.IP in '..\..\Source\wpcap.Level.IP.pas';
+  wpcap.Level.IP in '..\..\Source\wpcap.Level.IP.pas',
+  wpcap.BufferUtils in '..\..\Source\wpcap.BufferUtils.pas',
+  UnitGridUtils in 'UnitGridUtils.pas';
 
 {$R *.res}
 

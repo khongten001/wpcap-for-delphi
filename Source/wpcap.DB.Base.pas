@@ -3,9 +3,9 @@
 interface
 
 uses
-  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.StrUtils,
+  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.StrUtils,wpcap.Protocol.UDP,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Stan.Option, System.Classes,
-  FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def,
+  FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def,wpcap.protocol,
   FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,wpcap.Level.IP,
   FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt,wpcap.Types,
   FireDAC.Comp.Script, FireDAC.Comp.Client, Data.DB, FireDAC.Comp.DataSet,wpcap.Level.Eth,
@@ -400,8 +400,10 @@ begin
 end;
 
 Function TWPcapDBBase.GetListHexPacket(aNPacket:Integer;var aListDetail:TListHeaderString):TArray<String>;
-var LPacket     : PByte;
-    LPacketSize : Integer;
+var LPacket           : PByte;
+    LPacketSize       : Integer;
+    LInternalPacket   : PTInternalPacket;
+    aProtocolDetected : TWPcapProtocolBaseUDP;	
 begin
   SetLength(Result,0);
 
@@ -413,8 +415,18 @@ begin
       TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
       if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
       begin
+        New(LInternalPacket);
+        Try
+          TWpcapEthHeader.InternalPacket(LPacket,LPacketSize,nil,LInternalPacket);
+
+          aProtocolDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+          if Assigned(aProtocolDetected) then
+            aProtocolDetected.HeaderToString(LPacket,LPacketSize,AListDetail);        
 
         
+        Finally
+          Dispose(LInternalPacket);
+        End;
         //Todo UDP e TCP
       end;
     Finally

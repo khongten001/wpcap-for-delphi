@@ -2,7 +2,7 @@
 
 interface
 
-uses wpcap.Protocol.UDP,wpcap.Conts;
+uses wpcap.Protocol.DNS,wpcap.Conts;
 
 type
 
@@ -18,29 +18,11 @@ type
        then
     begin
   }
-
-  PLLMNRHeader = ^TLLMNRHeader;
-  TLLMNRHeader = packed record
-    QueryID: Word;            // Unique ID of this query
-    Flags: Word;              // Flags (QR, Opcode, AA, TC, RD, RA, Z, RCODE)
-    Questions: Word;          // Number of Questions
-    AnswerRRs: Word;          // Number of Answer Resource Records
-    AuthorityRRs: Word;       // Number of Authority Resource Records
-    AdditionalRRs: Word;      // Number of Additional Resource Records
-    QuestionName: array [0..0] of Byte; // Query name, possibly with compression
-    // Commento: The format of the Question Section of the query is an array of Question structures,
-    // where each structure consists of the following fields:
-    // - Question Name: a domain name represented as a sequence of labels, where
-    // each label consists of a length octet followed by that number of octets.
-    // The domain name terminates with the zero length octet for the null label of the root.
-    // - Question Type: two octets containing one of the RR TYPE codes.
-    // - Question Class: two octets containing one of the RR CLASS codes.
-  end;
   
   /// <summary>
   /// The LLMNR protocol implementation class.
   /// </summary>
-  TWPcapProtocolLLMNR = Class(TWPcapProtocolBaseUDP)
+  TWPcapProtocolLLMNR = Class(TWPcapProtocolDNS)
   public
     /// <summary>
     /// Returns the default LLMNR port (5355).
@@ -49,7 +31,7 @@ type
     /// <summary>
     /// Returns the ID number of the LLMNR protocol.
     /// </summary>
-    class function IDDetectProto: Integer; override;
+    class function IDDetectProto: byte; override;
     /// <summary>
     /// Returns the name of the LLMNR protocol.
     /// </summary>
@@ -58,16 +40,7 @@ type
     /// Returns the acronym name of the LLMNR protocol.
     /// </summary>
     class function AcronymName: String; override;
-    
-    /// <summary>
-    ///  Returns the length of the LLMNR header.
-    /// </summary>
-    class function HeaderLength: word; override;    
-
-    /// <summary>
-    ///  Returns a pointer to the LLMNR header.
-    /// </summary>
-    class function Header(const aUDPPayLoad: PByte): PLLMNRHeader; static;        
+      
   end;
 
 
@@ -79,7 +52,7 @@ begin
   Result := PROTO_LLMNR_PORT;
 end;
 
-class function TWPcapProtocolLLMNR.IDDetectProto: Integer;
+class function TWPcapProtocolLLMNR.IDDetectProto: byte;
 begin
   Result := DETECT_PROTO_LLMNR
 end;
@@ -94,15 +67,6 @@ begin
   Result := 'LLMNR';
 end;
 
-class function TWPcapProtocolLLMNR.HeaderLength: word;
-begin
-   Result := SizeOf(TLLMNRHeader)
-end;
-
-class function TWPcapProtocolLLMNR.Header(const aUDPPayLoad: PByte): PLLMNRHeader;
-begin
-  Result := PLLMNRHeader(aUDPPayLoad)
-end;
 
 end.
                                                  

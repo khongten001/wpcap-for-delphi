@@ -9,20 +9,15 @@ uses
 
 
 type  
+
+
   TIPAddrBytes = array [0 .. 3] of Byte;
   TIPAddress = record
       case Integer of
         0: (Bytes: TIPAddrBytes);
         1: (Addr: Cardinal);
     end;
-
-  TDifferentiatedServices = record
-    Precedence : Byte;
-    Delay      : Boolean;
-    Throughput : Boolean;
-    Reliability: Boolean;
-  end;
-
+  
   // equivalent to the Internet Protocol Version 4 section of wireshark in the package detail
   PTIPHeader = ^TIPHeader;
   TIPHeader = packed record
@@ -49,9 +44,7 @@ type
   // SourceAddress 
   // DestinationAddress: contain the source and destination IPv6 addresses of the packet.
   //
-  // The constant TIPv6AddrBytes indicates an array of 16 bytes representing an IPv6 address,
-  // where each pair of bytes is represented in hexadecimal format, separated by a colon.
-  TIPv6AddrBytes = array [0..15] of Byte;
+
 
   TIPv6Header = packed record
     Version           : Byte;              // IP version number, should be 6 for IPv6
@@ -64,6 +57,15 @@ type
     DestinationAddress: TIPv6AddrBytes;    // Destination IPv6 address
   end;
   PIpv6Header = ^TIPv6Header;  
+
+
+
+  TDifferentiatedServices = record
+    Precedence : Byte;
+    Delay      : Boolean;
+    Throughput : Boolean;
+    Reliability: Boolean;
+  end;
 
   TWpcapIPHeader = class(TWPcapEthHeader) 
   Strict private
@@ -86,8 +88,7 @@ type
     /// <param name="aPacketSize">The size of the packet data in bytes.</param>
     /// <param name="aInternalIP">A pointer to the internal IP record to be populated with the analysis results.</param>
     class procedure AnalyzeIPProtocol(const aPacketData: PByte; aPacketSize: Integer; aInternalIP: PTInternalIP);
-    class function DecodeDifferentiatedServices(
-      TOS: Byte): TDifferentiatedServices; static;
+    class function DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices; static;
   
   public
     /// <summary>
@@ -200,14 +201,14 @@ end;
 
 class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;
 
-
   function DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices;
   begin
-    Result.Precedence := TOS shr 5;
-    Result.Delay := (TOS and $10) = $10;
-    Result.Throughput := (TOS and $8) = $8;
+    Result.Precedence  := TOS shr 5;
+    Result.Delay       := (TOS and $10) = $10;
+    Result.Throughput  := (TOS and $8) = $8;
     Result.Reliability := (TOS and $4) = $4;
   end;
+  
 var LHederInfo         : THeaderString;
     LInternalIP        : PTInternalIP;
     LHeaderV4          : PTIPHeader;
@@ -234,50 +235,25 @@ begin
     
     if LInternalIP.IsIpv6 then
     begin
+     
       Result                 := True;
       LHeaderV6              := HeaderIPv6(aPacketData,aPacketSize);
-      LHederInfo.Level       := 0;
-      LHederInfo.Description := Format('Internet protocol version 6, Src: %s, Dst %s ',[LInternalIP.Src,LInternalIP.Dst]);
-      LHederInfo.Value       := NULL;  
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize),False));
-      AListDetail.Add(LHederInfo);
 
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Version:';
-      LHederInfo.Value       := (LHeaderV6.Version shr 4) and $0F;
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.Version), SizeOf(LHeaderV6.Version), False));
-      AListDetail.Add(LHederInfo);      
+      AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 6, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize))); 
+      AListDetail.Add(AddHeaderInfo(1,'Version:',(LHeaderV6.Version shr 4) and $0F,PByte(@LHeaderV6.Version),SizeOf(LHeaderV6.Version))); 
 
 
       // Leggere il campo TrafficClass
       LTrafficClassValue     := ntohs(LHeaderV6.TrafficClass);
       LPriority              := LTrafficClassValue shr 6;  // 6 bit più significativi
       LFlowLabel             := LTrafficClassValue and $0FFFFF;  // 20 bit per il flow label
-      LTrafficClass          := LTrafficClassValue and $3;    // 2 bit meno significativi per la classe di traffico      
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Traffic Class:';
-      LHederInfo.Value       := LTrafficClassValue;
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.TrafficClass), SizeOf(LHeaderV6.TrafficClass), False));
-      AListDetail.Add(LHederInfo);
+      LTrafficClass          := LTrafficClassValue and $3;    // 2 bit meno significativi per la classe di traffico   
 
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'Priority:';
-      LHederInfo.Value       := LPriority;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);
-
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'FlowLabel:';
-      LHederInfo.Value       := LFlowLabel;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);
-
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'Class:';
-      LHederInfo.Value       := LTrafficClass;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);            
-      
+      AListDetail.Add(AddHeaderInfo(1,'Traffic Class:',LTrafficClassValue,PByte(@LHeaderV6.TrafficClass),SizeOf(LHeaderV6.TrafficClass)));          
+      AListDetail.Add(AddHeaderInfo(2,'Priority:',LPriority,nil,0));          
+      AListDetail.Add(AddHeaderInfo(2,'FlowLabel:',LFlowLabel,nil,0));   
+      AListDetail.Add(AddHeaderInfo(2,'Class:',LTrafficClass,nil,0));                               
+           
       // Leggere il campo FlowLabel
 
       // Reverse the byte order of the FlowLabel field
@@ -287,117 +263,35 @@ begin
       // Shift the 20 bits to the right so they are aligned to the least significant bit
       LFlowLabel             := LFlowLabel shr 4;
       // Now the FlowLabel variable contains the 20-bit value      
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Flow Label:';
-      LHederInfo.Value       := LFlowLabel;
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.FlowLabel), SizeOf(LHeaderV6.FlowLabel), False));
-      AListDetail.Add(LHederInfo);
 
-      // Leggere il campo PayloadLength
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Payload Length:';
-      LHederInfo.Value       := ntohs(LHeaderV6.PayloadLength);
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.PayloadLength), SizeOf(LHeaderV6.PayloadLength), False));
-      AListDetail.Add(LHederInfo);
-
-      // Leggere il campo NextHeader
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Next Header:';
-      LHederInfo.Value       := Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]);
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.NextHeader), SizeOf(LHeaderV6.NextHeader), False));
-      AListDetail.Add(LHederInfo);
-
-      // Leggere il campo HopLimit
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Hop Limit:';
-      LHederInfo.Value       := Format('%d hop',[LHeaderV6.HopLimit]);
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.HopLimit), SizeOf(LHeaderV6.HopLimit), False));
-      AListDetail.Add(LHederInfo);
-
-      // Leggere il campo SourceAddress
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Source Address:';
-      LHederInfo.Value       := LInternalIP.Src;
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.SourceAddress), SizeOf(LHeaderV6.SourceAddress), False));
-      AListDetail.Add(LHederInfo);
-
-      // Leggere il campo DestinationAddress
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Destination Address:';
-      LHederInfo.Value       := LInternalIP.Dst;
-      LHederInfo.Hex         := String.Join(sLineBreak, DisplayHexData(PByte(@LHeaderV6.DestinationAddress), SizeOf(LHeaderV6.DestinationAddress), False));
-      AListDetail.Add(LHederInfo);
+     AListDetail.Add(AddHeaderInfo(1,'Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
+     AListDetail.Add(AddHeaderInfo(1,'Payload Length:',ntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
+     AListDetail.Add(AddHeaderInfo(1,'Next Header:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
+     AListDetail.Add(AddHeaderInfo(1,'Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
+     AListDetail.Add(AddHeaderInfo(1,'Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
+     AListDetail.Add(AddHeaderInfo(1,'Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress)));                         
     end
     else                                                                                
     begin
-      Result                 := False;
-      LHederInfo.Level       := 0;
-      LHederInfo.Description := Format('Internet protocol version 4, Src: %s, Dst %s ',[LInternalIP.Src,LInternalIP.Dst]);
-      LHederInfo.Value       := NULL;
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize),False));
-      AListDetail.Add(LHederInfo);
-
-
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Version:';      
-      LHederInfo.Value       := (LHeaderV4.VerLen shr 4) and $0F;
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.VerLen)),1,False));
-      AListDetail.Add(LHederInfo); 
-
-      LHederInfo.Description := 'Header length:';      
-      LHederInfo.Value       := (LHeaderV4.VerLen and $0F) * 4;
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.VerLen)),1,False));
-      AListDetail.Add(LHederInfo); 
-
-      
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Differetiated services field:';
-      LHederInfo.Value       := LHeaderV4.TOS;
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.TOS)),1,False));
-      AListDetail.Add(LHederInfo);
+      Result  := True;
+      AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 4, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize)));       
+      AListDetail.Add(AddHeaderInfo(1,'Version:',(LHeaderV4.VerLen shr 4) and $0F,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
+      AListDetail.Add(AddHeaderInfo(1,'Header length:',(LHeaderV4.VerLen and $0F) * 4,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
+      AListDetail.Add(AddHeaderInfo(1,'Differetiated services field:',LHeaderV4.TOS,PByte(@LHeaderV4.TOS),SizeOf(LHeaderV4.TOS)));       
 
       LTOSInfo := DecodeDifferentiatedServices(LHeaderV4.TOS);
+      AListDetail.Add(AddHeaderInfo(2,'Precedence:',LTOSInfo.Precedence,nil,0));        
+      AListDetail.Add(AddHeaderInfo(2,'Delay:',LTOSInfo.Delay,nil,0));        
+      AListDetail.Add(AddHeaderInfo(2,'Throughput:',LTOSInfo.Throughput,nil,0));        
+      AListDetail.Add(AddHeaderInfo(2,'Reliability:',LTOSInfo.Reliability,nil,0));                          
+                       
+      AListDetail.Add(AddHeaderInfo(1,'Total length:',ntohs(LHeaderV4.TotalLen),PByte(@LHeaderV4.TotalLen),SizeOf(LHeaderV4.TotalLen)));            
+      AListDetail.Add(AddHeaderInfo(1,'Identification:',ntohs(LHeaderV4.ID),PByte(@LHeaderV4.ID),SizeOf(LHeaderV4.ID)));                  
 
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'Precedence:';
-      LHederInfo.Value       := LTOSInfo.Precedence;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);
       
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'Delay:';
-      LHederInfo.Value       := LTOSInfo.Delay;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);
-      
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'Throughput:';
-      LHederInfo.Value       := LTOSInfo.Throughput;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);
-      
-      LHederInfo.Level       := 2;
-      LHederInfo.Description := 'Reliability:';
-      LHederInfo.Value       := LTOSInfo.Reliability;
-      LHederInfo.Hex         := String.Empty;
-      AListDetail.Add(LHederInfo);                        
-      
-      
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Total length:';
-      LHederInfo.Value       := ntohs(LHeaderV4.TotalLen);
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.TotalLen)),4,False));
-      AListDetail.Add(LHederInfo);    
-      
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Identification:';
-      LHederInfo.Value       := ntohs(LHeaderV4.ID);   
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.id)),4,False));
-      AListDetail.Add(LHederInfo);          
-      
-      LIsFragmented           := (LHeaderV4.FlagsOff and $8000) <> 0; // true se il pacchetto può essere frammentato
-      LIsLastFragment         := (LHeaderV4.FlagsOff and $2000) <> 0; // true se questo è l'ultimo frammento del pacchetto
-      LFragmentOffset         := LHeaderV4.FlagsOff and $1FFF; // offset del frammento (in unità di 8 byte)    
+      LIsFragmented    := (LHeaderV4.FlagsOff and $8000) <> 0; // true se il pacchetto può essere frammentato
+      LIsLastFragment  := (LHeaderV4.FlagsOff and $2000) <> 0; // true se questo è l'ultimo frammento del pacchetto
+      LFragmentOffset  := LHeaderV4.FlagsOff and $1FFF; // offset del frammento (in unità di 8 byte)    
 
       LFlagOffInfo := String.Empty;
       if LIsFragmented then
@@ -407,46 +301,24 @@ begin
 
         LFlagOffInfo := Format('%s Fragment Offset %d',[LFlagOffInfo,LFragmentOffset]).Trim;
 
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Flags:';
-      LHederInfo.Value       := Format('%d %s',[ntohs(LHeaderV4.FlagsOff),LFlagOffInfo]);
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.FlagsOff)),4,False));
-      AListDetail.Add(LHederInfo);          
-            
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Time to live:';
-      LHederInfo.Value       := Format('%d hop',[LHeaderV4.TTL]);      
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.TTL)),4,False));
-      AListDetail.Add(LHederInfo);      
+ 
+      AListDetail.Add(AddHeaderInfo(1,'Flags:',Format('%d %s',[ntohs(LHeaderV4.FlagsOff),LFlagOffInfo]),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff)));                              
+      AListDetail.Add(AddHeaderInfo(2,'IsFragmented:',LIsFragmented,nil,0)); 
+      AListDetail.Add(AddHeaderInfo(2,'IsLastFragment:',LIsLastFragment,nil,0)); 
+      AListDetail.Add(AddHeaderInfo(2,'Fragment Offset:',LFragmentOffset,nil,0));      
 
+      AListDetail.Add(AddHeaderInfo(1,'Time to live:',Format('%d hop',[LHeaderV4.TTL]),PByte(@LHeaderV4.TTL),SizeOf(LHeaderV4.TTL)));                                     
+      AListDetail.Add(AddHeaderInfo(1,'Protocol:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV4.Protocol),SizeOf(LHeaderV4.Protocol)));                     
+      AListDetail.Add(AddHeaderInfo(1,'CheckSum:',ntohs(LHeaderV4.CheckSum),PByte(@LHeaderV4.CheckSum),SizeOf(LHeaderV4.CheckSum)));                  
+      AListDetail.Add(AddHeaderInfo(1,'Source:',LInternalIP.Src,PByte(@LHeaderV4.SrcIP),SizeOf(LHeaderV4.SrcIP)));                        
+      AListDetail.Add(AddHeaderInfo(1,'Destination:',LInternalIP.Dst,PByte(@LHeaderV4.DestIP),SizeOf(LHeaderV4.DestIP)));                              
+    end;
 
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Protocol:';
-      LHederInfo.Value       := Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]);
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.Protocol)),1,False));
-      AListDetail.Add(LHederInfo);              
-
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'CheckSum:';
-      LHederInfo.Value       := ntohs(LHeaderV4.Checksum);         
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.Checksum)),4,False));
-      AListDetail.Add(LHederInfo);  
-
-      
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Source:';
-      LHederInfo.Value       := LInternalIP.Src;               
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.SrcIP)),5,False));
-      AListDetail.Add(LHederInfo);
-            
-      LHederInfo.Level       := 1;
-      LHederInfo.Description := 'Destination:';
-      LHederInfo.Value       := LInternalIP.Dst;                     
-      LHederInfo.Hex         := String.Join(sLineBreak,DisplayHexData(PByte(@(LHeaderV4.DestIP)),5,False));
-      AListDetail.Add(LHederInfo);  
+    if Result then
+    begin
       if not TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,AListDetail) then
         TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,AListDetail);
-    end;
+    end;        
   finally               
     Dispose(LInternalIP)
   end;

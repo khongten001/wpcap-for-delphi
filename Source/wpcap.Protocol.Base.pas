@@ -2,7 +2,9 @@
 
 interface
 
-uses System.SysUtils,WinSock,System.Types,wpcap.Level.Eth;
+uses
+  System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,
+  System.Variants,wpcap.Types;
 
 Type
 
@@ -41,7 +43,7 @@ Type
     /// Returns the identifier of the detected protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
-    class function IDDetectProto: Integer; virtual;
+    class function IDDetectProto: byte; virtual;
 
     /// <summary>
     /// Returns the length of the protocol header.
@@ -49,6 +51,7 @@ Type
     /// </summary>
     class function HeaderLength: Word; virtual;
 
+    class function AddHeaderInfo(aLevel:Byte;const aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word):THeaderString;static;
     /// <summary>
     /// Checks whether the packet has the default port for the protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
@@ -56,16 +59,12 @@ Type
     class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;
       var aIdProtoDetected: Byte): Boolean;overload; virtual;
 
-    /// <summary>
-    /// Checks whether the packet has the default port for the protocol.
-    /// This function is marked as virtual, which means that it can be overridden by subclasses.
-    /// </summary>
-
   end;
   
 implementation
 
 { TWPcapProtocolBase }
+
 
 class function TWPcapProtocolBase.DetailInfo: String;
 begin
@@ -77,7 +76,7 @@ begin
   raise Exception.Create('TWPcapProtocolBase.DefaultPort- Non implemented in base class - please override this method');
 end;
 
-class function TWPcapProtocolBase.IDDetectProto: Integer;
+class function TWPcapProtocolBase.IDDetectProto: byte;
 begin
   raise Exception.Create('TWPcapProtocolBase.IDDetectProto- Non implemented in base class - please override this method');
 end;
@@ -91,6 +90,17 @@ class function TWPcapProtocolBase.AcronymName: String;
 begin
   raise Exception.Create('TWPcapProtocolBase.AcronymName- Non implemented in base class - please override this method');
 end;
+
+class function TWPcapProtocolBase.AddHeaderInfo(aLevel:Byte;const aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word):THeaderString;
+begin    
+  Result.Description := aDescription;
+  Result.Value       := aValue;
+  Result.Level       := aLevel;
+  if aPacketInfo = nil then      
+    Result.Hex := String.Empty
+  else
+    Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False));
+end;   
 
 class function TWPcapProtocolBase.IsValidByDefaultPort(aSrcPort, aDstPort: integer;
   var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;

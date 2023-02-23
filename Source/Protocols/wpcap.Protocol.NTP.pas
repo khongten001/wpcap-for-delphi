@@ -38,7 +38,7 @@ type
     /// <summary>
     /// Return Intenal protocol ID
     /// </summary>
-    class function IDDetectProto: Integer; override;
+    class function IDDetectProto: byte; override;
 
     /// <summary>
     /// Returns the name of the protocol for the NTP protocol
@@ -82,7 +82,7 @@ begin
   Result := PROTO_NTP_PORT;
 end;
 
-class function TWPcapProtocolNTP.IDDetectProto: Integer;
+class function TWPcapProtocolNTP.IDDetectProto: byte;
 begin
   Result := DETECT_PROTO_NTP;
 end;

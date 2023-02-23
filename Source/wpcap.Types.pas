@@ -247,6 +247,10 @@ type
   
   pcap_handler = procedure(user: PAnsiChar; hdr: PTpcap_pkthdr; pkt: PAnsiChar); cdecl;
 
+  // The constant TIPv6AddrBytes indicates an array of 16 bytes representing an IPv6 address,
+  // where each pair of bytes is represented in hexadecimal format, separated by a colon.
+  TIPv6AddrBytes = array [0..15] of Byte;
+    
   /// <summary>
   ///  Record containing string representations of packet header information
   /// </summary>

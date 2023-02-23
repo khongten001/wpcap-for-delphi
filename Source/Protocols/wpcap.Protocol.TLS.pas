@@ -95,7 +95,7 @@ type
     /// <summary>
     /// Return Intenal protocol ID
     /// </summary>
-    class function IDDetectProto: Integer; override;
+    class function IDDetectProto: byte; override;
     
     /// <summary>
     ///  Returns the acronym name of the TLS protocol ("TLS").
@@ -147,7 +147,7 @@ begin
   Result := PROTO_TLS_PORT;
 end;
 
-class function TWPcapProtocolTLS.IDDetectProto: Integer;
+class function TWPcapProtocolTLS.IDDetectProto: byte;
 begin
   Result := DETECT_PROTO_TLS;
 end;
