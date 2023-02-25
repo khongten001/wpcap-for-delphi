@@ -1,7 +1,7 @@
 # wpcap-for-delphi
 The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
-![image](https://user-images.githubusercontent.com/11525545/220234461-6588d737-a420-4ece-ac63-f57bee5a9f6a.png)
+![image](https://user-images.githubusercontent.com/11525545/221328217-04db309c-c45f-4d33-a297-beff01e0f1c2.png)
 
 
 The package contains several units including: 
@@ -10,6 +10,7 @@ The package contains several units including:
 + **wpcap.Conts.pas:**   which contains constants used in the library. 
 + **wpcap.Types.pas:**    which contains structures used by the library. 
 + **wpcap.Protocol.pas:** which contains functions for managing protocols.
++ **wpcap.BufferUtils.pas:** which contains functions for managing buffer data.
 + **wpcap.StrUtils.pas:** which contains string manipulation functions.
 + **wpcap.IOUtils.pas:**  which contains functions for filesystem.
 + **wpcap.Pcap.pas:**  which contains abstract function for load and save PCAP.
@@ -36,17 +37,36 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 # TODO LIST
 
 + Thread with syncronize
-+ Aborto loading
++ Abort loading ( at moment only in RT)
 + Query bulder 
 + Packet detail 
-  + DETECTED --> TODO
+  + DETECTED -->
+    +  UDP OK  
+    +  TCP OK
+    +  L2TP BUGGED TO COMPLEATE
+    +  DNS BUGGED TO COMPLEATE
+    +  MDNS BUGGED TO COMPLEATE
+    +  LLMN DNS BUGGED TO COMPLEATE
+    +  TLS TODO
+    +  NTP TODO
   + OTHERS --> TODO
 + TcpFlow 
 + UdpFlow
-+ Realtime capture 
-  
++ ORIGINAL IPPROTO LAYER IP IN DATABASE (IP,UDP,SCTP,NETWORK)
++ DETAIL INFO FOR DATABASE
 + geoIp with map
 + Whois online ??
++ DNS For Host resolution
+
+# TODO LIST FOR REALTIME
+
++ OPTION REALTIME
+  + DATE STOP RECORDING
+  + MAX SIZE PACKET
+  + TIME OUT 
+  + MAX SIZE AND TIME FOR PCAP
++ HUMAN NAME LIST CARD INTERFACE
+ 
 
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
