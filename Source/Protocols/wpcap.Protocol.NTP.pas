@@ -53,7 +53,7 @@ type
     /// <summary>
     /// Returns the header length of the NTP protocol.
     /// </summary>
-    class function HeaderLength: Word; override;
+    class function HeaderLength(aFlag:Byte): Word; override;
 
     /// <summary>
     /// Returns a pointer to the NTP header in the UDP payload.
@@ -97,7 +97,7 @@ begin
   Result := 'NTP';
 end;
 
-class function TWPcapProtocolNTP.HeaderLength: word;
+class function TWPcapProtocolNTP.HeaderLength(aFlag:Byte): word;
 begin
   Result := SizeOf(TNTPHeader);
 end;

@@ -3,14 +3,32 @@
 interface
 
 uses
-  System.Generics.Collections, wpcap.Packet, winSock, wpcap.StrUtils,
+  System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,
   wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,
-  wpcap.Protocol.UDP, wpcap.Protocol.TCP,winsock2,wpcap.Types;
+  wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2;
 
 
 type  
+  {https://www.rfc-editor.org/rfc/rfc791}
 
+  {
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |Version|  IHL  |Type of Service|          Total Length         |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |         Identification        |Flags|      Fragment Offset    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Time to Live |    Protocol   |         Header Checksum       |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                       Source Address                          |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Destination Address                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Options                    |    Padding    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+  }
 
+  
   TIPAddrBytes = array [0 .. 3] of Byte;
   TIPAddress = record
       case Integer of
@@ -25,13 +43,14 @@ type
     TOS     : Byte;        // of service
     TotalLen: Word;        // Length
     ID      : Word;        // Identification
-    FlagsOff: Word;        // Flags and fragment offset
+    FlagsOfF: Word;        // Flags and fragment offset
     TTL     : Byte;        // Time to live
     Protocol: Byte;        // Protocol
     Checksum: Word;        // Checksum
     SrcIP   : TIPAddress;  // Source IP address
     DestIP  : TIPAddress;  // Destination IP address
   end;  
+
 
   // The structure contains the following fields:
   //
@@ -44,8 +63,34 @@ type
   // SourceAddress 
   // DestinationAddress: contain the source and destination IPv6 addresses of the packet.
   //
+  
+  {https://www.rfc-editor.org/rfc/rfc2460}
 
+  {
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |Version| Traffic Class |           Flow Label                  |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |         Payload Length        |  Next Header  |   Hop Limit   |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                         Source Address                        +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +                      Destination Address                      +
+   |                                                               |
+   +                                                               +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
+  }
+  
   TIPv6Header = packed record
     Version           : Byte;              // IP version number, should be 6 for IPv6
     TrafficClass      : Byte;              // Traffic class, includes priority and flow label
@@ -58,10 +103,8 @@ type
   end;
   PIpv6Header = ^TIPv6Header;  
 
-
-
   TDifferentiatedServices = record
-    Precedence : Byte;
+    Precedence : String;
     Delay      : Boolean;
     Throughput : Boolean;
     Reliability: Boolean;
@@ -78,7 +121,7 @@ type
     /// <returns>
     ///   True if the packet size is valid, False otherwise.
     /// </returns>
-    class function isValidSizeIP(const aPacketData: PByte;aPacketSize: Integer): Boolean;static;
+    class function isValidSizeIP(aPacketSize: Integer;aIsIpV6:Boolean): Boolean;static;
 
     /// <summary>
     ///   Analyzes the IP protocol of the packet data and populates the provided internal IP record with the appropriate data.
@@ -89,7 +132,8 @@ type
     /// <param name="aInternalIP">A pointer to the internal IP record to be populated with the analysis results.</param>
     class procedure AnalyzeIPProtocol(const aPacketData: PByte; aPacketSize: Integer; aInternalIP: PTInternalIP);
     class function DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices; static;
-  
+    class function GetIpFlag(aFlags: byte;AListDetail:TListHeaderString): string;
+    class function HeaderLenConvert(const aVerLen: Word): Word; static;
   public
     /// <summary>
     ///   Returns a pointer to the IPv4 header in the provided packet data.
@@ -161,32 +205,94 @@ implementation
 
 uses wpcap.protocol;
 
-class function TWpcapIPHeader.DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices;
+class function TWpcapIPHeader.GetIpFlag(aFlags: byte;AListDetail: TListHeaderString): string;
 begin
-  Result.Precedence  := TOS shr 5;
-  Result.Delay       := (TOS and $10) = $10;
-  Result.Throughput  := (TOS and $8) = $8;
-  Result.Reliability := (TOS and $4) = $4;
+  {
+    Various Control Flags.
+
+      Bit 0: reserved, must be zero
+      Bit 1: (DF) 0 = May Fragment,  1 = Don't Fragment.
+      Bit 2: (MF) 0 = Last Fragment, 1 = More Fragments.
+
+          0   1   2
+        +---+---+---+
+        |   | D | M |
+        | 0 | F | F |
+        +---+---+---+
+  }
+
+	  
+  AListDetail.Add(AddHeaderInfo(2,'May Fragment:',GetBitValue(aFlags,2)=1,nil,0)); 
+  AListDetail.Add(AddHeaderInfo(2,'Last Fragment:',GetBitValue(aFlags,3)=1,nil,0));    
+end;
+
+class function TWpcapIPHeader.DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices;
+var LPrecedenceId : Byte;
+begin
+  begin
+    {
+             0     1     2     3     4     5     6     7
+          +-----+-----+-----+-----+-----+-----+-----+-----+
+          |                 |     |     |     |     |     |
+          |   PRECEDENCE    |  D  |  T  |  R  |  0  |  0  |
+          |                 |     |     |     |     |     |
+          +-----+-----+-----+-----+-----+-----+-----+-----+
+    }
+  
+    LPrecedenceId      := TOS shr 5;
+    Result.Delay       := GetBitValue(TOS,4)=1;
+    Result.Throughput  := GetBitValue(TOS,5)=1;
+    Result.Reliability := GetBitValue(TOS,6)=1;
+    {
+       Precedence
+
+          111 - Network Control
+          110 - Internetwork Control
+          101 - CRITIC/ECP
+          100 - Flash Override
+          011 - Flash
+          010 - Immediate
+          001 - Priority
+          000 - Routine
+     }
+
+      case LPrecedenceId of
+        7: Result.Precedence := 'Network Control';
+        6: Result.Precedence := 'Internetwork Control';
+        5: Result.Precedence := 'CRITIC/ECP';
+        4: Result.Precedence := 'Flash Override';
+        3: Result.Precedence := 'Flash';
+        2: Result.Precedence := 'Immediate';
+        1: Result.Precedence := 'Priority';
+        0: Result.Precedence := 'Routine';
+      end;
+  end;
 end;
 
 { TIPHeaderClas }
-class function TWpcapIPHeader.isValidSizeIP(const aPacketData: PByte;aPacketSize: Integer): Boolean;
+class function TWpcapIPHeader.isValidSizeIP(aPacketSize: Integer;aIsIpV6:Boolean): Boolean;
 begin
-   result := aPacketSize > EthAndIPHeaderSize(aPacketData,aPacketSize);
+  if aIsIpV6 then
+     result := aPacketSize >HeaderEthSize+SizeOf(TIPv6Header)
+  else
+     result := aPacketSize >HeaderEthSize+SizeOf(TIPHeader);
 end;
 
 class function TWpcapIPHeader.HeaderIPv4(const aPacketData: PByte;aPacketSize: Integer): PTIPHeader;
 begin
   Result := nil;
-  if not isValidSizeIP(aPacketData,aPacketSize) then exit;
-
-  Result := PTIPHeader(aPacketData + HeaderEthSize)
+  if not isValidSizeIP(aPacketSize,False) then exit;
+  
+  Result := PTIPHeader(aPacketData + HeaderEthSize);
+  
+  if  aPacketSize < HeaderEthSize+HeaderLenConvert(Result.VerLen) then   
+    Result := nil;
 end;
 
 class function TWpcapIPHeader.HeaderIPv6(const aPacketData: PByte;aPacketSize: Integer): PIpv6Header;
 begin
   Result := nil;
-  if not isValidSizeIP(aPacketData,aPacketSize) then exit;
+  if not isValidSizeIP(aPacketSize,True) then exit;
 
   Result := PIPv6Header(aPacketData + HeaderEthSize);
 end;
@@ -196,27 +302,22 @@ begin
   if IpClassType(aPacketData,aPacketSize) = imtIpv6 then
     Result := SizeOf(TIPv6Header)
   else
-    Result := SizeOf(TIPHeader)
+    Result := HeaderLenConvert( HeaderIPv4(aPacketData,aPacketSize).VerLen);
 end;
 
-class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;
 
-  function DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices;
-  begin
-    Result.Precedence  := TOS shr 5;
-    Result.Delay       := (TOS and $10) = $10;
-    Result.Throughput  := (TOS and $8) = $8;
-    Result.Reliability := (TOS and $4) = $4;
-  end;
-  
+class Function TWpcapIPHeader.HeaderLenConvert(const aVerLen: Word):Word;
+begin
+  Result := (aVerLen and $0F) * 4;
+end;
+
+
+class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;  
 var LHederInfo         : THeaderString;
     LInternalIP        : PTInternalIP;
     LHeaderV4          : PTIPHeader;
     LHeaderV6          : PIpv6Header;   
     LFlagOffInfo       : String;
-    LIsFragmented      : Boolean;
-    LFragmentOffset    : Integer;
-    LIsLastFragment    : Boolean; 
     LTrafficClassValue : Byte;
     LPriority          : Byte;   
     LFlowLabel         : Integer;   
@@ -244,10 +345,10 @@ begin
 
 
       // Leggere il campo TrafficClass
-      LTrafficClassValue     := ntohs(LHeaderV6.TrafficClass);
-      LPriority              := LTrafficClassValue shr 6;  // 6 bit più significativi
+      LTrafficClassValue     := wpcapntohs(LHeaderV6.TrafficClass);
+      LPriority              := LTrafficClassValue shr 6;        // 6 bit più significativi
       LFlowLabel             := LTrafficClassValue and $0FFFFF;  // 20 bit per il flow label
-      LTrafficClass          := LTrafficClassValue and $3;    // 2 bit meno significativi per la classe di traffico   
+      LTrafficClass          := LTrafficClassValue and $3;       // 2 bit meno significativi per la classe di traffico   
 
       AListDetail.Add(AddHeaderInfo(1,'Traffic Class:',LTrafficClassValue,PByte(@LHeaderV6.TrafficClass),SizeOf(LHeaderV6.TrafficClass)));          
       AListDetail.Add(AddHeaderInfo(2,'Priority:',LPriority,nil,0));          
@@ -265,7 +366,7 @@ begin
       // Now the FlowLabel variable contains the 20-bit value      
 
      AListDetail.Add(AddHeaderInfo(1,'Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
-     AListDetail.Add(AddHeaderInfo(1,'Payload Length:',ntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
+     AListDetail.Add(AddHeaderInfo(1,'Payload Length:',wpcapntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
      AListDetail.Add(AddHeaderInfo(1,'Next Header:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
      AListDetail.Add(AddHeaderInfo(1,'Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
      AListDetail.Add(AddHeaderInfo(1,'Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
@@ -276,7 +377,7 @@ begin
       Result  := True;
       AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 4, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize)));       
       AListDetail.Add(AddHeaderInfo(1,'Version:',(LHeaderV4.VerLen shr 4) and $0F,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
-      AListDetail.Add(AddHeaderInfo(1,'Header length:',(LHeaderV4.VerLen and $0F) * 4,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
+      AListDetail.Add(AddHeaderInfo(1,'Header length:',HeaderLenConvert(LHeaderV4.VerLen),PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
       AListDetail.Add(AddHeaderInfo(1,'Differetiated services field:',LHeaderV4.TOS,PByte(@LHeaderV4.TOS),SizeOf(LHeaderV4.TOS)));       
 
       LTOSInfo := DecodeDifferentiatedServices(LHeaderV4.TOS);
@@ -285,31 +386,15 @@ begin
       AListDetail.Add(AddHeaderInfo(2,'Throughput:',LTOSInfo.Throughput,nil,0));        
       AListDetail.Add(AddHeaderInfo(2,'Reliability:',LTOSInfo.Reliability,nil,0));                          
                        
-      AListDetail.Add(AddHeaderInfo(1,'Total length:',ntohs(LHeaderV4.TotalLen),PByte(@LHeaderV4.TotalLen),SizeOf(LHeaderV4.TotalLen)));            
-      AListDetail.Add(AddHeaderInfo(1,'Identification:',ntohs(LHeaderV4.ID),PByte(@LHeaderV4.ID),SizeOf(LHeaderV4.ID)));                  
+      AListDetail.Add(AddHeaderInfo(1,'Total length:',wpcapntohs(LHeaderV4.TotalLen),PByte(@LHeaderV4.TotalLen),SizeOf(LHeaderV4.TotalLen)));            
+      AListDetail.Add(AddHeaderInfo(1,'Identification:',wpcapntohs(LHeaderV4.ID),PByte(@LHeaderV4.ID),SizeOf(LHeaderV4.ID)));                  
 
-      
-      LIsFragmented    := (LHeaderV4.FlagsOff and $8000) <> 0; // true se il pacchetto può essere frammentato
-      LIsLastFragment  := (LHeaderV4.FlagsOff and $2000) <> 0; // true se questo è l'ultimo frammento del pacchetto
-      LFragmentOffset  := LHeaderV4.FlagsOff and $1FFF; // offset del frammento (in unità di 8 byte)    
-
-      LFlagOffInfo := String.Empty;
-      if LIsFragmented then
-        LFlagOffInfo := 'IsFragmented';
-      if LIsLastFragment then
-        LFlagOffInfo := 'IsLastFragment';
-
-        LFlagOffInfo := Format('%s Fragment Offset %d',[LFlagOffInfo,LFragmentOffset]).Trim;
-
- 
-      AListDetail.Add(AddHeaderInfo(1,'Flags:',Format('%d %s',[ntohs(LHeaderV4.FlagsOff),LFlagOffInfo]),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff)));                              
-      AListDetail.Add(AddHeaderInfo(2,'IsFragmented:',LIsFragmented,nil,0)); 
-      AListDetail.Add(AddHeaderInfo(2,'IsLastFragment:',LIsLastFragment,nil,0)); 
-      AListDetail.Add(AddHeaderInfo(2,'Fragment Offset:',LFragmentOffset,nil,0));      
-
+      AListDetail.Add(AddHeaderInfo(1,'Flags:',ByteToBinaryString(LHeaderV4.FlagsOfF shr 13),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff))); 
+      LFlagOffInfo := GetIpFlag(LHeaderV4.FlagsOfF shr 13,AListDetail); 
+      AListDetail.Add(AddHeaderInfo(2,'Fragment OffSet:',wpcapntohs(LHeaderV4.FlagsOff and $1FFF),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff)));
       AListDetail.Add(AddHeaderInfo(1,'Time to live:',Format('%d hop',[LHeaderV4.TTL]),PByte(@LHeaderV4.TTL),SizeOf(LHeaderV4.TTL)));                                     
       AListDetail.Add(AddHeaderInfo(1,'Protocol:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV4.Protocol),SizeOf(LHeaderV4.Protocol)));                     
-      AListDetail.Add(AddHeaderInfo(1,'CheckSum:',ntohs(LHeaderV4.CheckSum),PByte(@LHeaderV4.CheckSum),SizeOf(LHeaderV4.CheckSum)));                  
+      AListDetail.Add(AddHeaderInfo(1,'CheckSum:',wpcapntohs(LHeaderV4.CheckSum),PByte(@LHeaderV4.CheckSum),SizeOf(LHeaderV4.CheckSum)));                  
       AListDetail.Add(AddHeaderInfo(1,'Source:',LInternalIP.Src,PByte(@LHeaderV4.SrcIP),SizeOf(LHeaderV4.SrcIP)));                        
       AListDetail.Add(AddHeaderInfo(1,'Destination:',LInternalIP.Dst,PByte(@LHeaderV4.DestIP),SizeOf(LHeaderV4.DestIP)));                              
     end;
@@ -456,5 +541,7 @@ class function TWpcapIPHeader.EthAndIPHeaderSize(const aPacketData: PByte; aPack
 begin
   Result := HeaderEthSize+HeaderIPSize(aPacketData,aPacketSize);
 end;
+
+
 
 end.

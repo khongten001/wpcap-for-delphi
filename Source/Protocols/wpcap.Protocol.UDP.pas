@@ -3,8 +3,8 @@
 interface
 
 uses
-  wpcap.Conts, wpcap.Types, WinSock, wpcap.Protocol.Base,System.SysUtils,System.Variants,
-  wpcap.StrUtils;
+  wpcap.Conts, wpcap.Types, WinSock, wpcap.BufferUtils, wpcap.Protocol.Base,
+  System.SysUtils, System.Variants, wpcap.StrUtils;
 
 type
   //In this structure for UPD packet, the fields are:
@@ -37,7 +37,7 @@ type
   public
     class function AcronymName: String; override;
     class function DefaultPort: Word; override;
-    class function HeaderLength: word; override;
+    class function HeaderLength(aFlag:Byte): word; override;
     class function IDDetectProto: byte; override;  
     /// <summary>
     /// Returns the length of the UDP payload.
@@ -122,7 +122,7 @@ begin
   Result := DETECT_PROTO_UDP;
 end;
 
-class function TWPcapProtocolBaseUDP.HeaderLength: word;
+class function TWPcapProtocolBaseUDP.HeaderLength(aFlag:Byte): word;
 begin
   Result := SizeOf(TUDPHdr)
 end;
@@ -134,12 +134,12 @@ end;
 
 class function TWPcapProtocolBaseUDP.PayLoadLengthIsValid(const aUDPPtr: PUDPHdr): Boolean;
 begin
-  Result := UDPPayLoadLength(aUDPPtr)> HeaderLength;
+  Result := UDPPayLoadLength(aUDPPtr)> HeaderLength(0);
 end;
 
 class function TWPcapProtocolBaseUDP.UDPPayLoadLength(const aUDPPtr: PUDPHdr): word;
 begin
-  Result := ntohs(aUDPPtr.Length);
+  Result := wpcapntohs(aUDPPtr.Length);
 end;
 
 class function TWPcapProtocolBaseUDP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;
@@ -155,12 +155,12 @@ end;
 
 class function TWPcapProtocolBaseUDP.SrcPort(const aUDPPtr: PUDPHdr): Word;
 begin
-  Result := ntohs(aUDPPtr.SrcPort);
+  Result := wpcapntohs(aUDPPtr.SrcPort);
 end;
 
 class function TWPcapProtocolBaseUDP.DstPort(const aUDPPtr: PUDPHdr): Word;
 begin
-  Result := ntohs(aUDPPtr.DstPort);
+  Result := wpcapntohs(aUDPPtr.DstPort);
 end;
 
 class function TWPcapProtocolBaseUDP.GetUDPPayLoad(const AData:Pbyte;aSize: Word):PByte;
@@ -215,15 +215,16 @@ begin
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
-var LPUDPHdr          : PUDPHdr;
+var LPUDPHdr : PUDPHdr;
 begin
+  Result := False;
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then exit;
   
-  AListDetail.Add(AddHeaderInfo(0,Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]),null,Pbyte(LPUDPHdr),HeaderLength));
+  AListDetail.Add(AddHeaderInfo(0,Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]),null,Pbyte(LPUDPHdr),HeaderLength(0)));
   AListDetail.Add(AddHeaderInfo(1,'Source port:',SrcPort(LPUDPHdr),@(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort)));
   AListDetail.Add(AddHeaderInfo(1,'Destination port:',DstPort(LPUDPHdr),@(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort)));
   AListDetail.Add(AddHeaderInfo(1,'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)),@(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length)));  
-  AListDetail.Add(AddHeaderInfo(1,'Checksum:',ntohs(LPUDPHdr.CheckSum),@(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum)));    
+  AListDetail.Add(AddHeaderInfo(1,'Checksum:',wpcapntohs(LPUDPHdr.CheckSum),@(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum)));    
   AListDetail.Add(AddHeaderInfo(1,'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8),nil,0));      
   Result := True;
 end;

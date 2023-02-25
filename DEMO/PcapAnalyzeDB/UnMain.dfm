@@ -25,8 +25,7 @@ object FormMain: TFormMain
     TabOrder = 0
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
-    ExplicitWidth = 656
-    ExplicitHeight = 580
+    ExplicitHeight = 688
     object GridPcapDBTableView1: TcxGridDBTableView
       PopupMenu = PopupGrid
       Navigator.Buttons.CustomButtons = <>
@@ -145,8 +144,7 @@ object FormMain: TFormMain
     Top = 755
     Align = alBottom
     TabOrder = 1
-    ExplicitTop = 645
-    ExplicitWidth = 1201
+    ExplicitTop = 753
     Width = 1397
   end
   object cxSplitter1: TcxSplitter
@@ -156,8 +154,6 @@ object FormMain: TFormMain
     Height = 690
     AlignSplitter = salRight
     Control = PHexMemo
-    ExplicitLeft = 656
-    ExplicitHeight = 582
   end
   object cxGroupBox1: TcxGroupBox
     Left = 0
@@ -165,7 +161,6 @@ object FormMain: TFormMain
     Align = alTop
     PanelStyle.Active = True
     TabOrder = 3
-    ExplicitWidth = 1201
     Height = 43
     Width = 1397
     object cxLabel1: TcxLabel
@@ -188,7 +183,6 @@ object FormMain: TFormMain
       Properties.OnValidate = EFilterPropertiesValidate
       ShowHint = True
       TabOrder = 1
-      ExplicitWidth = 1067
       Width = 1263
     end
   end
@@ -198,8 +192,7 @@ object FormMain: TFormMain
     Align = alRight
     PanelStyle.Active = True
     TabOrder = 8
-    ExplicitLeft = 666
-    ExplicitHeight = 580
+    ExplicitHeight = 688
     Height = 690
     Width = 535
     object MemoHex: TcxMemo
@@ -213,7 +206,6 @@ object FormMain: TFormMain
       Properties.ScrollBars = ssBoth
       ShowHint = True
       TabOrder = 0
-      ExplicitTop = 328
       Height = 250
       Width = 527
     end
@@ -232,7 +224,6 @@ object FormMain: TFormMain
       Height = 10
       AlignSplitter = salBottom
       Control = MemoHex
-      ExplicitTop = 318
     end
     object ListPacketDetail: TcxTreeList
       Left = 4
@@ -257,7 +248,6 @@ object FormMain: TFormMain
       OptionsView.Indicator = True
       ScrollbarAnnotations.CustomAnnotations = <>
       TabOrder = 3
-      ExplicitHeight = 292
       object ListPacketDetailColumn1: TcxTreeListColumn
         Width = 290
         Position.ColIndex = 0
@@ -463,7 +453,7 @@ object FormMain: TFormMain
     Left = 424
     Top = 240
     Bitmap = {
-      494C010105000800040010001000FFFFFFFF2100FFFFFFFFFFFFFFFF424D3600
+      494C010105000800040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -731,7 +721,8 @@ object FormMain: TFormMain
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000}
+      0000000000000000000000000000000000000000000000000000000000000000
+      000000000000}
     DesignInfo = 15729064
     ImageInfo = <
       item

@@ -109,7 +109,7 @@ type
     /// <summary>
     /// Returns the header length of the TLS protocol.
     /// </summary>
-    class function HeaderLength: Word; override;
+    class function HeaderLength(aFlag:Byte): Word; override;
     /// <summary>
     /// Checks whether the packet is valid for the TLS protocol.
     /// </summary>
@@ -162,7 +162,7 @@ begin
   Result := 'Transport Layer Security';
 end;
 
-class function TWPcapProtocolTLS.HeaderLength: word;
+class function TWPcapProtocolTLS.HeaderLength(aFlag:Byte): word;
 begin
   Result := SizeOF(TTLSRecordHeader)
 end;

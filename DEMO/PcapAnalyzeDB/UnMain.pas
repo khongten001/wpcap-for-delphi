@@ -21,7 +21,7 @@ uses
   cxTextEdit, cxMemo, cxSplitter, dxBar, System.ImageList, Vcl.ImgList,
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,
-  cxGridCustomPopupMenu, cxGridPopupMenu;
+  cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox;
 
 type
   TFormMain = class(TForm)
@@ -239,18 +239,23 @@ begin
 
       if Assigned(LListDetail) then
       begin
-        for I := 0 to LListDetail.Count -1 do
-        begin
-          if LListDetail[I].Level > 0 then
-            LParentNode := FindParentNode(LListDetail[I].Level - 1)
-          else
-            LParentNode := nil;
+        ListPacketDetail.BeginUpdate;
+        Try
+          for I := 0 to LListDetail.Count -1 do
+          begin
+            if LListDetail[I].Level > 0 then
+              LParentNode := FindParentNode(LListDetail[I].Level - 1)
+            else
+              LParentNode := nil;
             
-          LCurrentNode           := ListPacketDetail.AddChild(LParentNode);
-          LCurrentNode.Values[0] := LListDetail[I].Description;
-          LCurrentNode.Values[1] := LListDetail[I].Value;
-          LCurrentNode.Values[2] := LListDetail[I].Hex;         
-        end;         
+            LCurrentNode           := ListPacketDetail.AddChild(LParentNode);
+            LCurrentNode.Values[0] := LListDetail[I].Description;
+            LCurrentNode.Values[1] := LListDetail[I].Value;
+            LCurrentNode.Values[2] := LListDetail[I].Hex;         
+          end;
+        finally
+          ListPacketDetail.EndUpdate;
+        end;                 
       end;
     finally
       FreeAndNil(LListDetail);
@@ -263,9 +268,13 @@ begin
         LParentNode.Expand(True)  
       
     end;  
-     
-    for I := Low(LHexList) to High(LHexList) do
-      MemoHex.Lines.Add(LHexList[I]);     
+    MemoHex.Lines.BeginUpdate;
+    Try 
+      for I := Low(LHexList) to High(LHexList) do
+        MemoHex.Lines.Add(LHexList[I]);  
+    finally
+      MemoHex.Lines.EndUpdate
+    end
   end;  
   
   BSavePacket.Enabled     := MemoHex.Lines.Count >0;  
@@ -333,7 +342,14 @@ begin
       aFormRecording.ShowModal;
       if aFormRecording.ModalResult = mrOK then
       begin
-      
+        FWPcapDBSqLite.OpenDatabase(aFormRecording.CurrentDBName);
+        if FWPcapDBSqLite.Connection.Connected then  
+        begin
+          DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
+          FWPcapDBSqLite.FDQueryGrid.Open;
+          BSavePCAP.Enabled := True;
+          BSaevGrid.Enabled := True;
+        end;    
       end;
       
    Finally

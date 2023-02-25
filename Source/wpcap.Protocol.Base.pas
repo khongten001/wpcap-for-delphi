@@ -49,7 +49,7 @@ Type
     /// Returns the length of the protocol header.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
-    class function HeaderLength: Word; virtual;
+    class function HeaderLength(aFlag:Byte): Word; virtual;
 
     class function AddHeaderInfo(aLevel:Byte;const aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word):THeaderString;static;
     /// <summary>
@@ -81,7 +81,7 @@ begin
   raise Exception.Create('TWPcapProtocolBase.IDDetectProto- Non implemented in base class - please override this method');
 end;
 
-class function TWPcapProtocolBase.HeaderLength: word;
+class function TWPcapProtocolBase.HeaderLength(aFlag:byte): word;
 begin
   raise Exception.Create('TWPcapProtocolBase.HeaderLength- Non implemented in base class - please override this method');
 end;

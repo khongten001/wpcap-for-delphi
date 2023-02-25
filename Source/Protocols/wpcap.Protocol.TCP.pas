@@ -2,9 +2,35 @@
 
 interface
 
-uses wpcap.Conts,wpcap.Types,WinSock,System.Types,wpcap.Protocol.Base,System.Variants,System.SysUtils,wpcap.StrUtils;
+uses
+  wpcap.Conts, wpcap.Types, wpcap.BufferUtils, System.Types, wpcap.Protocol.Base,
+  System.Variants, System.SysUtils, wpcap.StrUtils,winsock;
 
 type
+  //https://datatracker.ietf.org/doc/html/rfc793#page-15
+
+{    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |          Source Port          |       Destination Port        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                        Sequence Number                        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Acknowledgment Number                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  Data |           |U|A|P|R|S|F|                               |
+   | Offset| Reserved  |R|C|S|S|Y|I|            Window             |
+   |       |           |G|K|H|T|N|N|                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |           Checksum            |         Urgent Pointer        |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                    Options                    |    Padding    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                             data                              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+}
+
 
   TCPHdr = packed record
     SrcPort   : Word;     // TCP source port
@@ -36,7 +62,7 @@ type
   public
     class function AcronymName: String; override;
     class function DefaultPort: Word; override;
-    class function HeaderLength: word; override;
+    class function HeaderLength(aFlag:Byte): word; override;
     class function IDDetectProto: byte; override;
     /// <summary>
     /// Returns the length of the TCP payload.
@@ -119,7 +145,7 @@ begin
   Result := DETECT_PROTO_TCP;
 end;
 
-class function TWPcapProtocolBaseTCP.HeaderLength: word;
+class function TWPcapProtocolBaseTCP.HeaderLength(aFlag:Byte): word;
 begin
   Result := SizeOf(TCPHdr)
 end;
@@ -148,18 +174,17 @@ begin
   end;
 end;
 
-
 { TWPcapProtocolBaseTCP }
 class function TWPcapProtocolBaseTCP.PayLoadLengthIsValid(const aTCPPtr: PTCPHdr;const aPacketData:PByte; aPacketSize:Word): Boolean;
 begin
-   Result := TCPPayLoadLength(aTCPPtr,aPacketData,aPacketSize)> HeaderLength;
+   Result := TCPPayLoadLength(aTCPPtr,aPacketData,aPacketSize)> HeaderLength(aTCPPtr.Flags);
 end;
 
 class function TWPcapProtocolBaseTCP.TCPPayLoadLength(const aTCPPtr: PTCPHdr;const aPacketData:PByte;aPacketSize:Word): Word;
 var DataOffset: Integer;
 begin
   // Get the data offset in bytes
-  DataOffset := ((aTCPPtr^.DataOff and $F0) shr 4) * SizeOf(DWORD);
+  DataOffset := aTCPPtr^.DataOff * 4;
 
   // Calculate the length of the payload
   Result := aPacketSize -  TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize) - DataOffset;
@@ -177,12 +202,12 @@ end;
 
 class function TWPcapProtocolBaseTCP.SrcPort(const aTCPPtr: PTCPHdr): Word;
 begin
-  Result := ntohs(aTCPPtr.SrcPort);
+  Result := wpcapntohs(aTCPPtr.SrcPort);
 end;
 
 class function TWPcapProtocolBaseTCP.DstPort(const aTCPPtr: PTCPHdr): Word;
 begin
-  Result := ntohs(aTCPPtr.DstPort);
+  Result := wpcapntohs(aTCPPtr.DstPort);
 end;
 
 class function TWPcapProtocolBaseTCP.IsValidByDefaultPort(aDstPort: Integer;
@@ -255,25 +280,25 @@ end;
 
 class function TWPcapProtocolBaseTCP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
 var LPTCPHdr  : PTCPHdr;
-    LHederInfo: THeaderString;
     LesBits   : Integer;
 begin
+  Result := False;
   if not HeaderTCP(aPacketData,aPacketSize,LPTCPHdr) then exit;
   
   AListDetail.Add(AddHeaderInfo(0,Format('Transmission Control Protocol, Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[SrcPort(LPTCPHdr),DstPort(LPTCPHdr),
                                    ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),null,nil,0));  
   
-  AListDetail.Add(AddHeaderInfo(1,'Source:',ntohs(LPTCPHdr.SrcPort),PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
-  AListDetail.Add(AddHeaderInfo(1,'Destination:',ntohs(LPTCPHdr.DstPort),PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
+  AListDetail.Add(AddHeaderInfo(1,'Source:',wpcapntohs(LPTCPHdr.SrcPort),PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
+  AListDetail.Add(AddHeaderInfo(1,'Destination:',wpcapntohs(LPTCPHdr.DstPort),PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
   AListDetail.Add(AddHeaderInfo(1,'Sequence number:',ntohl(LPTCPHdr.SeqNum),PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
   AListDetail.Add(AddHeaderInfo(1,'Acknowledgment number:',ntohl(LPTCPHdr.AckNum),PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
   AListDetail.Add(AddHeaderInfo(1,'Data offset:',SizeTostr(LPTCPHdr.DataOff shr 4),PByte(@LPTCPHdr.DataOff),2));          
   LesBits := (LPTCPHdr.DataOff and $0F) shl 2; 
   AListDetail.Add(AddHeaderInfo(1,'Reserved bits:',LesBits,PByte(LesBits),2));          
   AListDetail.Add(AddHeaderInfo(1,'Flags:',GetTCPFlagsV6(LPTCPHdr.Flags),PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags)));   
-  AListDetail.Add(AddHeaderInfo(1,'Window size:',ntohs(LPTCPHdr.WindowSize),PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
-  AListDetail.Add(AddHeaderInfo(1,'Checksum:',ntohs(LPTCPHdr.Checksum),PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
-  AListDetail.Add(AddHeaderInfo(1,'Urgent pointer:',ntohs(LPTCPHdr.UrgPtr),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));          
+  AListDetail.Add(AddHeaderInfo(1,'Window size:',wpcapntohs(LPTCPHdr.WindowSize),PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
+  AListDetail.Add(AddHeaderInfo(1,'Checksum:',wpcapntohs(LPTCPHdr.Checksum),PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
+  AListDetail.Add(AddHeaderInfo(1,'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));          
 end;
 
 end.

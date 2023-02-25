@@ -52,9 +52,49 @@ function SizeToStr(aSize: int64) : String;
 /// <param name="aDataSize">Size of the data to be displayed in bytes</param>
 /// <returns>An array of strings containing the hexadecimal representation of the data</returns>
 function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
-
-
+procedure MyProcessMessages;
+function MyProcessMessage(var Msg: TMsg): Boolean;
 implementation
+
+procedure MyProcessMessages;
+var
+  Msg: TMsg;
+begin
+  while MyProcessMessage(Msg) do {loop};
+end;
+
+function MyProcessMessage(var Msg: TMsg): Boolean;
+var
+  Unicode: Boolean;
+  MsgExists: Boolean;
+begin
+  Result := False;
+  if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then
+  begin
+{$IFDEF UNICODE}
+    Unicode := (Msg.hwnd = 0) or IsWindowUnicode(Msg.hwnd);
+{$ELSE}
+    Unicode := (Msg.hwnd <> 0) and IsWindowUnicode(Msg.hwnd);
+{$ENDIF}
+    if Unicode then
+      MsgExists := PeekMessageW(Msg, 0, 0, 0, PM_REMOVE)
+    else
+      MsgExists := PeekMessageA(Msg, 0, 0, 0, PM_REMOVE);
+
+    if MsgExists then
+    begin
+      Result := True;
+      if Msg.Message <> {WM_QUIT}$0012 then
+      begin
+        TranslateMessage(Msg);
+        if Unicode then
+          DispatchMessageW(Msg)
+        else
+          DispatchMessageA(Msg);
+      end;
+    end;
+  end;
+end;
 
 
 function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;

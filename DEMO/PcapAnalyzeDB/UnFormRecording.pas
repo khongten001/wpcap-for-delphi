@@ -7,7 +7,10 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, cxGraphics, cxControls, cxLookAndFeels,wpcap.Packet,
   cxLookAndFeelPainters, cxContainer, cxEdit, dxSkinsCore, dxSkinBasic, wpcap.Filter,
   Vcl.Menus, Vcl.StdCtrls, cxButtons, cxGroupBox, cxCheckBox, cxCustomListBox,system.UITypes ,
-  cxCheckListBox, cxLabel,wpcap.NetDevice, cxTextEdit,wpcap.DB.SQLite,wpcap.PCAP;
+  cxCheckListBox, cxLabel,wpcap.NetDevice, cxTextEdit,wpcap.DB.SQLite,wpcap.PCAP,
+  cxCustomData, cxStyles, dxScrollbarAnnotations, cxTL, cxTLdxBarBuiltInMenu,
+  cxInplaceContainer,wpcap.StrUtils, dxToggleSwitch, cxMaskEdit, cxButtonEdit,
+  System.ImageList, Vcl.ImgList, cxImageList;
 
 type
   TFormRecording = class(TForm)
@@ -17,16 +20,27 @@ type
     BEndRecording: TcxButton;
     BStartRecording: TcxButton;
     cxLabel1: TcxLabel;
-    ListInterface: TcxCheckListBox;
     cxGroupBox3: TcxGroupBox;
     cxLabel2: TcxLabel;
     EFilter: TcxTextEdit;
+    ListInterface: TcxTreeList;
+    ListInterfaceColumGUID: TcxTreeListColumn;
+    ListInterfaceCOMMENT: TcxTreeListColumn;
+    ListInterfaceColumPROMISC: TcxTreeListColumn;
+    ListInterfaceColumIP: TcxTreeListColumn;
+    EPathDB: TcxButtonEdit;
+    cxLabel3: TcxLabel;
+    TSfileDumb: TdxToggleSwitch;
+    SaveDialog1: TSaveDialog;
+    cxImageList1: TcxImageList;
     procedure FormCreate(Sender: TObject);
     procedure BStartRecordingClick(Sender: TObject);
     procedure EFilterPropertiesValidate(Sender: TObject;
       var DisplayValue: Variant; var ErrorText: TCaption; var Error: Boolean);
     procedure FormDestroy(Sender: TObject);
     procedure BEndRecordingClick(Sender: TObject);
+    procedure EPathDBPropertiesButtonClick(Sender: TObject;
+      AButtonIndex: Integer);
   private
     FTotalSize      : Int64;
     FWPcapDBSqLite  : TWPcapDBSqLite;  
@@ -49,14 +63,26 @@ implementation
 {$R *.dfm}
 
 procedure TFormRecording.FormCreate(Sender: TObject);
-var LListInterface : TStringList;
+var LListInterface : TListCardInterface;
     I              : Integer;
+    LCurrentNode: TcxTreeListNode;
 begin
-  ModalResult    := mrCancel;
-  LListInterface := GetAdapterList;
+  ListInterface.Clear;
+  FCurrentDBName        := Format('%sRealtime_%d.db',[ExtractFilePath(Application.ExeName),GetTickCount]);
+  EPathDB.Text          := FCurrentDBName;
+  SaveDialog1.FileName  := FCurrentDBName;   
+  ModalResult           := mrCancel;
+  LListInterface        := GetAdapterList;
   Try
     for I := 0 to LListInterface.Count -1 do 
-      ListInterface.Items.Add.Text := LListInterface[I];  
+    begin
+      LCurrentNode                := ListInterface.AddChild(nil);
+      LCurrentNode.CheckGroupType := ncgRadioGroup;
+      LCurrentNode.Values[ListInterfaceColumGUID.Position.ColIndex]    := LListInterface[I].name;
+      LCurrentNode.Values[ListInterfaceCOMMENT.Position.ColIndex]      := LListInterface[I].description;
+      LCurrentNode.Values[ListInterfaceColumIP.Position.ColIndex]      := LListInterface[I].addresses;   
+      LCurrentNode.Values[ListInterfaceColumPROMISC.Position.ColIndex] := True;
+    end;
   Finally
     FreeAndNil(LListInterface);
   End;
@@ -72,15 +98,14 @@ end;
 
 procedure TFormRecording.DoPCAPCallBackProgress(aTotalSize,aCurrentSize:Int64);
 begin
-  FTotalSize       := aCurrentSize;
-  cxLabel1.Caption := Format('Captured packet of length %d total size %d',[aCurrentSize,FTotalSize]);
+  Inc(FTotalSize,aCurrentSize);
+  cxLabel1.Caption := Format('Captured packet of length %s total size %s',[SizeToStr(aCurrentSize),SizeToStr(FTotalSize)]);
 end;
 
 procedure TFormRecording.DoPCAPCallBackPacket(const aInternalPacket: PTInternalPacket);
 begin
   FWPcapDBSqLite.InsertPacket(aInternalPacket);
 end;
-
 
 procedure TFormRecording.BStartRecordingClick(Sender: TObject);
 var LIndex : Integer;
@@ -91,15 +116,22 @@ begin
   begin
     if not EFilter.ValidateEdit(False) then
     begin
-      MessageDlg('Invalid filter',mtWarning,[mbOK],0);
+      MessageDlg('Invalid filter',mtWarning,[mbOK],0);      
       Exit;
     end;
   end;
+
+
+  if Trim(EPathDB.Text  ).IsEmpty then
+  begin
+    MessageDlg('Filename is empty',mtWarning,[mbOK],0);      
+    Exit;
+  end;
   
   //TODO recording multi interface
-  for I := 0 to ListInterface.Items.Count -1 do
+  for I := 0 to ListInterface.AbsoluteCount  -1 do
   begin
-    if ListInterface.Items[I].Checked then    
+    if ListInterface.AbsoluteItems[I].Checked then    
     begin
       LIndex := I;
       Break;
@@ -111,18 +143,31 @@ begin
     MessageDlg('Select one interface',mtWarning,[mbOK],0);
     Exit;
   end;
-
+  
+  FCurrentDBName := EPathDB.Text;
   {Create database}
   DestroyDatabase;
+  FTotalSize     := 0;
   FWPcapDBSqLite := TWPcapDBSqLite.Create;
   Try
-    FCurrentDBName := Format('%sRealtime_%d.db',[ExtractFilePath(Application.ExeName),GetTickCount]);
+
     FWPcapDBSqLite.CreateDatabase(CurrentDBName);
     Try
       BEndRecording.Enabled   := True;
       BStartRecording.Enabled := False;
       BCancel.Enabled         := False;
-      FPCAPUtils.AnalyzePCAPRealtime(FCurrentDBName,EFilter.Text,ListInterface.Items[LIndex].Text,DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackProgress);          
+
+      {TODO PCAP BY SIZE AND TIME AND END RECORDING DATE}
+      FPCAPUtils := TPCAPUtils.Create;
+      Try
+        FPCAPUtils.AnalyzePCAPRealtime(FCurrentDBName,EFilter.Text,
+                                       ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumGUID.Position.ColIndex],
+                                       ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumIP.Position.ColIndex],                                     
+                                       ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumPROMISC.Position.ColIndex],TSfileDumb.Checked,
+                                       DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackProgress);          
+      Finally
+        FreeAndNil(FPCAPUtils);
+      End;
     except on E: Exception do
       DoPCAPCallBackError(CurrentDBName,Format('Exception analyze PCAP %s',[E.Message]));
     end;    
@@ -162,6 +207,13 @@ begin
       BEndRecording.Enabled   := FaLse;
       BStartRecording.Enabled := True;
       BCancel.Enabled         := True;  
+end;
+
+procedure TFormRecording.EPathDBPropertiesButtonClick(Sender: TObject;
+  AButtonIndex: Integer);
+begin
+  if SaveDialog1.Execute then
+    EPathDB.Text := SaveDialog1.FileName;
 end;
 
 end.

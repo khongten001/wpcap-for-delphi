@@ -5,8 +5,8 @@ interface
 uses
   wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts,wpcap.IANA.DbPort,
   WinApi.Windows, wpcap.Packet, wpcap.IOUtils, System.SysUtils, 
-  Winsock,wpcap.Level.Eth,
-  DateUtils, System.Generics.Collections;
+  Winsock,wpcap.Level.Eth,wpcap.BufferUtils,Forms,System.Math,
+  DateUtils, System.Generics.Collections,System.Variants;
 
 type
 
@@ -80,12 +80,9 @@ type
   TPCAPUtils = class
   strict private
     class var FPCAPCallBackPacket      : TPCAPCallBackPacket;
-    class var FPCAPCallBackProgressRT  : TPCAPCallBackProgress;
-    class var FAbort                   : Boolean;    
-    class var FHandleRT                : THandle;        
-    class var FPCapRT                  : Ppcap_t;         
-    class var FIANADictionary          : TDictionary<String,TIANARow>;                
-  private
+    class var FAbort                   : Boolean; 
+    class var FPCapRT                  : Ppcap_t;      
+    class var FIANADictionary          : TDictionary<String,TIANARow>;   
     /// <summary>
     /// This is a class procedure that handles a packet in real time. 
     /// It takes three parameters: a pointer to the user, a pointer to the packet header, and a pointer to the packet data.
@@ -96,7 +93,9 @@ type
     /// <remarks>
     /// This function uses cdecl calling convention.
     /// </remarks>
-    class procedure PacketHandlerRealtime(user: PByte; aHeader: PTpcap_pkthdr; aPacketData: PByte); cdecl;
+
+  private
+
 
     /// <summary>
     /// This is a static class procedure that analyzes a packet. It takes two parameters: a pointer to the packet data and a pointer to the packet header.
@@ -113,7 +112,7 @@ type
     /// <param name="aFilter">The filter to check.</param>
     /// <param name="aPCAPCallBackError">A callback function to handle errors.</param>
     /// <returns>True if the filter is valid; otherwise, False.</returns>
-    class function CheckWPcapFilter(aHandlePcap: Ppcap_t; const aFileName, aFilter: string; aPCAPCallBackError: TPCAPCallBackError): Boolean; static;
+    class function CheckWPcapFilter(aHandlePcap: Ppcap_t; const aFileName, aFilter,aIP: string; aPCAPCallBackError: TPCAPCallBackError): Boolean; static;
     
     /// <summary>
     /// This static class procedure initializes an IANA dictionary.
@@ -166,6 +165,12 @@ type
     /// <param name="aInterfaceName">
     ///   The name of interface where start recording.
     /// </param>
+    /// <param name="aPromisc">
+    ///   Use promisc in interface
+    /// </param>
+    /// <param name="aSevePcapDump">
+    ///   save DB and PCAP dump 
+    /// </param>
     /// <param name="aPCAPCallBackPacket">
     ///  A callback procedure to be called for each packet in the capture file.
     /// </param>
@@ -175,16 +180,22 @@ type
     /// <param name="aPCAPCallBackProgress">
     ///  A callback procedure to be called to report progress during packet processing.
     /// </param>
-    class procedure AnalyzePCAPRealtime(  const aFilename, aFilter,aInterfaceName: string;
-                                    aPCAPCallBackPacket  : TPCAPCallBackPacket;
-                                    aPCAPCallBackError   : TPCAPCallBackError;
-                                    aPCAPCallBackProgress: TPCAPCallBackProgress = nil);static;                     
+    /// <param name="aTimeOut">
+    ///  Timeout in millisecond for data collection
+    /// </param>
+    procedure AnalyzePCAPRealtime(  const aFilename, aFilter,aInterfaceName,aIP: string;
+                                          aPromisc,aSevePcapDump:Boolean;
+                                          aPCAPCallBackPacket  : TPCAPCallBackPacket;
+                                          aPCAPCallBackError   : TPCAPCallBackError;
+                                          aPCAPCallBackProgress: TPCAPCallBackProgress = nil;
+                                          aTimeOutMs:Integer=1000);                     
 
+    class var FPCAPCallBackProgressRT  : TPCAPCallBackProgress;
     /// <summary>
     /// This is a static class procedure that stops the analysis process.
     /// </summary>
     class procedure StopAnalyze; static;
-
+    
     ///  <summary>
     ///    Saves a list of packets to a pcap file.
     ///  </summary>
@@ -194,14 +205,23 @@ type
     ///  <param name="aFilename">
     ///    The name of the pcap file to save to.
     ///  </param>
+    ///
     class procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);static;
+
+    {Property}
+    class Property Abort  : Boolean Read FAbort;
+    class Property PCapRT : Ppcap_t Read FPCapRT;
   end;
+  
+  function  PacketHandlerRealtime ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; cdecl;  
   
 implementation
 
 class procedure TPCAPUtils.AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr);
 var LInternalPacket  : PTInternalPacket;  
 begin
+  if not Assigned(aPacketData) then Exit;
+  
   New(LInternalPacket); 
   Try
     LInternalPacket.PacketDate := UnixToDateTime(aHeader.ts.tv_sec,false);    
@@ -212,28 +232,44 @@ begin
   end;                        
 end;
 
-class procedure TPCAPUtils.PacketHandlerRealtime(user: PByte; aHeader: PTpcap_pkthdr; aPacketData: PByte); cdecl;
+function  PacketHandlerRealtime ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; 
+var PacketBuffer: array[0..MAX_PACKET_SIZE-1] of Byte;
+    LPacketLen  : Word;
+    aNewHeader  : PTpcap_pkthdr;
 begin
-  if Assigned(FPCAPCallBackProgressRT) then
-    FPCAPCallBackProgressRT(-1,aHeader^.len);
+  MyProcessMessages;
 
-  AnalyzePacketCallBack(aPacketData,aHeader);
-  
-  if FAbort then
+  if Assigned(aPacketData) then
   begin
-    if WaitForSingleObject(FHandleRT, 0) = WAIT_OBJECT_0 then
-      pcap_breakloop(FPcapRT);                             
-  end;  
+    LPacketLen  := wpcapntohs(aHeader^.len);
+    if Assigned( TPCAPUtils(aUser).FPCAPCallBackProgressRT) then
+      TPCAPUtils(aUser).FPCAPCallBackProgressRT(-1,LPacketLen);
+    new(aNewHeader);
+    aNewHeader.ts := aHeader.ts;
+    aNewHeader.caplen := (aHeader.caplen);
+    aNewHeader.len := LPacketLen ;
+
+    Move(aPacketData^, PacketBuffer[0], LPacketLen);
+    TPCAPUtils(aUser).AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader);
+    dispose(aNewHeader);
+  end;
+  if TPCAPUtils(aUser).Abort then
+    pcap_breakloop(TPCAPUtils(aUser).PcapRT);                             
+
+  Result := 0;
 end;
 
-class procedure TPCAPUtils.AnalyzePCAPRealtime(  const aFilename, aFilter,aInterfaceName: string;
-                                aPCAPCallBackPacket  : TPCAPCallBackPacket;
-                                aPCAPCallBackError   : TPCAPCallBackError;
-                                aPCAPCallBackProgress: TPCAPCallBackProgress = nil
-                             );
-CONST TIME_OUT_READ = 1000;                             
+procedure TPCAPUtils.AnalyzePCAPRealtime( const aFilename, aFilter,aInterfaceName,aIP: string;
+                                                aPromisc,aSevePcapDump:Boolean;
+                                                aPCAPCallBackPacket  : TPCAPCallBackPacket;
+                                                aPCAPCallBackError   : TPCAPCallBackError;
+                                                aPCAPCallBackProgress: TPCAPCallBackProgress = nil;
+                                                aTimeOutMs:Integer=1000
+                                             );
 var Lerrbuf      : array[0..PCAP_ERRBUF_SIZE-1] of AnsiChar;
     LPcapDumper  : ppcap_dumper_t;
+    LLoopResult  : Integer;
+    
 begin
   FAbort := False;
   if not Assigned(aPCAPCallBackError) then
@@ -267,7 +303,7 @@ begin
   FPCAPCallBackProgressRT  := aPCAPCallBackProgress;
   
   // Open the network adapter for capturing
-  FPcapRT := pcap_open_live(PAnsiChar(AnsiString(aInterfaceName)), MAX_PACKET_SIZE, 1, TIME_OUT_READ, Lerrbuf); //TODO MAGIC NUMBER
+  FPcapRT := pcap_open_live(PAnsiChar(AnsiString(aInterfaceName)), MAX_PACKET_SIZE, ifthen(aPromisc,1,0), aTimeOutMs, Lerrbuf);
   if not Assigned(FPcapRT) then
   begin
     aPCAPCallBackError(aFileName,Format('Error opening network adapter: %s', [Lerrbuf]));
@@ -275,45 +311,52 @@ begin
   end;
   Try          
     // Open the PCAP file for writing
-    LPcapDumper := pcap_dump_open(FPcapRT, PAnsiChar(AnsiString(aFilename)));
-
-    if LPcapDumper = nil then
+    if aSevePcapDump then    
     begin
-      aPCAPCallBackError(aFileName,Format('Failed to open PCAP dump %s',[string(pcap_geterr(FPcapRT))]));
-      Exit;
-    end;  
-    
-    Try  
-      FHandleRT := CreateEvent(nil, True, False, nil);
-      Try
-        // Set the packet filter if one was provided
-        if not CheckWPcapFilter(FPcapRT,aFilename,aFilter,aPCAPCallBackError) then exit;
+      LPcapDumper := pcap_dump_open(FPcapRT, PAnsiChar(AnsiString(ChangeFileExt(aFilename,'.pcap'))));
 
-        // Start capturing packets and writing them to the output file
-        pcap_loop(FPcapRT, -1, @PacketHandlerRealtime, nil);
-
-      finally
-        // Close the event handle.
-        CloseHandle(FHandleRT);
+      if LPcapDumper = nil then
+      begin
+        aPCAPCallBackError(aFileName,Format('Failed to open PCAP dump %s',[string(pcap_geterr(FPcapRT))]));
+        Exit;
       end;      
+    end;
+
+    Try  
+      // Set the packet filter if one was provided
+      if not CheckWPcapFilter(FPcapRT,aFilename,aFilter,aIP,aPCAPCallBackError) then exit;
+
+      // Start capturing packets and writing them to the output file
+
+
+      LLoopResult := pcap_loop(FPcapRT, -1, @PacketHandlerRealtime, @self);
+      case LLoopResult  of
+        0  :; //Cnt end
+        -1 : aPCAPCallBackError(aFileName,Format('pcap_loop ended because of an error %s',[string(pcap_geterr(FPcapRT))])); 
+        -2 : //Normal
+      else
+         aPCAPCallBackError(aFileName,Format('pcap_loop ended unknow return code [%d] error %s',[LLoopResult,string(pcap_geterr(FPcapRT))]));   
+      end;
+
     Finally
-       // Close the output file and the network adapter
-      pcap_dump_close(LPcapDumper);
+      // Close the output file and the network adapter
+      if aSevePcapDump then     
+        pcap_dump_close(LPcapDumper);
     End;        
   Finally
     pcap_close(FPcapRT);
   End;
 end;
 
-Class function TPCAPUtils.CheckWPcapFilter(aHandlePcap : Ppcap_t;const aFileName,aFilter: string;aPCAPCallBackError:TPCAPCallBackError) : Boolean;
+Class function TPCAPUtils.CheckWPcapFilter(aHandlePcap : Ppcap_t;const aFileName,aFilter,aIP: string;aPCAPCallBackError:TPCAPCallBackError) : Boolean;
 var LFilterCode : BPF_program;  
     LNetMask    : bpf_u_int32;
 begin
   Result := False;
   {Filter}
-  if Not aFilter.Trim.IsEmpty then
+ // if Not aFilter.Trim.IsEmpty then
   begin
-    if pcap_compile(aHandlePcap, @LFilterCode, PAnsiChar(AnsiString(aFilter)), 1, LNetMask) <> 0 then
+    if pcap_compile(aHandlePcap, @LFilterCode, PAnsiChar(AnsiString(aFilter)), 1, inet_addr(PAnsiChar(AnsiString(aIP)))) <> 0 then
     begin
       aPCAPCallBackError(aFileName,string(pcap_geterr(aHandlePcap)));            
       Exit;
@@ -441,7 +484,7 @@ begin
   end;
   
   try
-    if not CheckWPcapFilter(LHandlePcap,aFilename,aFilter,aPCAPCallBackError) then exit;  
+    if not CheckWPcapFilter(LHandlePcap,aFilename,aFilter,String.Empty,aPCAPCallBackError) then exit;  
     // Loop over packets in PCAP file
     Try
       InitIANADictionary;

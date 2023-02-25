@@ -25,14 +25,14 @@ const
   
   MAX_PACKET_SIZE = 65535; // Maximum size of the packets to be captured
 
-
+  
   {IPPROTO IPV4}
-  IPPROTO_GRE     = 47;
-  IPPROTO_ESP     = 50;    // Encapsulation Security Payload
-  IPPROTO_AH      = 51;    // Authentication header
-  IPPROTO_ROUTING = 42;    // Routing header
-  IPPROTO_PGM     = 113;
-  IPPROTO_SCTP    = 132;
+  IPPROTO_GRE        = 47;
+  IPPROTO_ESP        = 50;    // Encapsulation Security Payload
+  IPPROTO_AH         = 51;    // Authentication header
+  IPPROTO_ROUTING    = 42;    // Routing header
+  IPPROTO_PGM        = 113;
+  IPPROTO_SCTP       = 132;
 
   {IPPROTO IPV6}  
   IPPROTO_IPV6       = 41;   // IPv6 header
@@ -43,6 +43,7 @@ const
   IPPROTO_DSTOPTS    = 60;   // IPv6 destination options
   IPPROTO_MH         = 135;  // Mobility header
   IPPROTO_ICMPV62    = 128;  
+  
   {ETHERNET TYPE}
   ETH_P_LOOP      = $0060;  // Ethernet Loopback packet
   ETH_P_PUP       = $0200;  // Xerox PUP packet
@@ -224,10 +225,10 @@ const
   TYPE_DNS_QUESTION_DLV		     	= 32769; 
 
   {L2TP FLAG}
-  L2TP_HDR_FLAG_LENGTH_INCLUDED      = $8000; // Indicates whether the Length field is present in the L2TP header
-  L2TP_HDR_FLAG_PRIORITY             = $4000; // Indicates whether the Priority field is present in the L2TP header
-  L2TP_HDR_FLAG_SEQUENCE             = $2000; // Indicates whether the Sequence Number field is present in the L2TP header
   L2TP_HDR_FLAG_OFFSET_SIZE_INCLUDED = $1000; // Indicates whether the Offset Size field is present in the L2TP header
+  L2TP_HDR_FLAG_SEQUENCE             = $2000; // Indicates whether the Sequence Number field is present in the L2TP header
+  L2TP_HDR_FLAG_PRIORITY             = $4000; // Indicates whether the Priority field is present in the L2TP header
+  L2TP_HDR_FLAG_LENGTH_INCLUDED      = $8000; // Indicates whether the Length field is present in the L2TP header
   L2TP_HDR_FLAG_D_BIT                = $0800; // Delivery Notification Request bit
   L2TP_HDR_FLAG_S_BIT                = $0400; // Strict-Source bit
   L2TP_HDR_FLAG_L_BIT                = $0200; // Length-Change bit

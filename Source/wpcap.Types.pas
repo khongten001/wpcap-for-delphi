@@ -171,14 +171,15 @@ type
   /// <summary>
   ///   Structure that contains information about a network interface card (NIC).
   /// </summary> 
-  Ppcap_if = ^pcap_if;
-  pcap_if = record
-    next        : Ppcap_if;       // Pointer to the next network interface card in the list.
+  PTCartInterface = ^TCartInterface;
+  TCartInterface = record
+    next        : PTCartInterface;// Pointer to the next network interface card in the list.
     name        : PAnsiChar;      // Name of the network interface card.
     description : PAnsiChar;      // Description of the network interface card.
     addresses   : Ppcap_addr;     // Pointer to the list of IP addresses associated with the network interface card.
     flags       : bpf_u_int32;    // Flags that contain information about the network interface card.
   end;  
+   
   
   //The PACKET_OID_DATA structure is used to represent data related to an Object IDentifier (OID).
   //The Oid field represents the OID in question, the Length field represents the length of the data contained in the Data field, while the Data field represents the data itself.
@@ -245,7 +246,7 @@ type
     linktype: Integer;
   end;  
   
-  pcap_handler = procedure(user: PAnsiChar; hdr: PTpcap_pkthdr; pkt: PAnsiChar); cdecl;
+  pcap_handler = function ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; cdecl;
 
   // The constant TIPv6AddrBytes indicates an array of 16 bytes representing an IPv6 address,
   // where each pair of bytes is represented in hexadecimal format, separated by a colon.
@@ -264,6 +265,24 @@ type
   TIpClaseType = (imtNone,imtIpv4,imtIpv6);  
 
   TListHeaderString = class(TList<THeaderString>);
+
+                     
+  /// <summary>
+  ///  Record containing string representations interface
+  /// </summary>
+  TInterfaceInfo = Record
+    Name  : String;  // Hexadecimal representation of the header information
+    Descripton  : String;  // Hexadecimal representation of the header information    
+  End;  
+
+  TPcapDirection = (
+    PCAP_D_INOUT          = 0,
+    PCAP_D_IN             = 1,
+    PCAP_D_OUT            = 2,
+    PCAP_D_INOUT_NOFILTER = 3,
+    PCAP_D_IN_NOFILTER    = 4,
+    PCAP_D_OUT_NOFILTER   = 5  
+ );
   
 implementation
 

@@ -186,7 +186,7 @@ function pcap_dump_close(dumper: ppcap_dumper_t): Longint; cdecl; external 'wpca
 ///   Returns a linked list of all network interfaces available on the system.
 /// </summary>
 /// <param name="alldevsp">
-///   Pointer to a pcap_if_t pointer that will be set to point to the first element in the linked list.
+///   Pointer to a PTCartInterface pointer that will be set to point to the first element in the linked list.
 /// </param>
 /// <param name="errbuf">
 ///   Pointer to a buffer that will be filled with an error message if the function fails.
@@ -194,7 +194,7 @@ function pcap_dump_close(dumper: ppcap_dumper_t): Longint; cdecl; external 'wpca
 /// <returns>
 ///   0 on success, or a negative value on failure. The error message will be stored in the buffer pointed to by `errbuf`.
 /// </returns>
-function pcap_findalldevs(alldevsp: Ppcap_if; errbuf: PAnsiChar): Integer; cdecl; external 'wpcap.dll';
+function pcap_findalldevs(alldevsp: PTCartInterface; errbuf: PAnsiChar): Integer; cdecl; external 'wpcap.dll';
 
 /// <summary>
 ///   Frees the memory associated with the linked list of network interfaces returned by pcap_findalldevs.
@@ -202,7 +202,7 @@ function pcap_findalldevs(alldevsp: Ppcap_if; errbuf: PAnsiChar): Integer; cdecl
 /// <param name="alldevsp">
 ///   Pointer to the first element in the linked list of network interfaces returned by pcap_findalldevs.
 /// </param>
-procedure pcap_freealldevs(alldevsp: Ppcap_if); cdecl; external 'wpcap.dll';
+procedure pcap_freealldevs(alldevsp: PTCartInterface); cdecl; external 'wpcap.dll';
 
 ///<summary>
 /// Opens a network interface for live packet capture using WinPcap.
@@ -226,7 +226,7 @@ procedure pcap_freealldevs(alldevsp: Ppcap_if); cdecl; external 'wpcap.dll';
 /// A pointer to the `pcap_t` structure that represents the opened interface,
 /// or `nil` if the function call fails.
 /// </returns>
-function pcap_open_live(device: PAnsiChar; snaplen: Integer;promisc: Integer; to_ms: Integer; errbuf: PAnsiChar): Ppcap_t; cdecl;external 'wpcap.dll';  
+function pcap_open_live(const device: PAnsiChar; snaplen: Integer;promisc: Integer; to_ms: Integer; errbuf: PAnsiChar): Ppcap_t; cdecl;external 'wpcap.dll';  
 
 ///<summary>
 /// Captures a specified number of packets and calls a user-provided
@@ -251,7 +251,7 @@ function pcap_open_live(device: PAnsiChar; snaplen: Integer;promisc: Integer; to
 /// <returns>
 /// The number of packets that were captured, or -1 if an error occurred.
 /// </returns>
-function pcap_loop(pcap: Ppcap_t; cnt: Integer;callback: pcap_handler; user: PAnsiChar): Integer; cdecl; external 'wpcap.dll';
+function pcap_loop(pcap: Ppcap_t; cnt: Integer;aCallback: pcap_handler; user: PansiChar): Integer; cdecl; external 'wpcap.dll';
 
 /// <summary>
 /// Break a packet capture loop.
@@ -262,7 +262,54 @@ function pcap_loop(pcap: Ppcap_t; cnt: Integer;callback: pcap_handler; user: PAn
 /// <param name="p">A pointer to a pcap_t structure returned by pcap_open_live or pcap_open_offline.</param>
 function pcap_breakloop(p: Ppcap_t): Integer;cdecl; external 'wpcap.dll';
 
+/// <summary>
+///   Sets the direction of the packets to be captured.
+/// </summary>
+/// <remarks>
+///   This function sets the direction of the packets to be captured. Only packets that have the specified direction relative to the machine capturing the packets will be captured. If the direction parameter is set to PCAP_D_INOUT, both incoming and outgoing packets will be captured. This function should be called after the pcap_open_live() function.
+/// </remarks>
+/// <param name="p">A pointer to the pcap_t structure that was returned by pcap_open_live().</param>
+/// <param name="direction">The direction of the packets to capture (either PCAP_D_IN, PCAP_D_OUT, PCAP_D_INOUT).</param>
+/// <returns>Returns 0 on success or a negative value on failure.</returns>
+function pcap_setdirection(p: ppcap_t; direction: TPcapDirection): Integer; cdecl; external 'wpcap.dll';
 
+///  <summary>
+///    Looks up the network address and netmask for the specified network interface
+///  </summary>
+///  <param name="device">
+///    A null-terminated string that specifies the network device to look up, such as "eth0" or "wlan0".
+///  </param>
+///  <param name="netp">
+///    A pointer to a network address that will be set to the network address of the network interface.
+///  </param>
+///  <param name="maskp">
+///    A pointer to a network mask that will be set to the netmask of the network interface.
+///  </param>
+///  <param name="errbuf">
+///    A buffer that will be filled with an error message if the function fails.
+///  </param>
+///  <returns>
+///    0 if successful, or -1 on failure.
+///  </returns>
+function pcap_lookupnet(device: PAnsiChar; var netp, maskp: bpf_u_int32; errbuf: PAnsiChar): Integer; cdecl;external 'wpcap.dll';
+
+/// <summary>
+/// Create a source string that identifies a network interface to capture from, using various parameters.
+/// </summary>
+/// <param name="source">The resulting source string. Must be a pointer to a buffer that is at least "PCAP_BUF_SIZE" bytes long.</param>
+/// <param name="type">The type of the source. This should be one of the "PCAP_SRC_*" constants defined in "pcap.h".</param>
+/// <param name="name">The name of the network device to capture from, or a URL specifying the remote device to capture from.</param>
+/// <param name="config">A string containing additional configuration parameters, or NULL if none are needed.</param>
+/// <param name="errbuf">A buffer to hold error messages in case of failure. Should be at least "PCAP_ERRBUF_SIZE" bytes long.</param>
+/// <returns>Returns 0 on success, or -1 on failure.</returns>
+function pcap_createsrcstr(source: PAnsiChar; type_: PAnsiChar; const name: PAnsiChar; const config: PAnsiChar; errbuf: PAnsiChar): Integer; cdecl;external 'wpcap.dll';
+
+/// <summary>
+/// Get the link-layer header type of the pcap_t session.
+/// </summary>
+/// <param name="p">A pointer to the pcap_t session.</param>
+/// <returns>Returns the link-layer header type of the session, as one of the "DLT_*" constants defined in "pcap.h". Returns "PCAP_ERROR" if an error occurs.</returns>
+function pcap_datalink(p: Ppcap_t): Integer; cdecl; external 'wpcap.dll';
 
 
 //******************************************************************************************************

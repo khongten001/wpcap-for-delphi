@@ -3,8 +3,8 @@
 interface
 
 uses
-  System.Generics.Collections, wpcap.Packet, winSock, wpcap.StrUtils,
-  wpcap.Conts, System.SysUtils,wpcap.Types,Variants,wpcap.IANA.Dbport;
+  System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,
+  wpcap.Conts, System.SysUtils,wpcap.Types,Variants,wpcap.IANA.Dbport,winsock2;
 
 type  
 
@@ -142,8 +142,7 @@ begin
 end;
 
 class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;
-var LHederInfo     : THeaderString;
-    LInternalPacket: PTInternalPacket;
+var LInternalPacket: PTInternalPacket;
     LHeader        : PETHHdr;
 begin
   Result := False;
@@ -187,7 +186,7 @@ begin
   if not Assigned(aPETHHdr) then exit;
 
 
-  aInternalPacket.Eth.EtherType := ntohs(aPETHHdr.EtherType);
+  aInternalPacket.Eth.EtherType := wpcapntohs(aPETHHdr.EtherType);
   aInternalPacket.Eth.SrcAddr   := MACAddrToStr(aPETHHdr.SrcAddr);
   aInternalPacket.Eth.DestAddr  := MACAddrToStr(aPETHHdr.DestAddr);  
   aInternalPacket.Eth.Acronym   := GetEthAcronymName(aInternalPacket.Eth.EtherType);
@@ -256,7 +255,7 @@ begin
 
   if not Assigned(aPETHHdr) then exit;
     
-  case ntohs(aPETHHdr.EtherType)  of
+  case wpcapntohs(aPETHHdr.EtherType)  of
     ETH_P_IP   : Result := imtIpv4;
     ETH_P_IPV6 : Result := imtIpv6;
   end;      

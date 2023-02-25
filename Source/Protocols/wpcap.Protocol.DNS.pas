@@ -4,9 +4,29 @@ interface
 
 uses
   wpcap.Protocol.Base, wpcap.Conts, wpcap.Protocol.UDP, System.SysUtils,Variants,
-  wpcap.Types, WinSock,System.StrUtils;
+  wpcap.Types, wpcap.BufferUtils,System.StrUtils;
 
 type
+  {https://www.ietf.org/rfc/rfc1035.txt}
+
+{
+                                    1  1  1  1  1  1
+      0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                      ID                       |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    QDCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ANCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    NSCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |                    ARCOUNT                    |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+ } 
   TDnsHeader = packed record
     id           : Word; // identification number 2 bytes
     Flags        : Word;
@@ -49,7 +69,7 @@ type
     /// <summary>
     ///  Returns the length of the DNS header.
     /// </summary>
-    class function HeaderLength: word; override;
+    class function HeaderLength(aFlag:Byte): word; override;
 
     /// <summary>
     ///  Returns a pointer to the DNS header.
@@ -82,7 +102,7 @@ type
     /// <returns>
     ///   A string representation of the DNS flags.
     /// </returns>
-    class function GetDNSFlags(Flags: Word; AListDetail: TListHeaderString): string; static;
+    class function GetDNSFlags(aFlags: Word; AListDetail: TListHeaderString): string; static;
 
     /// <summary>
     ///  Returns a string representation of a DNS question class.
@@ -137,7 +157,7 @@ begin
   Result := 'DNS';
 end;
 
-class function TWPcapProtocolDNS.HeaderLength: word;
+class function TWPcapProtocolDNS.HeaderLength(aFlag:Byte): word;
 begin
   Result:= SizeOf(TDnsHeader)
 end;
@@ -232,7 +252,7 @@ begin
 end;
 
 
-class function TWPcapProtocolDNS.GetDNSFlags(Flags: Word;AListDetail:TListHeaderString): string;
+class function TWPcapProtocolDNS.GetDNSFlags(aFlags: Word;AListDetail:TListHeaderString): string;
 
   Procedure AddHeaderInfo(const aDescription,aValue:Variant);
   var LHederInfo : THeaderString;
@@ -246,10 +266,22 @@ class function TWPcapProtocolDNS.GetDNSFlags(Flags: Word;AListDetail:TListHeader
     AListDetail.Add(LHederInfo);   
   end;
   
-var tmpResult : String;  
+var LtmpResult       : String;
+    LtmpBooleanValue : Boolean;
+    LByte0           : Byte;
 begin
-  Result := '';
-  if (Flags and $8000) = $8000 then
+  Result := String.Empty;
+  LByte0 := GetByteFromWord(aFlags,0);
+
+  {
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+    |QR|   Opcode  |AA|TC|RD|RA|   Z    |   RCODE   |
+    +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+  }
+
+   
+  //QR  A one bit field that specifies whether this message is a query (0), or a response (1).
+  if GetBitValue(LByte0,1) =  0 then
   begin
     Result := 'Query'; // Message is a query
     AddHeaderInfo('Type:','Query');
@@ -260,66 +292,126 @@ begin
     AddHeaderInfo('Type:','Response');       
   end;
 
-  tmpResult := String.Empty;
-  case (Flags and $7800) of
-    $7800 : tmpResult := 'Standard query'; // Standard query
-    $0000 : tmpResult := 'Query (Inverse/Reverse)'; // Inverse query
-    $1000 : tmpResult := 'Server status request'; // Server status request
-    $2000 : tmpResult := 'Reserved'; // Reserved
-  end;
+  {
+  OPCODE  A four bit field that specifies kind of query in this
+          message.  This value is set by the originator of a query
+          and copied into the response.  The values are:
 
-  if not tmpResult.IsEmpty then
-  begin
-    Result := Format('%s, %s',[Result,tmpResult]);
-    AddHeaderInfo('Query type:',tmpResult);  
-  end;
-
-  if (Flags and $0400) = $0400 then
-  begin
-    Result := Result + ', Authoritative answer';
-    AddHeaderInfo('Authoritative answer:',True);  
-  end
-  else
-    AddHeaderInfo('Authoritative answer:',False);    
-
-  if (Flags and $0200) = $0200 then
-  begin
-    Result := Result + ', Truncated'; 
-    AddHeaderInfo('Truncated:',True);  
-  end
-  else
-    AddHeaderInfo('Truncated:',False);
-
-  if (Flags and $0100) = $0100 then
-  begin
-    Result := Result + ', Recursion desired';
-    AddHeaderInfo('Recursion desired:',True);     
-  end
-  else
-    AddHeaderInfo('Recursion desired:',False);
+          0     a standard query (QUERY)
+          1     an inverse query (IQUERY)
+          2     a server status request (STATUS)
+          3-15  reserved for future use           
+  }
   
-  if (Flags and $0080) = $0080 then
-  begin
-    Result := Result + ', Recursion available';
-    AddHeaderInfo('Recursion available:',True);
-  end
+  LtmpResult := String.Empty;
+  case (aFlags and $7800) of
+    $7800 : LtmpResult := 'Standard query'; // Standard query
+    $0000 : LtmpResult := 'Query (Inverse/Reverse)'; // Inverse query
+    $1000 : LtmpResult := 'Server status request'; // Server status request
   else
-    AddHeaderInfo('Recursion available:',False);
+    LtmpResult := 'Reserved'; // Reserved
+  end;
 
-  tmpResult := String.Empty;
-  case (Flags and $0070) of
-    $0000:     tmpResult := 'Response code: No error';        // No error condition
-    $0010:     tmpResult := 'Response code: Format error';    // The name server was unable to interpret the query
-    $0020:     tmpResult := 'Response code: Server failure';  // The name server was unable to process this query due to a problem with the name server
-    $0030:     tmpResult := 'Response code: Name error';      // Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist
-    $0040:     tmpResult := 'Response code: Not implemented'; // The name server does not support the requested kind of query
-    $0050:     tmpResult := 'Response code: Refused';         // The name server refuses to perform the specified operation for policy reasons
+  if not LtmpResult.IsEmpty then
+  begin
+    Result := Format('%s, %s',[Result,LtmpResult]);
+    AddHeaderInfo('Kind:',LtmpResult);  
+  end;
+
+  {
+  AA Authoritative Answer - this bit is valid in responses,
+     and specifies that the responding name server is an
+     authority for the domain name in question section.
+
+     Note that the contents of the answer section may have
+     multiple owner names because of aliases.  The AA bit
+     corresponds to the name which matches the query name, or
+     the first owner name in the answer section.
+  }
+  
+  LtmpBooleanValue :=  GetBitValue(LByte0,5)=1;
+  AddHeaderInfo('Authoritative answer:',LtmpBooleanValue);
+  Result := Format('%s, Authoritative answer',[result,BoolToStr(LtmpBooleanValue,True)]);
+
+  {
+  TC  TrunCation - specifies that this message was truncated
+      due to length greater than that permitted on the
+      transmission channel.
+
+  }
+  LtmpBooleanValue :=  GetBitValue(LByte0,6)=1;
+  AddHeaderInfo('Truncated:',LtmpBooleanValue);
+  Result := Format('%s, Truncated',[result,BoolToStr(LtmpBooleanValue,True)]);  
+
+  {
+  RD  Recursion Desired - this bit may be set in a query and
+      is copied into the response.  If RD is set, it directs
+      the name server to pursue the query recursively.
+      Recursive query support is optional.
+  }
+  LtmpBooleanValue :=  GetBitValue(LByte0,7)=1;
+  AddHeaderInfo('Recursion Desired:',LtmpBooleanValue);
+  Result := Format('%s, Recursion Desired',[result,BoolToStr(LtmpBooleanValue,True)]);  
+
+  {
+  RA Recursion Available - this be is set or cleared in a
+     response, and denotes whether recursive query support is
+     available in the name server.
+  }
+  LtmpBooleanValue :=  GetBitValue(LByte0,8)=1;
+  AddHeaderInfo('Recursion available:',LtmpBooleanValue);
+  Result := Format('%s, Recursion available',[result,BoolToStr(LtmpBooleanValue,True)]);  
+
+  {
+    Z Reserved for future use.  Must be zero in all queries
+      and responses.
+
+  }  
+
+  {RCODE  Response code - this 4 bit field is set as part of
+          responses.  The values have the following
+          interpretation:
+
+          0   No error condition
+
+          1   Format error - The name server was
+              unable to interpret the query.
+
+          2   Server failure - The name server was
+              unable to process this query due to a
+              problem with the name server.
+
+          3   Name Error - Meaningful only for
+              responses from an authoritative name
+              server, this code signifies that the
+              domain name referenced in the query does
+              not exist.
+
+          4   Not Implemented - The name server does
+              not support the requested kind of query.
+
+          5   Refused - The name server refuses to
+              perform the specified operation for
+              policy reasons.  For example, a name
+              server may not wish to provide the
+              information to the particular requester,
+              or a name server may not wish to perform
+              a particular operation (e.g., zone     }
+  
+  LtmpResult := String.Empty;
+  case (aFlags and $0070) of
+    $0000:     LtmpResult := 'Response code: No error';        // No error condition
+    $0010:     LtmpResult := 'Response code: Format error';    // The name server was unable to interpret the query
+    $0020:     LtmpResult := 'Response code: Server failure';  // The name server was unable to process this query due to a problem with the name server
+    $0030:     LtmpResult := 'Response code: Name error';      // Meaningful only for responses from an authoritative name server, this code signifies that the domain name referenced in the query does not exist
+    $0040:     LtmpResult := 'Response code: Not implemented'; // The name server does not support the requested kind of query
+    $0050:     LtmpResult := 'Response code: Refused';         // The name server refuses to perform the specified operation for policy reasons
   end;
   
-  if not tmpResult.IsEmpty then
+  if not LtmpResult.IsEmpty then
   begin
-    Result := Format('%s, %s',[Result,tmpResult]);
-    AddHeaderInfo('Response code:',tmpResult.Replace('Response code:',String.Empty).Trim);  
+    Result := Format('%s, %s',[Result,LtmpResult]);
+    AddHeaderInfo('Response code:',LtmpResult.Replace('Response code:',String.Empty).Trim);
   end;  
   Result := Result.TrimLeft([',']);
 end;
@@ -346,22 +438,25 @@ begin
   LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);
 
   LHeaderDNS     := Header(LUDPPayLoad);
-  LCountQuestion := ntohs(LHeaderDNS.Questions);
-  LcountAddRrs   := ntohs(LHeaderDNS.AdditionalRRs);  
-  AListDetail.Add(AddHeaderInfo(0,Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeaderDNS),HeaderLength));            
-  AListDetail.Add(AddHeaderInfo(1,'ID:',ntohs(LHeaderDNS.ID),PByte(@LHeaderDNS.ID),SizeOf(LHeaderDNS.ID)));      
+  LCountQuestion := wpcapntohs(LHeaderDNS.Questions);
+  LcountAddRrs   := wpcapntohs(LHeaderDNS.AdditionalRRs);  
+  AListDetail.Add(AddHeaderInfo(0,Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeaderDNS),HeaderLength(LHeaderDNS.Flags)));            
+  AListDetail.Add(AddHeaderInfo(1,'ID:',wpcapntohs(LHeaderDNS.ID),PByte(@LHeaderDNS.ID),SizeOf(LHeaderDNS.ID)));      
   
-  AListDetail.Add(AddHeaderInfo(1,'Flags:',ntohs(LHeaderDNS.Flags),PByte(@LHeaderDNS.Flags),SizeOf(LHeaderDNS.Flags)));      
+  AListDetail.Add(AddHeaderInfo(1,'Flags:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LHeaderDNS.Flags,0)),
+                                                           ByteToBinaryString(GetByteFromWord(LHeaderDNS.Flags,1))]),PByte(@LHeaderDNS.Flags),SizeOf(LHeaderDNS.Flags)));      
   GetDNSFlags(LHeaderDNS.Flags,AListDetail);  
 
   AListDetail.Add(AddHeaderInfo(1,'Questions:',LCountQuestion,PByte(@LHeaderDNS.Questions),SizeOf(LHeaderDNS.Questions)));      
-  AListDetail.Add(AddHeaderInfo(1,'Answer RRs:',ntohs(LHeaderDNS.AnswerRRs),PByte(@LHeaderDNS.AnswerRRs),SizeOf(LHeaderDNS.AnswerRRs)));
-  AListDetail.Add(AddHeaderInfo(1,'Authority RRs:',ntohs(LHeaderDNS.AuthorityRRs),PByte(@LHeaderDNS.AuthorityRRs),SizeOf(LHeaderDNS.AuthorityRRs)));     
-  AListDetail.Add(AddHeaderInfo(1,'Query RRs:',ntohs(LHeaderDNS.QueryRRs),PByte(@LHeaderDNS.QueryRRs),SizeOf(LHeaderDNS.QueryRRs)));            
+  AListDetail.Add(AddHeaderInfo(1,'Answer RRs:',wpcapntohs(LHeaderDNS.AnswerRRs),PByte(@LHeaderDNS.AnswerRRs),SizeOf(LHeaderDNS.AnswerRRs)));
+  AListDetail.Add(AddHeaderInfo(1,'Authority RRs:',wpcapntohs(LHeaderDNS.AuthorityRRs),PByte(@LHeaderDNS.AuthorityRRs),SizeOf(LHeaderDNS.AuthorityRRs))); 
+  AListDetail.Add(AddHeaderInfo(1,'Authority RRs:',wpcapntohs(LHeaderDNS.AuthorityRRs),PByte(@LHeaderDNS.AuthorityRRs),SizeOf(LHeaderDNS.AuthorityRRs)));   
+  AListDetail.Add(AddHeaderInfo(1,'Additional RRs:',LcountAddRrs,PByte(@LHeaderDNS.AdditionalRRs),SizeOf(LHeaderDNS.AdditionalRRs)));       
+  AListDetail.Add(AddHeaderInfo(1,'Query',NULL,nil,0));            
 
   LOffSetQuestion := 0;
-  SetLength(LDataMDNS,UDPPayLoadLength(LPUDPHdr)-HeaderLength-2);
-  LDataMDNS := TBytes(LUDPPayLoad+HeaderLength-2);
+  SetLength(LDataMDNS,UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags)-2);
+  LDataMDNS := TBytes(LUDPPayLoad+HeaderLength(LHeaderDNS.Flags)-2);
   for i := 0 to LCountQuestion -1 do
   begin
 
@@ -389,8 +484,7 @@ begin
         AListDetail.Add(AddHeaderInfo(3,'Class:',ifthen(LClass=1,'IN (1)',LClass.ToString),nil,0));  
     end;   
   end;  
-  
-  AListDetail.Add(AddHeaderInfo(1,'Additional RRs:',LcountAddRrs,PByte(@LHeaderDNS.AdditionalRRs),SizeOf(LHeaderDNS.AdditionalRRs)));              
+  AListDetail.Add(AddHeaderInfo(1,'Additional Record',NULL,nil,0));                
   if LcountAddRrs > 0 then
   begin
     for i := 0 to LCountAddRrs - 1 do
