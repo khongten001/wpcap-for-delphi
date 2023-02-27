@@ -41,14 +41,9 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + Query bulder 
 + Packet detail 
   + DETECTED -->
-    +  UDP OK  
-    +  TCP OK
-    +  L2TP BUGGED TO COMPLEATE
-    +  DNS BUGGED TO COMPLEATE
-    +  MDNS BUGGED TO COMPLEATE
-    +  LLMN DNS BUGGED TO COMPLEATE
+    +  L2TP COMPLEATE
     +  TLS TODO
-    +  NTP TODO
+    +  NTP COMPLEATE
   + OTHERS --> TODO
 + TcpFlow 
 + UdpFlow
