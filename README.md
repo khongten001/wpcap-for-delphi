@@ -43,7 +43,6 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
   + DETECTED -->
     +  L2TP COMPLEATE
     +  TLS TODO
-    +  NTP COMPLEATE
   + OTHERS --> TODO
 + TcpFlow 
 + UdpFlow
