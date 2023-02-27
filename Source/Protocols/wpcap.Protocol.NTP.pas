@@ -3,28 +3,34 @@
 interface
 
 uses
-  wpcap.Protocol.UDP, wpcap.Conts, wpcap.Types, wpcap.BufferUtils,
-  System.SysUtils, System.Variants,System.Math,winsock;
+  wpcap.Protocol.UDP, wpcap.Conts, wpcap.Types, wpcap.BufferUtils,WinApi.Windows,
+  System.SysUtils, System.Variants,System.Math,winsock,DateUtils;
 
 type
 
+
+  TNtpTimestamp = packed record
+    case Integer of
+      0: (IntegerPart: LongWord; FractionPart: LongWord);
+      1: (Bytes: array[0..7] of Byte);
+  end;
     
 
   /// <summary>
   /// Represents the header for the Network Time Protocol (NTP).
   /// </summary>
   TNTPHeader = packed record
-    LI_VN_MODE    : Byte;                // Leap indicator, version number, and mode.
-    Stratum       : Byte;                // Stratum level of the local clock.
-    Poll          : Byte;                // Maximum interval between successive messages.
-    Precision     : Byte;                // Precision of the local clock.
-    RootDelay     : Cardinal;            // Total round-trip delay to the reference clock.
-    RootDispersion: Cardinal;            // Maximum error due to network congestion.
-    ReferenceID   : Cardinal;            // Reference clock identifier.
-    ReferenceTS   : array[0..7] of Byte; // Timestamp of the last update from the reference clock.
-    OriginateTS   : array[0..7] of Byte; // Timestamp when the request was sent by the client.
-    ReceiveTS     : array[0..7] of Byte; // Timestamp when the request was received by the server.
-    TransmitTS    : array[0..7] of Byte; // Timestamp when the reply was sent by the server.
+    LI_VN_MODE    : Byte;          // Leap indicator, version number, and mode.
+    Stratum       : Byte;          // Stratum level of the local clock.
+    Poll          : Byte;          // Maximum interval between successive messages.
+    Precision     : Byte;          // Precision of the local clock.
+    RootDelay     : LongInt;       // Total round-trip delay to the reference clock.
+    RootDispersion: LongInt;       // Maximum error due to network congestion.
+    ReferenceID   : LongInt ;      // Reference clock identifier.
+    ReferenceTS   : TNtpTimestamp; // Timestamp of the last update from the reference clock.
+    OriginateTS   : TNtpTimestamp; // Timestamp when the request was sent by the client.
+    ReceiveTS     : TNtpTimestamp; // Timestamp when the request was received by the server.
+    TransmitTS    : TNtpTimestamp; // Timestamp when the reply was sent by the server.
   end;
   PNTPHeader = ^TNTPHeader;
 
@@ -76,6 +82,7 @@ type
   private
     class  function MessageTypeToString(aMsgType: Byte): String;static;
     class function StratumToString(const aStratum: Byte): String; static;
+    class function GetNTPLeapIndicatorString(ALeapIndicator: Byte): string; static;
   public
     /// <summary>
     /// Returns the default port number used by the NTP protocol.
@@ -172,11 +179,18 @@ end;
 
 
 class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;  
-CONST NS_TO_S_FACTOR = 1000000;
+
 var LHeaderNTP : PNTPHeader;
     LPUDPHdr   : PUDPHdr;
     LUDPPayLoad: PByte;
     Loffset    : Word;
+
+  function GetDateTimeFromNTPTimeStamp(const aNTPTimestamp: TNtpTimestamp): TDateTime;
+  begin
+    Result := UnixToDateTime(Int64(wpcapntohl(PCardinal(@aNTPTimestamp.IntegerPart)^)) - 2208988800);
+    {TODO add milliseconds...}
+  end;
+ 
 begin
   Result := False;
   if not HeaderUDP(aPacketData, aPacketSize, LPUDPHdr) then Exit;
@@ -197,7 +211,7 @@ begin
   //VN: 3 bit - Version Number 
   //VM: 3 bit - Mode
 
-  AListDetail.Add(AddHeaderInfo(2, 'Leap Indicator',  (LHeaderNTP.LI_VN_MODE and $03),nil,0));   {TODO TO STRING}
+  AListDetail.Add(AddHeaderInfo(2, 'Leap Indicator', GetNTPLeapIndicatorString(LHeaderNTP.LI_VN_MODE and $03),nil,0));   {TODO TO STRING}
   AListDetail.Add(AddHeaderInfo(2, 'Version',  (LHeaderNTP.LI_VN_MODE and $38) shr 3,nil,0));
   AListDetail.Add(AddHeaderInfo(2, 'Mode',  MessageTypeToString(GetLastNBit(LHeaderNTP.LI_VN_MODE,3)),nil,0));
 
@@ -220,24 +234,29 @@ begin
   // expressed in seconds as a fixed-point number with the integer part in the high-order bits
   AListDetail.Add(AddHeaderInfo(1, 'Root dispersion',Format('%.6f seconds',[(wpcapntohl(LHeaderNTP.RootDispersion))/65536]), @LHeaderNTP.RootDispersion, SizeOf(LHeaderNTP.RootDispersion)));  
 
-  {TODO COMPLEATE}
-  
+
   // 8-byte field that specifies the reference clock identifier
   // the first 4 bytes are the reference clock's 32-bit IP address, while the last 4 bytes are a reference ID
   // the format of the reference ID depends on the stratum level of the local clock
   // if Stratum = 0 or Stratum = 1, the reference ID should be a four-character string representing the reference source
   // if Stratum > 1, the reference ID should be the 32-bit IPv4 address of the primary reference source  
- // AListDetail.Add(AddHeaderInfo(1, 'Reference ID',wpcapntohl(LHeaderNTP.ReferenceID), @LHeaderNTP.ReferenceID, SizeOf(LHeaderNTP.ReferenceID)));  
+  if LHeaderNTP.Stratum > 1 then
+    AListDetail.Add(AddHeaderInfo(1, 'Reference ID',Format('%d.%d.%d.%d', [LHeaderNTP.ReferenceID shr 24, (LHeaderNTP.ReferenceID shr 16) and $FF, (LHeaderNTP.ReferenceID shr 8) and $FF, LHeaderNTP.ReferenceID and $FF]), @LHeaderNTP.ReferenceID, SizeOf(LHeaderNTP.ReferenceID)))
+  else
+    AListDetail.Add(AddHeaderInfo(1, 'Reference ID',Format('%s', [PAnsiChar(@LHeaderNTP.ReferenceID)]), @LHeaderNTP.ReferenceID, SizeOf(LHeaderNTP.ReferenceID)));
+
+
+  AListDetail.Add(AddHeaderInfo(1, 'Reference Timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', GetDateTimeFromNTPTimeStamp(LHeaderNTP.ReferenceTS)), PByte(@LHeaderNTP.ReferenceTS), SizeOf(LHeaderNTP.ReferenceTS)));
+  AListDetail.Add(AddHeaderInfo(1, 'Originate Timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', GetDateTimeFromNTPTimeStamp(LHeaderNTP.OriginateTS)), PByte(@LHeaderNTP.OriginateTS), SizeOf(LHeaderNTP.OriginateTS)));
   
-  // 8-byte field that specifies the time when the local clock was last set or corrected
-  // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)
-  // note that NTP uses a different epoch than Unix time (January 1, 1970)  
+  // 8-byte field that specifies the time when the response was received by the client
+  // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)  
+  AListDetail.Add(AddHeaderInfo(1, 'Receive Timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', GetDateTimeFromNTPTimeStamp(LHeaderNTP.ReceiveTS)), PByte(@LHeaderNTP.ReceiveTS), SizeOf(LHeaderNTP.ReceiveTS)));
 
   // 8-byte field that specifies the time when the request was sent by the client
-  // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)  
+  // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)
+  AListDetail.Add(AddHeaderInfo(1, 'Transmit Timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', GetDateTimeFromNTPTimeStamp(LHeaderNTP.TransmitTS)), PByte(@LHeaderNTP.TransmitTS), SizeOf(LHeaderNTP.TransmitTS)));
 
-  // 8-byte field that specifies the time when the request was received by the server
-  // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)  
   Result := True;
 end;
 
@@ -253,6 +272,19 @@ begin
 
   Result := Format('%s [%d]',[Result,aStratum]);
 end;
+
+class Function TWPcapProtocolNTP.GetNTPLeapIndicatorString(ALeapIndicator: Byte): string;
+begin
+  case ALeapIndicator of
+    0: Result := 'No warning';
+    1: Result := 'Last minute has 61 seconds';
+    2: Result := 'Last minute has 59 seconds';
+    3: Result := 'Alarm condition (clock not synchronized)';
+  else
+    Result := 'Unknown leap indicator';
+  end;
+end;
+
 
 class Function TWPcapProtocolNTP.MessageTypeToString(aMsgType:Byte):String;
 begin
