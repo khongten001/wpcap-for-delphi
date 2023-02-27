@@ -29,12 +29,7 @@ type
   }
 
   
-  TIPAddrBytes = array [0 .. 3] of Byte;
-  TIPAddress = record
-      case Integer of
-        0: (Bytes: TIPAddrBytes);
-        1: (Addr: Cardinal);
-    end;
+
   
   // equivalent to the Internet Protocol Version 4 section of wireshark in the package detail
   PTIPHeader = ^TIPHeader;

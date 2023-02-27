@@ -3,8 +3,8 @@ object FormRecording: TFormRecording
   Top = 0
   BorderStyle = bsDialog
   Caption = 'Recording module'
-  ClientHeight = 459
-  ClientWidth = 868
+  ClientHeight = 526
+  ClientWidth = 1091
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,15 +19,16 @@ object FormRecording: TFormRecording
   TextHeight = 13
   object cxGroupBox1: TcxGroupBox
     Left = 0
-    Top = 416
+    Top = 483
     Align = alBottom
     PanelStyle.Active = True
     TabOrder = 0
+    ExplicitTop = 416
     ExplicitWidth = 624
     Height = 43
-    Width = 868
+    Width = 1091
     object BCancel: TcxButton
-      Left = 753
+      Left = 976
       Top = 4
       Width = 111
       Height = 35
@@ -41,7 +42,7 @@ object FormRecording: TFormRecording
       ExplicitLeft = 509
     end
     object BEndRecording: TcxButton
-      Left = 642
+      Left = 865
       Top = 4
       Width = 111
       Height = 35
@@ -56,7 +57,7 @@ object FormRecording: TFormRecording
       ExplicitLeft = 398
     end
     object BStartRecording: TcxButton
-      Left = 531
+      Left = 754
       Top = 4
       Width = 111
       Height = 35
@@ -86,7 +87,7 @@ object FormRecording: TFormRecording
     TabOrder = 1
     ExplicitWidth = 624
     Height = 43
-    Width = 868
+    Width = 1091
     object EPathDB: TcxButtonEdit
       AlignWithMargins = True
       Left = 86
@@ -106,7 +107,7 @@ object FormRecording: TFormRecording
       ExplicitTop = 16
       ExplicitWidth = 121
       ExplicitHeight = 21
-      Width = 618
+      Width = 841
     end
     object cxLabel3: TcxLabel
       AlignWithMargins = True
@@ -120,7 +121,7 @@ object FormRecording: TFormRecording
     end
     object TSfileDumb: TdxToggleSwitch
       AlignWithMargins = True
-      Left = 710
+      Left = 933
       Top = 7
       Align = alRight
       Caption = 'Save dump file'
@@ -139,7 +140,7 @@ object FormRecording: TFormRecording
     TabOrder = 2
     ExplicitWidth = 624
     Height = 43
-    Width = 868
+    Width = 1091
     object cxLabel2: TcxLabel
       AlignWithMargins = True
       Left = 7
@@ -161,14 +162,14 @@ object FormRecording: TFormRecording
       ShowHint = True
       TabOrder = 1
       ExplicitWidth = 490
-      Width = 734
+      Width = 957
     end
   end
   object ListInterface: TcxTreeList
     Left = 0
     Top = 86
-    Width = 868
-    Height = 330
+    Width = 1091
+    Height = 397
     Align = alClient
     Bands = <
       item
@@ -188,18 +189,28 @@ object FormRecording: TFormRecording
     ScrollbarAnnotations.CustomAnnotations = <>
     TabOrder = 3
     ExplicitWidth = 624
+    ExplicitHeight = 330
     Data = {
-      00000500C90000000F00000044617461436F6E74726F6C6C6572310400000012
+      00000500DF0000000F00000044617461436F6E74726F6C6C6572310500000012
       000000546378537472696E6756616C7565547970651200000054637853747269
-      6E6756616C75655479706513000000546378426F6F6C65616E56616C75655479
-      706512000000546378537472696E6756616C7565547970650200000044585546
-      4D5401445855464D5401020000000000000008000000000000000000FFFFFFFF
-      FFFFFFFFFFFFFFFF0100000008000000000000000000FFFFFFFFFFFFFFFFFFFF
-      FFFF1A0C1002000000}
+      6E6756616C75655479706512000000546378537472696E6756616C7565547970
+      6513000000546378426F6F6C65616E56616C7565547970651200000054637853
+      7472696E6756616C75655479706502000000445855464D5401445855464D5401
+      020000000000000008000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF0100
+      000008000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF1A0C1002000000}
+    object ListInterfaceColumnNAME: TcxTreeListColumn
+      Caption.Text = 'Simple name'
+      Width = 233
+      Position.ColIndex = 0
+      Position.RowIndex = 0
+      Position.BandIndex = 0
+      Summary.FooterSummaryItems = <>
+      Summary.GroupFooterSummaryItems = <>
+    end
     object ListInterfaceColumGUID: TcxTreeListColumn
       Caption.Text = 'GUID'
-      Width = 387
-      Position.ColIndex = 0
+      Width = 283
+      Position.ColIndex = 1
       Position.RowIndex = 0
       Position.BandIndex = 0
       Summary.FooterSummaryItems = <>
@@ -207,8 +218,8 @@ object FormRecording: TFormRecording
     end
     object ListInterfaceCOMMENT: TcxTreeListColumn
       Caption.Text = 'Comment'
-      Width = 270
-      Position.ColIndex = 1
+      Width = 197
+      Position.ColIndex = 2
       Position.RowIndex = 0
       Position.BandIndex = 0
       Summary.FooterSummaryItems = <>
@@ -218,8 +229,8 @@ object FormRecording: TFormRecording
       BestFitMaxWidth = 40
       Caption.Text = 'Promisc'
       DataBinding.ValueType = 'Boolean'
-      Width = 59
-      Position.ColIndex = 3
+      Width = 43
+      Position.ColIndex = 4
       Position.RowIndex = 0
       Position.BandIndex = 0
       Summary.FooterSummaryItems = <>
@@ -227,8 +238,8 @@ object FormRecording: TFormRecording
     end
     object ListInterfaceColumPROMISC: TcxTreeListColumn
       Caption.Text = 'IP'
-      Width = 150
-      Position.ColIndex = 2
+      Width = 110
+      Position.ColIndex = 3
       Position.RowIndex = 0
       Position.BandIndex = 0
       Summary.FooterSummaryItems = <>

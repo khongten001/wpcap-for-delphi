@@ -174,7 +174,7 @@ type
   PTCartInterface = ^TCartInterface;
   TCartInterface = record
     next        : PTCartInterface;// Pointer to the next network interface card in the list.
-    name        : PAnsiChar;      // Name of the network interface card.
+    GUID        : PAnsiChar;      // Name of the network interface card.
     description : PAnsiChar;      // Description of the network interface card.
     addresses   : Ppcap_addr;     // Pointer to the list of IP addresses associated with the network interface card.
     flags       : bpf_u_int32;    // Flags that contain information about the network interface card.
@@ -251,6 +251,13 @@ type
   // The constant TIPv6AddrBytes indicates an array of 16 bytes representing an IPv6 address,
   // where each pair of bytes is represented in hexadecimal format, separated by a colon.
   TIPv6AddrBytes = array [0..15] of Byte;
+
+  TIPAddrBytes = array [0 .. 3] of Byte;
+  TIPAddress = record
+      case Integer of
+        0: (Bytes: TIPAddrBytes);
+        1: (Addr: Cardinal);
+    end;  
     
   /// <summary>
   ///  Record containing string representations of packet header information

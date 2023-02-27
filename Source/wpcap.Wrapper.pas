@@ -311,6 +311,18 @@ function pcap_createsrcstr(source: PAnsiChar; type_: PAnsiChar; const name: PAns
 /// <returns>Returns the link-layer header type of the session, as one of the "DLT_*" constants defined in "pcap.h". Returns "PCAP_ERROR" if an error occurs.</returns>
 function pcap_datalink(p: Ppcap_t): Integer; cdecl; external 'wpcap.dll';
 
+///  <summary>
+///  Looks up the default network device name.
+///  </summary>
+///  <returns>
+///  A pointer to a string containing the name of the first device suitable for capturing network traffic, or NULL if an error occurred. 
+///  </returns>
+///  <remarks>
+///  You can use this function to determine the default device to use for capturing network traffic.
+///  </remarks>
+function pcap_lookupdev(errbuf: PAnsiChar): PAnsiChar; cdecl; external 'wpcap.dll';
+
+
 
 //******************************************************************************************************
 //*                                                                                                     *

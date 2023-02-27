@@ -14,7 +14,10 @@ type
   TWPcapProtocolMDNS = Class(TWPcapProtocolDNS)
   private
     class function IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
+  protected
+    class function GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word; override;
   public
+
     /// <summary>
     ///  Returns the default port number for mDNS protocol, which is 5353.
     /// </summary>
@@ -70,6 +73,25 @@ begin
   Result := 'MDNS';
 end;
 
+class function TWPcapProtocolMDNS.GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word;
+var LQClass: Word;
+begin
+  // Read the QClass field as a big-endian 16-bit integer
+  LQClass := inherited GetDNSQClass(LDataQuestions,aOffset);
+  
+  // Check if the QClass value is a MDNS-specific class
+  case LQClass of
+    32769: Result := TYPE_DNS_QUESTION_PTR;    // PTR (Reverse DNS)
+    32770: Result := TYPE_DNS_QUESTION_HINFO; // HINFO (Host Info)
+    32771: Result := TYPE_DNS_QUESTION_MINFO; // MINFO (Mailbox Info)
+    32772: Result := TYPE_DNS_QUESTION_MX; // MX (Mail Exchange)
+    32773: Result := TYPE_DNS_QUESTION_TXT; // TXT (Text)
+    49152: Result := 255; // ANY (Wildcard)
+  else
+    // If the QClass value is not a MDNS-specific class, return it as is
+    Result := LQClass;
+  end;
+end;
 
 class function TWPcapProtocolMDNS.IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean;
 {IPv6 Dest = F02::FB}

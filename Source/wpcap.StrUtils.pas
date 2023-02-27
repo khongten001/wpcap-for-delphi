@@ -54,6 +54,7 @@ function SizeToStr(aSize: int64) : String;
 function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
 procedure MyProcessMessages;
 function MyProcessMessage(var Msg: TMsg): Boolean;
+
 implementation
 
 procedure MyProcessMessages;

@@ -33,6 +33,7 @@ type
     TSfileDumb: TdxToggleSwitch;
     SaveDialog1: TSaveDialog;
     cxImageList1: TcxImageList;
+    ListInterfaceColumnNAME: TcxTreeListColumn;
     procedure FormCreate(Sender: TObject);
     procedure BStartRecordingClick(Sender: TObject);
     procedure EFilterPropertiesValidate(Sender: TObject;
@@ -78,7 +79,8 @@ begin
     begin
       LCurrentNode                := ListInterface.AddChild(nil);
       LCurrentNode.CheckGroupType := ncgRadioGroup;
-      LCurrentNode.Values[ListInterfaceColumGUID.Position.ColIndex]    := LListInterface[I].name;
+      LCurrentNode.Values[ListInterfaceColumnNAME.Position.ColIndex]   := LListInterface[I].name;
+      LCurrentNode.Values[ListInterfaceColumGUID.Position.ColIndex]    := LListInterface[I].GUID;
       LCurrentNode.Values[ListInterfaceCOMMENT.Position.ColIndex]      := LListInterface[I].description;
       LCurrentNode.Values[ListInterfaceColumIP.Position.ColIndex]      := LListInterface[I].addresses;   
       LCurrentNode.Values[ListInterfaceColumPROMISC.Position.ColIndex] := True;

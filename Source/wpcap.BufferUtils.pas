@@ -17,6 +17,8 @@ function BytesToArray(const Bytes: array of Byte): TBytes;
 /// <returns>Returns the input 16-bit integer in host byte order.</returns>
 function wpcapntohs(aWord: Word): word;
 
+function wpcapntohl(aWord: cardinal):Cardinal;
+
 /// <summary>
 /// Extracts the byte at the specified index from a 16-bit integer value.
 /// </summary>
@@ -47,9 +49,31 @@ function ByteToBinaryString(const AByte: Byte): string;
 /// <param name="Digits">The number of digits in the binary string representation.</param>
 /// <returns>Returns a string containing the binary representation of the input integer value with the specified number of digits.</returns>
 function IntToBin(Value: integer; Digits: integer): string;
+function GetLastNBit(const ASource: word; const AN: Integer): integer;
+function SwapInt64(Value: Int64): Int64;
 
 
 implementation
+
+function SwapInt64(Value: Int64): Int64;
+{https://stackoverflow.com/questions/33197523/combining-asm-with-non-asm-code-or-swapint64-asm-function-needed}
+{$IF Defined(CPUX86)}
+asm
+ MOV     EDX,[DWORD PTR EBP + 12]
+ MOV     EAX,[DWORD PTR EBP + 8]
+ BSWAP   EAX
+ XCHG    EAX,EDX
+ BSWAP   EAX
+end;
+{$ELSEIF Defined(CPUX64)}
+asm
+  MOV    RAX,RCX
+  BSWAP  RAX
+end;
+{$ELSE}
+  {$Message Fatal 'Unsupported architecture'}
+{$ENDIF}
+
 
 
 function BytesToArray(const Bytes: array of Byte): TBytes;
@@ -62,8 +86,12 @@ end;
 
 function wpcapntohs(aWord: Word):word;
 begin
-  {Swap or ntohs difference ?}
   result := ntohs(aWord);
+end;
+
+function wpcapntohl(aWord: cardinal):Cardinal;
+begin
+  result := ntohl(aWord);
 end;
 
 function GetByteFromWord(aWordValue: Word; aByteIndex: Integer): Byte;
@@ -73,7 +101,6 @@ begin
 
   Result := (aWordValue shr (aByteIndex * 8)) and $FF
 end;
-
 
 Function GetBitValue(const AByteValue: Byte; const AIndexBit: Byte): Byte;
 begin
@@ -93,6 +120,11 @@ begin
       Result := Result + '1'
     else
       Result := Result + '0';
+end;
+
+function GetLastNBit(const ASource: word; const AN: Integer): integer;
+begin
+  Result := ASource and ((1 shl AN) - 1);
 end;
 
 function ByteToBinaryString(const AByte: Byte): string;
