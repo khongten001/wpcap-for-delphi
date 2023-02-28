@@ -3,13 +3,15 @@
 interface
 
 uses
-  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.StrUtils,wpcap.Protocol.UDP,
-  FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Stan.Option, System.Classes,
-  FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def,wpcap.protocol,
-  FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,wpcap.Level.IP,
-  FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, FireDAC.DApt,wpcap.Types,
-  FireDAC.Comp.Script, FireDAC.Comp.Client, Data.DB, FireDAC.Comp.DataSet,wpcap.Level.Eth,
-  FireDAC.Phys.SQLite,System.SysUtils,wpcap.Packet,Math,System.Generics.Collections;
+  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat, wpcap.StrUtils,
+  wpcap.Protocol.UDP, wpcap.Protocol.TCP, FireDAC.Phys.SQLiteDef,Winapi.Windows,
+  FireDAC.Stan.Intf, FireDAC.Stan.Option, System.Classes, FireDAC.Stan.Error,
+  FireDAC.UI.Intf, FireDAC.Phys.Intf, FireDAC.Stan.Def, wpcap.protocol,
+  FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys, FireDAC.VCLUI.Wait,
+  wpcap.Level.IP, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf,
+  FireDAC.DApt, wpcap.Types, FireDAC.Comp.Script, FireDAC.Comp.Client, Data.DB,
+  FireDAC.Comp.DataSet, wpcap.Level.Eth, FireDAC.Phys.SQLite, System.SysUtils,
+  wpcap.Packet, Math, System.Generics.Collections;
 
 Type
   TWPcapDBBase = Class(TObject)
@@ -298,7 +300,7 @@ begin
   FFDQueryTmp.ParamByName('pProtoDetect').AsInteger := aInternalPacket.IP.DetectedIPProto;    
   FFDQueryTmp.ParamByName('pProtoIANA').AsString    := aInternalPacket.IP.IANAProtoStr;  
   FFDQueryTmp.ParamByName('pPacket').DataType       := ftBlob;
-    
+  
   FFDQueryTmp.ParamByName('pProto').DataType        := ftString;
   FFDQueryTmp.ParamByName('pIpSrc').DataType        := ftString;
   FFDQueryTmp.ParamByName('pIpDst').DataType        := ftString;  
@@ -324,6 +326,8 @@ begin
 
     FFDQueryTmp.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob);
     FFDQueryTmp.ExecSQL;
+
+//    OutputDebugString(PChar(Format('%s --> %s  [%s]',[aInternalPacket.IP.Src,aInternalPacket.IP.Dst,aInternalPacket.IP.IpProtoAcronym])));
   Finally
     FreeAndNil(LMemoryStream);
   End;  
@@ -403,7 +407,8 @@ Function TWPcapDBBase.GetListHexPacket(aNPacket:Integer;var aListDetail:TListHea
 var LPacket           : PByte;
     LPacketSize       : Integer;
     LInternalPacket   : PTInternalPacket;
-    aProtocolDetected : TWPcapProtocolBaseUDP;	
+    aUDPProtoDetected : TWPcapProtocolBaseUDP;	
+    aTCPProtoDetected : TWPcapProtocolBaseTCP;	    
 begin
   SetLength(Result,0);
 
@@ -411,27 +416,26 @@ begin
   if Assigned(LPacket) then
   begin
     Result := DisplayHexData(LPacket,LPacketSize);
-    Try
-      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
-      if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
-      begin
-        New(LInternalPacket);
-        Try
-          TWpcapEthHeader.InternalPacket(LPacket,LPacketSize,nil,LInternalPacket);
+    TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
+    if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
+    begin
+      New(LInternalPacket);
+      Try
+        TWpcapEthHeader.InternalPacket(LPacket,LPacketSize,nil,LInternalPacket);
 
-          aProtocolDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
-          if Assigned(aProtocolDetected) then
-            aProtocolDetected.HeaderToString(LPacket,LPacketSize,AListDetail);        
-
-        
-        Finally
-          Dispose(LInternalPacket);
-        End;
-        //Todo UDP e TCP
-      end;
-    Finally
-
-    End;
+        aUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+        if Assigned(aUDPProtoDetected) then
+          aUDPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
+        else 
+        begin
+          aTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+          if Assigned(aTCPProtoDetected) then
+            aTCPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
+        end;
+      Finally
+        Dispose(LInternalPacket);
+      End;
+    end;
   end;
 end;
 

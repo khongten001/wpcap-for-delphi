@@ -245,7 +245,7 @@ const KiloByte = 1024;
 begin
 
   if aSize < KiloByte then
-    Result := Format('%d byte', [aSize])
+    Result := Format('%d bytes', [aSize])
   else if aSize < MegaByte then
     Result := Format('%.2f KB', [aSize / KiloByte])
   else if aSize < GigaByte then

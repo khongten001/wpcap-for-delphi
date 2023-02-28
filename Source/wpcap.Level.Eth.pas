@@ -156,9 +156,11 @@ begin
 
     AListDetail.Add(AddHeaderInfo(0,Format('Frame packet size: %s',[SizeToStr(aPacketSize)]),NUlL,nil,0));      
     AListDetail.Add(AddHeaderInfo(0, Format('Ethernet II, Src: %s, Dst %s ',[LInternalPacket.Eth.SrcAddr,LInternalPacket.Eth.DestAddr]),NUlL,PByte(LHeader),HeaderEthSize));      
+    AListDetail.Add(AddHeaderInfo(1,'Header length:',HeaderEthSize,nil,0));   
     AListDetail.Add(AddHeaderInfo(1,'Destination:',LInternalPacket.Eth.DestAddr,@(LHeader.DestAddr),5));      
     AListDetail.Add(AddHeaderInfo(1,'Source:',LInternalPacket.Eth.SrcAddr,@(LHeader.SrcAddr),5));      
     AListDetail.Add(AddHeaderInfo(1,'Type:',Format('%s [%d]',[LInternalPacket.Eth.Acronym,LInternalPacket.Eth.EtherType]),@(LHeader.EtherType),2));   
+    
     Result := True;
   finally               
     Dispose(LInternalPacket)
@@ -261,9 +263,7 @@ begin
   end;      
 end;
 
-class function TWpcapEthHeader.AddHeaderInfo(aLevel: Byte;
-  const aDescription: String; aValue: Variant; aPacketInfo: PByte;
-  aPacketInfoSize: Word): THeaderString;
+class function TWpcapEthHeader.AddHeaderInfo(aLevel: Byte; const aDescription: String; aValue: Variant; aPacketInfo: PByte;aPacketInfoSize: Word): THeaderString;
 begin
   Result.Description := aDescription;
   Result.Value       := aValue;

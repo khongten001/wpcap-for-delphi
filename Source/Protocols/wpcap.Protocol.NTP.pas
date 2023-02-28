@@ -7,7 +7,7 @@ uses
   System.SysUtils, System.Variants,System.Math,winsock,DateUtils;
 
 type
-
+  {https://datatracker.ietf.org/doc/html/rfc5905}
 
   TNtpTimestamp = packed record
     case Integer of
@@ -179,7 +179,6 @@ end;
 
 
 class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;  
-
 var LHeaderNTP : PNTPHeader;
     LPUDPHdr   : PUDPHdr;
     LUDPPayLoad: PByte;

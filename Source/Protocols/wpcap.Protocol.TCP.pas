@@ -52,6 +52,8 @@ type
   /// </summary>
   TWPcapProtocolBaseTCP = Class(TWPcapProtocolBase)
   private
+  protected
+    class function GetDataOFFSetBytes(const aDataOFFset: Byte): integer; 
 
   protected
     /// <summary>
@@ -176,18 +178,21 @@ end;
 
 { TWPcapProtocolBaseTCP }
 class function TWPcapProtocolBaseTCP.PayLoadLengthIsValid(const aTCPPtr: PTCPHdr;const aPacketData:PByte; aPacketSize:Word): Boolean;
+var DataOffset: Integer;
 begin
-   Result := TCPPayLoadLength(aTCPPtr,aPacketData,aPacketSize)> HeaderLength(aTCPPtr.Flags);
+   // Get the data offset in bytes
+   DataOffset := GetDataOFFSetBytes(aTCPPtr^.DataOff)*4;
+   // Get the data offset in bytes
+   Result     := aPacketSize - TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize) > DataOffset;
 end;
 
 class function TWPcapProtocolBaseTCP.TCPPayLoadLength(const aTCPPtr: PTCPHdr;const aPacketData:PByte;aPacketSize:Word): Word;
 var DataOffset: Integer;
 begin
-  // Get the data offset in bytes
-  DataOffset := aTCPPtr^.DataOff * 4;
-
+   // Get the data offset in bytes
+   DataOffset := GetDataOFFSetBytes(aTCPPtr^.DataOff)*4;
   // Calculate the length of the payload
-  Result := aPacketSize -  TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize) - DataOffset;
+  Result := aPacketSize - TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)-DataOffset;
 end;
 
 class function TWPcapProtocolBaseTCP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
@@ -225,12 +230,17 @@ begin
 end;
 
 class function TWPcapProtocolBaseTCP.GetTCPPayLoad(const AData: PByte; aSize: word): PByte;
-var TCPHeader       : PTCPhdr;
-    EthIpHeaderSize : Integer;
+var LTCPHeader : PTCPhdr;
+    DataOffset : word;   
 begin
-  EthIpHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
-  TCPHeader       := PTCPhdr(AData  + EthIpHeaderSize);
-  Result          := AData + EthIpHeaderSize + ( TCPHeader.DataOff * 4);
+  HeaderTCP(AData,aSize,LTCPHeader);
+  DataOffset := GetDataOFFSetBytes( LTCPHeader^.DataOff)*4+1;
+  Result     := AData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize) +  DataOffset-1; 
+end;
+
+class function TWPcapProtocolBaseTCP.GetDataOFFSetBytes(const aDataOFFset:Byte):integer;
+begin 
+  Result := aDataOFFset shr 4;
 end;
 
 class function TWPcapProtocolBaseTCP.HeaderTCP(const aData: PByte; aSize: Integer; var aPTCPHdr: PTCPHdr): Boolean;
@@ -287,18 +297,22 @@ begin
   
   AListDetail.Add(AddHeaderInfo(0,Format('Transmission Control Protocol, Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[SrcPort(LPTCPHdr),DstPort(LPTCPHdr),
                                    ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),null,nil,0));  
-  
+  AListDetail.Add(AddHeaderInfo(1,'Header length:',SizeToStr(GetDataOFFSetBytes(LPTCPHdr^.DataOff) *4),PByte(@LPTCPHdr.DataOff),2));              
   AListDetail.Add(AddHeaderInfo(1,'Source:',wpcapntohs(LPTCPHdr.SrcPort),PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
   AListDetail.Add(AddHeaderInfo(1,'Destination:',wpcapntohs(LPTCPHdr.DstPort),PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
-  AListDetail.Add(AddHeaderInfo(1,'Sequence number:',ntohl(LPTCPHdr.SeqNum),PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
-  AListDetail.Add(AddHeaderInfo(1,'Acknowledgment number:',ntohl(LPTCPHdr.AckNum),PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
-  AListDetail.Add(AddHeaderInfo(1,'Data offset:',SizeTostr(LPTCPHdr.DataOff shr 4),PByte(@LPTCPHdr.DataOff),2));          
+  AListDetail.Add(AddHeaderInfo(1,'Sequence number(RAW):',wpcapntohl(LPTCPHdr.SeqNum),PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
+  AListDetail.Add(AddHeaderInfo(1,'Acknowledgment number(RAW):',wpcapntohl(LPTCPHdr.AckNum),PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
+  AListDetail.Add(AddHeaderInfo(1,'Data offset:',GetDataOFFSetBytes(LPTCPHdr^.DataOff),PByte(@LPTCPHdr.DataOff),2));          
   LesBits := (LPTCPHdr.DataOff and $0F) shl 2; 
   AListDetail.Add(AddHeaderInfo(1,'Reserved bits:',LesBits,PByte(LesBits),2));          
   AListDetail.Add(AddHeaderInfo(1,'Flags:',GetTCPFlagsV6(LPTCPHdr.Flags),PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags)));   
   AListDetail.Add(AddHeaderInfo(1,'Window size:',wpcapntohs(LPTCPHdr.WindowSize),PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
   AListDetail.Add(AddHeaderInfo(1,'Checksum:',wpcapntohs(LPTCPHdr.Checksum),PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
-  AListDetail.Add(AddHeaderInfo(1,'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));          
+  AListDetail.Add(AddHeaderInfo(1,'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));   
+  AListDetail.Add(AddHeaderInfo(1,'Payload length:',SizeToStr(TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize)),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));     
+
+  {TODO OPTIONS}
+  Result := True;       
 end;
 
 end.

@@ -31,7 +31,8 @@ uses
   wpcap.Level.Eth in '..\..\Source\wpcap.Level.Eth.pas',
   wpcap.Level.IP in '..\..\Source\wpcap.Level.IP.pas',
   wpcap.BufferUtils in '..\..\Source\wpcap.BufferUtils.pas',
-  UnitGridUtils in 'UnitGridUtils.pas';
+  UnitGridUtils in 'UnitGridUtils.pas',
+  wpcap.Protocol.ICMP in '..\..\Source\Protocols\wpcap.Protocol.ICMP.pas';
 
 {$R *.res}
 

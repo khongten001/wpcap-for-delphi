@@ -42,7 +42,7 @@ const
   IPPROTO_NONE       = 59;   // IPv6 no next header
   IPPROTO_DSTOPTS    = 60;   // IPv6 destination options
   IPPROTO_MH         = 135;  // Mobility header
-  IPPROTO_ICMPV62    = 128;  
+ // IPPROTO_ICMPV62    = 128;  
   
   {ETHERNET TYPE}
   ETH_P_LOOP      = $0060;  // Ethernet Loopback packet
@@ -145,6 +145,8 @@ const
  DETECT_PROTO_MDNS     = 7;    
  DETECT_PROTO_LLMNR    = 8;     
  DETECT_PROTO_TLS      = 9; 
+ DETECT_PROTO_ICMP     = 10; 
+
 
   {DNS QUESTION TYPE}
   TYPE_DNS_QUESTION_A			      = 1;
@@ -238,6 +240,27 @@ const
   L2TP_HDR_FLAG_F_BIT                = $0080; // Firmware-Version bit
   L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
 
+  {TLS}
+
+  TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC    = $14;
+  TLS_CONTENT_TYPE_ALERT                 = $15;
+  TLS_CONTENT_TYPE_HANDSHAKE             = $16;
+  TLS_HANDSHAKE_TYPE_HELLO_REQUEST       = $00;
+  TLS_HANDSHAKE_TYPE_CLIENT_HELLO        = $01;
+  TLS_HANDSHAKE_TYPE_SERVER_HELLO        = $02;
+  TLS_HANDSHAKE_TYPE_CERTIFICATE         = $0B;
+  TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE = $0C;
+  TLS_HANDSHAKE_TYPE_CERTIFICATE_REQUEST = $0D;
+  TLS_HANDSHAKE_TYPE_SERVER_HELLO_DONE   = $0E;
+  TLS_HANDSHAKE_TYPE_CERTIFICATE_VERIFY  = $0F;
+  TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE = $10;
+  TLS_HANDSHAKE_TYPE_FINISHED            = $14;
+  TLS_CONTENT_TYPE_APPLICATION_DATA      = $17;
+  
+  TLS_VERSION_1_0                        = $103;
+  TLS_VERSION_1_1                        = $0302;
+  TLS_VERSION_1_2                        = $0303;
+  TLS_VERSION_1_3                        = $0304;
 
 implementation
 

@@ -165,7 +165,7 @@ end;
 
 class function TWPcapProtocolBaseUDP.GetUDPPayLoad(const AData:Pbyte;aSize: Word):PByte;
 begin
-  Result := AData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize)+ SizeOf(TUDPHdr);
+  Result := AData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize)+ HeaderLength(0);
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderUDP(const aData: PByte; aSize: Integer; var aPUDPHdr: PUDPHdr): Boolean;
@@ -175,7 +175,7 @@ begin
   aSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
 
   // Check if the data size is sufficient for the Ethernet, IP, and UDP headers
-  if (aSize < aSizeEthIP + SizeOf(TUDPHdr)) then Exit;
+  if (aSize < aSizeEthIP + HeaderLength(0)) then Exit;
 
   // Parse the Ethernet header
   case TWpcapIPHeader.IpClassType(aData,aSize) of
@@ -209,9 +209,7 @@ begin
   aIdProtoDetected := IDDetectProto;
   Result           := True;
   for I := 0 to FListProtolsUDPDetected.Count-1 do
-  begin
     if FListProtolsUDPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then Exit;
-  end;
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
@@ -221,6 +219,7 @@ begin
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then exit;
   
   AListDetail.Add(AddHeaderInfo(0,Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]),null,Pbyte(LPUDPHdr),HeaderLength(0)));
+  AListDetail.Add(AddHeaderInfo(1,'Header length:',HeaderLength(0),nil,0));
   AListDetail.Add(AddHeaderInfo(1,'Source port:',SrcPort(LPUDPHdr),@(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort)));
   AListDetail.Add(AddHeaderInfo(1,'Destination port:',DstPort(LPUDPHdr),@(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort)));
   AListDetail.Add(AddHeaderInfo(1,'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)),@(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length)));  

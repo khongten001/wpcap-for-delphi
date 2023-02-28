@@ -134,6 +134,7 @@
         <DCCReference Include="..\..\Source\wpcap.Level.IP.pas"/>
         <DCCReference Include="..\..\Source\wpcap.BufferUtils.pas"/>
         <DCCReference Include="UnitGridUtils.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.ICMP.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

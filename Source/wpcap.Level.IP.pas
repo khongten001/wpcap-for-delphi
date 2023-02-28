@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,
+  System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,wpcap.Protocol.ICMP,
   wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,
   wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2;
 
@@ -105,6 +105,95 @@ type
     Reliability: Boolean;
   end;
 
+  {
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  Next Header  |  Hdr Ext Len  |                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               +
+    |                                                               |
+    .                                                               .
+    .                            Options                            .
+    .                                                               .
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+   Next Header          8-bit selector.  Identifies the type of header
+                        immediately following the Hop-by-Hop Options
+                        header.  Uses the same values as the IPv4
+                        Protocol field [RFC-1700 et seq.].
+
+   Hdr Ext Len          8-bit unsigned integer.  Length of the Hop-by-
+                        Hop Options header in 8-octet units, not
+                        including the first 8 octets.
+
+   Options              Variable-length field, of length such that the
+                        complete Hop-by-Hop Options header is an integer
+                        multiple of 8 octets long.  Contains one or more
+                        TLV-encoded options.
+  }  
+  THopByHopOption = packed record
+    NextHeader  : Byte;
+    HdrExtLen   : Byte;
+  end;
+  PTHopByHopOption = ^THopByHopOption;
+
+
+  {
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+    |  Option Type  |  Opt Data Len |  Option Data
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+- - - - - - - - -
+  }  
+  TOptionHeader = packed record
+    OptType    : Byte;
+    OptDataLen : Byte;
+  end;
+  PTOptionHeader = ^TOptionHeader;  
+
+  {
+
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |  Next Header  |  Hdr Ext Len  |  Routing Type | Segments Left |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                                                               |
+    .                                                               .
+    .                       type-specific data                      .
+    .                                                               .
+    |                                                               |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+     Next Header          8-bit selector.  Identifies the type of header
+                          immediately following the Routing header.  Uses
+                          the same values as the IPv4 Protocol field
+                          [RFC-1700 et seq.].
+
+     Hdr Ext Len          8-bit unsigned integer.  Length of the Routing
+                          header in 8-octet units, not including the first
+                          8 octets.
+
+     Routing Type         8-bit identifier of a particular Routing header
+                          variant.
+
+     Segments Left        8-bit unsigned integer.  Number of route
+                          segments remaining, i.e., number of explicitly
+                          listed intermediate nodes still to be visited
+                          before reaching the final destination.
+
+     type-specific data   Variable-length field, of format determined by
+                          the Routing Type, and of length such that the
+                          complete Routing header is an integer multiple
+                          of 8 octets long.
+
+  }
+
+  TRoutingHeader = packed record
+    NextHeader  : Byte;
+    HdrExtLen   : Byte;
+    RoutingType : Byte;
+    SegmentsLeft: Byte;
+  end;
+  PTRoutingHeader = ^TRoutingHeader;
+
+  
+
   TWpcapIPHeader = class(TWPcapEthHeader) 
   Strict private
     
@@ -129,6 +218,12 @@ type
     class function DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices; static;
     class function GetIpFlag(aFlags: byte;AListDetail:TListHeaderString): string;
     class function HeaderLenConvert(const aVerLen: Word): Word; static;
+    class function ExtentionHeader(const aPacketData: PByte;
+      var aCurrentPos: Integer; var aIpProto: word;
+      AListDetail: TListHeaderString): Boolean; static;
+    class function ExtentionHeaderOptions(const aPacketData: PByte;
+      var aCurrentPos: Integer; var aIpProto: word;
+      AListDetail: TListHeaderString): Boolean; static;
   public
     /// <summary>
     ///   Returns a pointer to the IPv4 header in the provided packet data.
@@ -293,9 +388,21 @@ begin
 end;
 
 class function TWpcapIPHeader.HeaderIPSize(const aPacketData: PByte;aPacketSize: Integer): Word;
+var LCurrentPos : Integer;
+    LHeaderV6   : PIpv6Header;  
+    LIpProto    : word; 
 begin
   if IpClassType(aPacketData,aPacketSize) = imtIpv6 then
-    Result := SizeOf(TIPv6Header)
+  begin
+
+    Result      := SizeOf(TIPv6Header);
+    LCurrentPos := HeaderEthSize + Result;
+    LHeaderV6   := HeaderIPv6(aPacketData,aPacketSize);
+    LIpProto    := LHeaderV6.NextHeader;
+    ExtentionHeader(aPacketData,LCurrentPos,LIpProto,nil);
+    if LCurrentPos > HeaderEthSize + SizeOf(TIPv6Header) then
+      Result:= LCurrentPos - HeaderEthSize;
+  end
   else
     Result := HeaderLenConvert( HeaderIPv4(aPacketData,aPacketSize).VerLen);
 end;
@@ -318,6 +425,9 @@ var LHederInfo         : THeaderString;
     LFlowLabel         : Integer;   
     LTrafficClass      : Byte; 
     LTOSInfo           : TDifferentiatedServices;
+
+    LIpProto           : word; 
+    LCurrentPos        : Integer;
 begin
   Result := False;
   new(LInternalIP);
@@ -336,6 +446,8 @@ begin
       LHeaderV6              := HeaderIPv6(aPacketData,aPacketSize);
 
       AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 6, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize))); 
+
+      AListDetail.Add(AddHeaderInfo(2,'Header length:',HeaderIPSize(aPacketData,aPacketSize),nil,0));  
       AListDetail.Add(AddHeaderInfo(1,'Version:',(LHeaderV6.Version shr 4) and $0F,PByte(@LHeaderV6.Version),SizeOf(LHeaderV6.Version))); 
 
 
@@ -360,12 +472,15 @@ begin
       LFlowLabel             := LFlowLabel shr 4;
       // Now the FlowLabel variable contains the 20-bit value      
 
-     AListDetail.Add(AddHeaderInfo(1,'Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
-     AListDetail.Add(AddHeaderInfo(1,'Payload Length:',wpcapntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
-     AListDetail.Add(AddHeaderInfo(1,'Next Header:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
-     AListDetail.Add(AddHeaderInfo(1,'Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
-     AListDetail.Add(AddHeaderInfo(1,'Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
-     AListDetail.Add(AddHeaderInfo(1,'Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress)));                         
+      AListDetail.Add(AddHeaderInfo(1,'Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
+      AListDetail.Add(AddHeaderInfo(1,'Payload Length:',wpcapntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
+      AListDetail.Add(AddHeaderInfo(1,'Next Header:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
+      AListDetail.Add(AddHeaderInfo(1,'Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
+      AListDetail.Add(AddHeaderInfo(1,'Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
+      AListDetail.Add(AddHeaderInfo(1,'Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress))); 
+      LCurrentPos := HeaderEthSize + SizeOf(TIPv6Header);
+      LIpProto    := LHeaderV6.NextHeader;
+      ExtentionHeader(aPacketData,LCurrentPos,LIpProto,AListDetail);                     
     end
     else                                                                                
     begin
@@ -396,12 +511,136 @@ begin
 
     if Result then
     begin
-      if not TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,AListDetail) then
-        TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,AListDetail);
+      case LInternalIP.IpProto of
+        IPPROTO_HOPOPTS, 
+        IPPROTO_ICMP,
+     //   IPPROTO_ICMPV62,
+        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,AListDetail);
+        IPPROTO_TCP     : TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,AListDetail);
+        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,AListDetail);
+        IPPROTO_IGMP    :;
+        IPPROTO_GGP     :;    
+        IPPROTO_IPV6    :;
+        IPPROTO_PUP     :;
+        IPPROTO_IDP     :;
+        IPPROTO_GRE     :;
+        IPPROTO_ESP     :;
+        IPPROTO_AH      :;
+        IPPROTO_ROUTING :;
+        IPPROTO_PGM     :;
+        IPPROTO_SCTP    :;
+        IPPROTO_RAW     :;
+
+      end;
+
     end;        
   finally               
     Dispose(LInternalIP)
   end;
+end;
+
+class function TWpcapIPHeader.ExtentionHeaderOptions(const aPacketData: PByte;var aCurrentPos:Integer;var aIpProto:word;AListDetail: TListHeaderString):Boolean;
+var LHopeOptions  : PTOptionHeader;
+
+    procedure WriteInfo;
+    begin
+      if Assigned(AListDetail) then
+      begin
+        AListDetail.Add(AddHeaderInfo(3,'Flags',null,@LHopeOptions.OptType,SizeOf(LHopeOptions.OptType)));
+        AListDetail.Add(AddHeaderInfo(4,'Action',GetFistNBit(LHopeOptions.OptType,2),nil,0));               
+        AListDetail.Add(AddHeaderInfo(4,'May Change',GetbitValue(LHopeOptions.OptType,3)=1,nil,0));            
+        AListDetail.Add(AddHeaderInfo(4,'Data len',GetLastNBit(LHopeOptions.OptType,5),nil,0));           
+        AListDetail.Add(AddHeaderInfo(3,'Low order bytes', LHopeOptions.OptDataLen,@LHopeOptions.OptDataLen,SizeOf(LHopeOptions.OptDataLen)));     
+      end;
+      Inc(aCurrentPos,SizeOf(TOptionHeader));        
+      Result := True;  
+    end;
+begin
+  Result := False;
+  LHopeOptions := PTOptionHeader(aPacketData+aCurrentPos); 
+                          
+  case LHopeOptions.OptType of
+    //Pad1
+    0:
+      begin
+        Inc(aCurrentPos,SizeOf(TOptionHeader));          
+        Result := True; 
+      end;
+
+    //PadN
+    1:
+      begin 
+        if Assigned(AListDetail) then           
+          AListDetail.Add(AddHeaderInfo(2,Format('PadN [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions)));  
+
+        WriteInfo;
+      end;
+    // RFC8200 Jumbo Payload (JMP)
+    2:
+      begin
+        if Assigned(AListDetail) then     
+          AListDetail.Add(AddHeaderInfo(2,Format('Jumbo payload [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions))); 
+        WriteInfo;
+      end;
+
+    //Unassigned
+    3,4:;
+    //Router alert
+    5:
+      begin
+        if Assigned(AListDetail) then     
+          AListDetail.Add(AddHeaderInfo(2,Format('Router alert [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions))); 
+        WriteInfo;      
+      end;
+    6..63: ;
+    //RFC2460 Home Address (HAD) 
+    64:  
+      begin
+        if Assigned(AListDetail) then     
+          AListDetail.Add(AddHeaderInfo(2,Format('Home Address [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions))); 
+        WriteInfo;
+
+      end;
+    //Unassigned
+    65..127: ;
+    //Experimental/Testing
+    128..191: ;
+    //Unassigned
+    192..254: ;
+    //Reserved for future use
+    255: ;          
+  end;   
+  if Result then    
+    ExtentionHeaderOptions(aPacketData,aCurrentPos,aIpProto,AListDetail);      
+end;
+
+class function TWpcapIPHeader.ExtentionHeader(const aPacketData: PByte;var aCurrentPos:Integer;var aIpProto:word;AListDetail: TListHeaderString):Boolean;
+var LHope : PTHopByHopOption;  
+begin 
+  Result := False;
+
+  case aIpProto of
+    IPPROTO_HOPOPTS : 
+    begin
+      LHope := PTHopByHopOption(aPacketData +aCurrentPos);    
+      inc(aCurrentPos,SizeOf(THopByHopOption));  
+      aIpProto := LHope.NextHeader;     
+
+      if Assigned(AListDetail) then
+      begin
+        AListDetail.Add(AddHeaderInfo(1,'IPv6 Hop-by-Hop Option',null,PByte(LHope),SizeOf(THopByHopOption))); 
+        AListDetail.Add(AddHeaderInfo(2,'Next Header:',Format('%s [%d]',[GetIPv6ProtocolName(LHope.NextHeader),LHope.NextHeader]),PByte(@LHope.NextHeader),SizeOf(LHope.NextHeader)));                     
+        AListDetail.Add(AddHeaderInfo(2,'Header ext len:',LHope.HdrExtLen * 8,PByte(@LHope.HdrExtLen),SizeOf(LHope.HdrExtLen)));                     
+        aCurrentPos := aCurrentPos + LHope.HdrExtLen;
+
+      end;
+      ExtentionHeaderOptions(aPacketData,aCurrentPos,aIpProto,AListDetail);
+      Result := true;
+    end;
+  end;
+
+  if Result then    
+    ExtentionHeader(aPacketData,aCurrentPos,aIpProto,AListDetail); 
 end;
 
 class Procedure TWpcapIPHeader.AnalyzeIPProtocol(const aPacketData: PByte;aPacketSize: Integer; aInternalIP: PTInternalIP);
@@ -415,12 +654,13 @@ var LheaderIpV4 : PTIPHeader;
     LheaderIpV6 : PIpv6Header;
     LUdpPhdr    : PUDPHdr;
     LTcpPhdr    : PTCPHdr;    
-    aIANARow    : TIANARow;    
+    LIANARow    : TIANARow; 
+    LCurrentPos : Integer; 
 begin
   Result                     := False;
   aInternalIP.IpProtoAcronym := String.Empty;
   aInternalIP.IpProto        := 0;
-  aInternalIP.Src            := String.Empty;  
+  aInternalIP.Src            := String.Empty;
   aInternalIP.Dst            := String.Empty;
   aInternalIP.PortSrc        := 0;
   aInternalIP.PortDst        := 0;
@@ -443,7 +683,9 @@ begin
       begin
         {IPv6}                       
         LheaderIpV6                 := HeaderIPv6(aPacketData,aPacketSize);
-        aInternalIP.IpProto         := LheaderIpV4.Protocol;
+        aInternalIP.IpProto         := LheaderIpV6.NextHeader;
+        LCurrentPos                 := HeaderEthSize + SizeOf(TIPv6Header);
+        ExtentionHeader(aPacketData,LCurrentPos, aInternalIP.IpProto,nil);            
         aInternalIP.IpProtoAcronym  := GetIPv6ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.Src             := IPv6AddressToString(LheaderIpV6.SourceAddress);
         aInternalIP.Dst             := IPv6AddressToString(LheaderIpV6.DestinationAddress);
@@ -452,34 +694,84 @@ begin
         Result := True;
       end;      
   end;
+  
+  case LheaderIpV4.Protocol of
+    IPPROTO_HOPOPTS, 
+    IPPROTO_ICMP,
+//    IPPROTO_ICMPV62,
+    IPPROTO_ICMPV6  : TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.IpProtoAcronym,aInternalIP.DetectedIPProto);
+    IPPROTO_TCP     : 
+      begin
+        if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
+        begin
+          aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
+          aInternalIP.PortDst := TWPcapProtocolBaseTCP.DstPort(LTcpPhdr);    
 
-  if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
-  begin
-    aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);
-    aInternalIP.PortDst := TWPcapProtocolBaseUDP.DstPort(LUdpPhdr);
-    {how can detect direction of packet ??}
-    if not Assigned(aIANADictionary) then Exit;
+          if not Assigned(aIANADictionary) then Exit;
     
-    if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortDst,IPPROTO_IANA_UDP]),aIANARow) then
-     aInternalIP.IANAProtoStr := aIANARow.ProtocolName
-    else if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortSrc,IPPROTO_IANA_UDP]),aIANARow) then
-     aInternalIP.IANAProtoStr := aIANARow.ProtocolName
-  end
-  else if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
-  begin
-    aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
-    aInternalIP.PortDst := TWPcapProtocolBaseTCP.DstPort(LTcpPhdr);    
+          if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortDst,IPPROTO_IANA_TPC]),LIANARow ) then
+           aInternalIP.IANAProtoStr := LIANARow.ProtocolName
+        end;      
+      end;
+    IPPROTO_UDP     : 
+      begin
+        if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
+        begin
+          aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);
+          aInternalIP.PortDst := TWPcapProtocolBaseUDP.DstPort(LUdpPhdr);
+          {how can detect direction of packet ??}
+          if not Assigned(aIANADictionary) then Exit;
+    
+          if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortDst,IPPROTO_IANA_UDP]),LIANARow) then
+           aInternalIP.IANAProtoStr := LIANARow.ProtocolName
+          else if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortSrc,IPPROTO_IANA_UDP]),LIANARow) then
+           aInternalIP.IANAProtoStr := LIANARow.ProtocolName
+        end     
+      end;
+    IPPROTO_IGMP    :;
+    IPPROTO_GGP     :;    
+    IPPROTO_IPV6    :
+      begin
+        if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
+        begin
+          aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);
+          aInternalIP.PortDst := TWPcapProtocolBaseUDP.DstPort(LUdpPhdr);
+          {how can detect direction of packet ??}
+          if not Assigned(aIANADictionary) then Exit;
+    
+          if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortDst,IPPROTO_IANA_UDP]),LIANARow) then
+           aInternalIP.IANAProtoStr := LIANARow.ProtocolName
+          else if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortSrc,IPPROTO_IANA_UDP]),LIANARow) then
+           aInternalIP.IANAProtoStr := LIANARow.ProtocolName
+        end else 
+        if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
+        begin
+          aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
+          aInternalIP.PortDst := TWPcapProtocolBaseTCP.DstPort(LTcpPhdr);    
 
-    if not Assigned(aIANADictionary) then Exit;
+          if not Assigned(aIANADictionary) then Exit;
     
-    if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortDst,IPPROTO_IANA_TPC]),aIANARow) then
-     aInternalIP.IANAProtoStr := aIANARow.ProtocolName
+          if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortDst,IPPROTO_IANA_TPC]),LIANARow) then
+           aInternalIP.IANAProtoStr := LIANARow.ProtocolName
+        end;               
+      end;
+    IPPROTO_PUP     :;
+    IPPROTO_IDP     :;
+    IPPROTO_GRE     :;
+    IPPROTO_ESP     :;
+    IPPROTO_AH      :;
+    IPPROTO_ROUTING :;
+    IPPROTO_PGM     :;
+    IPPROTO_SCTP    :;
+    IPPROTO_RAW     :;
+
   end;
+  
 end;
 
 class function TWpcapIPHeader.GetIPv6ProtocolName(aProtocol: Word): string;
 const
-  IPv6Protocols: array[0..12] of record
+  IPv6Protocols: array[0..11] of record
     Protocol: Byte;
     Name: string;
   end = (
@@ -494,7 +786,7 @@ const
     (Protocol: IPPROTO_NONE; Name: 'No next header'),
     (Protocol: IPPROTO_DSTOPTS; Name: 'Destination options'),
     (Protocol: IPPROTO_MH; Name: 'Mobility header'),
-    (protocol: IPPROTO_ICMPV62;Name:'ICMPv6'),
+ //   (protocol: IPPROTO_ICMPV62;Name:'ICMPv6'),
     (Protocol: $FF; Name: 'Reserved')
   );
 var
@@ -517,7 +809,7 @@ begin
     IPPROTO_TCP     : Result := 'TCP';
     IPPROTO_UDP     : Result := 'UDP';
     IPPROTO_IPV6    : Result := 'IPv6';
-    IPPROTO_ICMPV62,
+//    IPPROTO_ICMPV62,
     IPPROTO_ICMPV6  : Result := 'ICMPv6';
     IPPROTO_PUP     : Result := 'PUP';   // ETH ??
     IPPROTO_IDP     : Result := 'xns idp';

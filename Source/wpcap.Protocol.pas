@@ -87,6 +87,7 @@ begin
        DETECT_PROTO_UDP      : aBackGroundColor := UDP_COLOR;
        DETECT_PROTO_TLS,
        DETECT_PROTO_TCP      : aBackGroundColor := TCP_COLOR;
+       DETECT_PROTO_ICMP     : aBackGroundColor := ICMP_COLOR;
     else
       LDetectProtoFound := False;
     end;
@@ -120,7 +121,7 @@ begin
      ETH_P_IPV6 :
       case aProtocol of
           IPPROTO_HOPOPTS,
-          IPPROTO_ICMPV62,
+       //   IPPROTO_ICMPV62,
           IPPROTO_ICMPV6     : aBackGroundColor := ICMP_COLOR; //ICMP
           IPPROTO_TCP        : aBackGroundColor := TCP_COLOR;  //TCP
           IPPROTO_UDP        : aBackGroundColor := UDP_COLOR;  //TCP

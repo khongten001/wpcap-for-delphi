@@ -50,6 +50,7 @@ function ByteToBinaryString(const AByte: Byte): string;
 /// <returns>Returns a string containing the binary representation of the input integer value with the specified number of digits.</returns>
 function IntToBin(Value: integer; Digits: integer): string;
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
+function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
 
 
@@ -125,6 +126,11 @@ end;
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
 begin
   Result := ASource and ((1 shl AN) - 1);
+end;
+
+function GetFistNBit(const ASource: word; const AN: Integer): integer;
+begin
+  Result := ASource shr (SizeOf(word) * 8 - AN);
 end;
 
 function ByteToBinaryString(const AByte: Byte): string;
