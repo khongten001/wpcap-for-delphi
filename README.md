@@ -41,8 +41,9 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + Query bulder 
 + Packet detail 
   + DETECTED -->
-    +  L2TP COMPLEATE
-    +  TLS TODO
+    +  L2TP TO COMPLEATE
+    +  TLS TO COMPLEATE
+    +  ICMP TO COMPLEATE
   + OTHERS --> TODO
 + TcpFlow 
 + UdpFlow
@@ -84,7 +85,6 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + OpenVPN
 + Wiregurad
 + TELNET
-+ ICMP
 + OTHERS...
 
 
