@@ -44,6 +44,7 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
     +  L2TP TO COMPLEATE
     +  TLS TO COMPLEATE
     +  ICMP TO COMPLEATE
+    +  NBNS TO COMPLEATE
   + OTHERS --> TODO
 + TcpFlow 
 + UdpFlow
@@ -81,7 +82,6 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + FTP-DATA
 + TFTP
 + DHCP
-+ NETBIOS
 + OpenVPN
 + Wiregurad
 + TELNET
