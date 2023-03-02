@@ -3,10 +3,10 @@
 interface
 
 uses
-  wpcap.Protocol.DNS, wpcap.Conts, System.SysUtils,wpcap.Types;
+  wpcap.Protocol.DNS, wpcap.Conts, System.SysUtils,wpcap.Types,wpcap.BufferUtils,Winapi.Windows;
 
 type
-  
+   {https://tools.ietf.org/html/rfc6762}
   
   /// <summary>
   ///  mDNS (Multicast DNS) protocol class, subclass of TWPcapProtocolDNS.
@@ -14,8 +14,10 @@ type
   TWPcapProtocolMDNS = Class(TWPcapProtocolDNS)
   private
     class function IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
+
   protected
-    class function GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word; override;
+    class procedure ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);override;
+    class procedure ParserDNSTTL(const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString); override;
   public
 
     /// <summary>
@@ -40,7 +42,7 @@ type
 
     /// <summary>
     /// This function returns a TListHeaderString of strings representing the fields in the MDSNS header. 
-    //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
+    //  It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
 
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;
@@ -73,26 +75,6 @@ begin
   Result := 'MDNS';
 end;
 
-class function TWPcapProtocolMDNS.GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word;
-var LQClass: Word;
-begin
-  // Read the QClass field as a big-endian 16-bit integer
-  LQClass := inherited GetDNSQClass(LDataQuestions,aOffset);
-  
-  // Check if the QClass value is a MDNS-specific class
-  case LQClass of
-    32769: Result := TYPE_DNS_QUESTION_PTR;    // PTR (Reverse DNS)
-    32770: Result := TYPE_DNS_QUESTION_HINFO; // HINFO (Host Info)
-    32771: Result := TYPE_DNS_QUESTION_MINFO; // MINFO (Mailbox Info)
-    32772: Result := TYPE_DNS_QUESTION_MX; // MX (Mail Exchange)
-    32773: Result := TYPE_DNS_QUESTION_TXT; // TXT (Text)
-    49152: Result := 255; // ANY (Wildcard)
-  else
-    // If the QClass value is not a MDNS-specific class, return it as is
-    Result := LQClass;
-  end;
-end;
-
 class function TWPcapProtocolMDNS.IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean;
 {IPv6 Dest = F02::FB}
 const MulticastPrefix: TIPv6AddrBytes = (255, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,251); 
@@ -116,6 +98,8 @@ begin
       aHederIPv6 := TWpcapIPHeader.HeaderIPv6(aPacket,aPacketSize);
       Result     := IsMulticastIPv6Address(aHederIPv6.DestinationAddress);
     end;
+
+    {224.0.0.251 IP to be test for Ipv4}
   end
   else if aIPClass = imtIpv6 then
   begin
@@ -127,8 +111,73 @@ begin
   begin
     aAcronymName     := LAcronymNameTmp;
     aIdProtoDetected := LIdProtoDetectedTmp;
-  end;  
-  
+  end;    
+end;
+
+class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);
+var Lz         : Word;
+    LWordValue : Word;
+begin
+
+  case aRRsType of
+    rtAnswer     : inherited; 
+    rtAuthority  : inherited;
+    rtAdditional : 
+      begin
+        Lz          := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
+        LWordValue  := ( Lz  and $7FFF);
+        AListDetail.Add(AddHeaderInfo(3, 'Higher bits in extended RCODE:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 2));              
+        inc(aInternalOffset,1);
+        AListDetail.Add(AddHeaderInfo(3, 'EDNS0 version:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 1));              
+        inc(aInternalOffset,1);
+        Lz         := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
+        LWordValue  := ( ( Lz  and $7FFF));
+      
+        AListDetail.Add(AddHeaderInfo(3, 'Z:',Lz, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(4, 'Reserved:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(4, 'Do bit:',GetBitValue(aDataRss[aInternalOffset],1), PByte(@aDataRss[aInternalOffset]), 2));
+
+      end;
+  end;
+end;
+
+class procedure TWPcapProtocolMDNS.ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);
+var aClass  : TBytes;
+    LQClass : Word;
+begin
+  case aRRsType of
+    rtAnswer     : inherited; 
+    rtAuthority  : inherited;
+    rtAdditional : 
+      begin
+        LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
+        LQClass  := ( LQClass  and $7FFF);      
+        AListDetail.Add(AddHeaderInfo(3, 'UDP payload size:',LQClass, PByte(@aDataRss[aInternalOffset]), 2));    
+        AListDetail.Add(AddHeaderInfo(3, 'Cache flush:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));   
+      end;
+    rtQuestion   : 
+      begin
+
+        {
+         To avoid large floods of potentially unnecessary responses in these
+         cases, Multicast DNS defines the top bit in the class field of a DNS
+         question as the unicast-response bit.  When this bit is set in a
+         question, it indicates that the querier is willing to accept unicast
+         replies in response to this specific query, as well as the usual
+         multicast responses.  These questions requesting unicast responses
+         are referred to as "QU" questions, to distinguish them from the more
+         usual questions requesting multicast responses ("QM" questions).  A
+         Multicast DNS querier sending its initial batch of questions
+         immediately on wake from sleep or interface activation SHOULD set the
+         unicast-response bit in those questions.
+        }
+
+        LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
+        LQClass  := wpcapntohs( LQClass  and $7FFF);      
+        AListDetail.Add(AddHeaderInfo(3, 'Class:',QClassToString(LQClass), PByte(@aDataRss[aInternalOffset]), 2));   
+        AListDetail.Add(AddHeaderInfo(3, 'QU:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));
+      end;
+  end;
 end;
 
 end.

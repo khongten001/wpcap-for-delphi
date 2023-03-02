@@ -425,7 +425,6 @@ var LHederInfo         : THeaderString;
     LFlowLabel         : Integer;   
     LTrafficClass      : Byte; 
     LTOSInfo           : TDifferentiatedServices;
-
     LIpProto           : word; 
     LCurrentPos        : Integer;
 begin

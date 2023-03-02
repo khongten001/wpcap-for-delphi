@@ -5,7 +5,7 @@ interface
 uses
   wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2, wpcap.Protocol.Base,wpcap.Protocol.TCP,
   vcl.Graphics, wpcap.Graphics,wpcap.Protocol.DNS, wpcap.Protocol.UDP,System.Generics.Collections,
-  wpcap.Protocol.L2TP,wpcap.Protocol.NTP,wpcap.Protocol.MDNS,wpcap.Protocol.LLMNR,wpcap.Protocol.TLS;
+  wpcap.Protocol.L2TP,wpcap.Protocol.NTP,wpcap.Protocol.MDNS,wpcap.Protocol.LLMNR,wpcap.Protocol.TLS,wpcap.Protocol.NBNS;
 
 
 /// <summary>
@@ -72,6 +72,7 @@ CONST TCP_COLOR     = 16704998;
       ROUTING_COLOR = $FFFACD;
       AH_COLOR      = $FFB6C1; // LightPink
       ESP_COLOR     = $D8BFD8; // Thistle;
+      ARP_COLOR     = 14151930;
 var LDetectProtoFound : Boolean;      
 begin
   Result            := True;
@@ -88,6 +89,7 @@ begin
        DETECT_PROTO_TLS,
        DETECT_PROTO_TCP      : aBackGroundColor := TCP_COLOR;
        DETECT_PROTO_ICMP     : aBackGroundColor := ICMP_COLOR;
+       DETECT_PROTO_ARP      : aBackGroundColor := ARP_COLOR;
     else
       LDetectProtoFound := False;
     end;
@@ -132,7 +134,7 @@ begin
         Result := False;              
       end;
       ETH_P_PAE : aBackGroundColor := clWhite;          
-      ETH_P_ARP : aBackGroundColor := 14151930; //ARP
+      ETH_P_ARP : aBackGroundColor := ARP_COLOR; //ARP
 
   else
     Result := False;
@@ -174,6 +176,7 @@ begin
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolNTP>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolMDNS>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolLLMNR>);
+  FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolNBNS>);  
   
   {TCP}  
   FListProtolsTCPDetected := TListProtolsTCPDetected.Create;  

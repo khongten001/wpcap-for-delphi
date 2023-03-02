@@ -87,7 +87,7 @@ end;
 
 function wpcapntohs(aWord: Word):word;
 begin
-  result := ntohs(aWord);
+  result := Winsock2.ntohs(aWord);
 end;
 
 function wpcapntohl(aWord: cardinal):Cardinal;
@@ -97,7 +97,7 @@ end;
 
 function GetByteFromWord(aWordValue: Word; aByteIndex: Integer): Byte;
 begin
-  if (aByteIndex < 0) and (aByteIndex > 1) then
+  if (aByteIndex < 0) or (aByteIndex > 1) then
    raise Exception.CreateFmt('GetByteFromWord out of range [%d]',[aByteIndex]);
 
   Result := (aWordValue shr (aByteIndex * 8)) and $FF

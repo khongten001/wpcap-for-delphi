@@ -1321,10 +1321,11 @@ begin
        length is 6, then the Attribute Value field is absent.
     }
     
-    AListDetail.Add(AddHeaderInfo(2,'Flag:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LAvpFlag,1)),
-                                                            ByteToBinaryString(GetByteFromWord(LAvpFlag,2))]),@LAvpFlag,sizeOf(LAvpFlag)));       
-    AListDetail.Add(AddHeaderInfo(3,'Mandatory:',GetBitValue(GetByteFromWord(LAvpFlag,1),1)=1,nil,0));
-    AListDetail.Add(AddHeaderInfo(3,'Hidden:',GetBitValue(GetByteFromWord(LAvpFlag,1),2)=1,nil,0)); 
+    AListDetail.Add(AddHeaderInfo(2,'Flag:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LAvpFlag,0)),
+                                                            ByteToBinaryString(GetByteFromWord(LAvpFlag,1))]),@LAvpFlag,sizeOf(LAvpFlag)));       
+                                                            
+    AListDetail.Add(AddHeaderInfo(3,'Mandatory:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,1)=1,nil,0));
+    AListDetail.Add(AddHeaderInfo(3,'Hidden:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,2)=1,nil,0)); 
     AListDetail.Add(AddHeaderInfo(3,'Length:',LAvpLength,@LAvpLength,10)); 
     
     {

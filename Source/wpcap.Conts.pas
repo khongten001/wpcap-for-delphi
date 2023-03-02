@@ -133,6 +133,7 @@ const
  PROTO_NTP_PORT   = 123;
  PROTO_L2TP_PORT  = 1701;
  PROTO_TLS_PORT   = 443;
+ PROTO_NBNS_PORT  = 137;
 
  {ID DETECTED PROTO}
 
@@ -146,8 +147,9 @@ const
  DETECT_PROTO_LLMNR    = 8;     
  DETECT_PROTO_TLS      = 9; 
  DETECT_PROTO_ICMP     = 10; 
-
-
+ DETECT_PROTO_ARP      = 11; 
+ DETECT_PROTO_NBNS     = 12; 
+ 
   {DNS QUESTION TYPE}
   TYPE_DNS_QUESTION_A			      = 1;
   TYPE_DNS_QUESTION_NS		     	= 2;
@@ -261,6 +263,8 @@ const
   TLS_VERSION_1_1                        = $0302;
   TLS_VERSION_1_2                        = $0303;
   TLS_VERSION_1_3                        = $0304;
+
+
 
 implementation
 

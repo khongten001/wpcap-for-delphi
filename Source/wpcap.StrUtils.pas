@@ -2,7 +2,7 @@
 
 interface
 
-uses WinApi.Windows,WinSock,System.SysUtils,DateUtils;
+uses WinApi.Windows,WinSock,System.SysUtils,DateUtils,System.Classes;
 
 /// <summary>
 /// This function takes a byte array representing the IPv6 address in the TIPv6Header structure, and returns
@@ -22,12 +22,14 @@ function IPv6AddressToString(const Address: array of Byte): string;
 /// and then converting each section into a string using the IntToStr function. The four strings are then concatenated with dots in between to form the final dotted decimal string.
 /// </summary>
 function intToIPV4(ip: LongWord): string;
-
+function BytesToIpV4(const aIp: TBytes): string;
 /// <summary>
 /// The function MACAddrToStr takes an array of bytes representing a MAC address and converts it into a string representation in the format of "XX:XX:XX:XX:XX:XX", 
 /// where each "XX" represents a two-digit hexadecimal number corresponding to each byte in the array. The resulting string is returned by the function.
 /// </summary>
 function MACAddrToStr(const MACAddr: array of Byte): string;
+
+function MACAddressToString(const AMacAddress: TBytes): string;
 
  /// <summary>
 ///  The TimevalToString function takes a timeval structure as input and converts it to a string in the format seconds.milliseconds. 
@@ -54,6 +56,7 @@ function SizeToStr(aSize: int64) : String;
 function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
 procedure MyProcessMessages;
 function MyProcessMessage(var Msg: TMsg): Boolean;
+function HexStrToBytes(const AHexStr: string): TBytes;
 
 implementation
 
@@ -215,12 +218,51 @@ begin
   Result := StringReplace(Result, '0::', '::', [rfReplaceAll, rfIgnoreCase]);
 end;
 
-function intToIPV4(ip: LongWord): string;
+function BytesToIpV4(const aIp: TBytes): string;
+var i: Integer;
+begin
+  Result := String.Empty;
+  for i := Low(aIp) to High(aIp) do
+  begin
+    if Result.IsEmpty then
+      Result := Format('%d',[aIp[i]])
+    else
+      Result := Format('%s.%d', [Result,aIp[i]])
+  end;
+end;
+
+
+function IntToIPV4(ip: LongWord): string;
 begin
   Result := IntToStr(ip and $FF) + '.' +
             IntToStr((ip shr 8) and $FF) + '.' +
             IntToStr((ip shr 16) and $FF) + '.' +
             IntToStr((ip shr 24) and $FF); 
+end;
+
+
+function MACAddressToString(const AMacAddress: TBytes): string;
+var i: Integer;
+begin
+  Result := String.Empty;
+  for i := Low(AMacAddress) to High(AMacAddress) do
+  begin
+    if not Result.IsEmpty then
+       Result := Format('%s:',[Result]);
+     Result := Format('%s%.2X', [Result,AMacAddress[i]])
+  end;
+end;
+
+function HexStrToBytes(const AHexStr: string): TBytes;
+var i       : Integer;
+    hexValue: Byte;
+begin
+  SetLength(Result, Length(AHexStr) div 2);
+  for i := 1 to Length(AHexStr) div 2 do
+  begin
+    hexValue      := StrToInt('$' + Copy(AHexStr, 2 * i - 1, 2));
+    Result[i - 1] := hexValue;
+  end;
 end;
 
 function MACAddrToStr(const MACAddr: array of Byte): string;

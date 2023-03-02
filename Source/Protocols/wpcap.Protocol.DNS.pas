@@ -38,7 +38,7 @@ type
   end;
   PTDNSHeader =^TDNSHeader;
 
-  TRRsType = (rtAnswer,rtAuthority,rtAdditional);
+  TRRsType = (rtQuestion,rtAnswer,rtAuthority,rtAdditional);
   
   /// <summary>
   ///  Implements a DNS protocol handler to interpret and validate DNS messages captured by WinPcap.
@@ -46,10 +46,13 @@ type
   TWPcapProtocolDNS = Class(TWPcapProtocolBaseUDP)
   private
     class function GetQuestions(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer):String;
-    class function QClasToString(const aQClass: Word): String; static;
-    class function GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString;var aOffset : Integer):String;
   protected
-    class function GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word; virtual;
+    class function GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString;var aOffset : Integer):String;virtual;
+    class function GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): byte; virtual;
+    class procedure ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString); virtual;
+    class procedure ParserDNSTTL(const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString); virtual;    
+    class function ApplyConversionName(const aName: String): String; virtual;
+    class function QClassToString(const aQClass: byte): String;virtual;     
   public
 
     /// <summary>
@@ -94,7 +97,7 @@ type
     /// <returns>
     ///   The corresponding domain name as a string.
     /// </returns>
-    class function ParseDNSName(const aPacket: TBytes; var aOffset,aTotalNameLen: integer): AnsiString; static;
+    class function ParseDNSName(const aPacket: TBytes; var aOffset,aTotalNameLen: integer): AnsiString;
     /// <summary>
     ///  Returns the DNS flags as a string.
     /// </summary>
@@ -107,7 +110,7 @@ type
     /// <returns>
     ///   A string representation of the DNS flags.
     /// </returns>
-    class function GetDNSFlags(aFlags: Word; AListDetail: TListHeaderString): string; static;
+    class function GetDNSFlags(aFlags: Word; AListDetail: TListHeaderString): string;
 
     /// <summary>
     ///  Returns a string representation of a DNS question class.
@@ -118,7 +121,7 @@ type
     /// <returns>
     ///   A string representation of the DNS question class.
     /// </returns>
-    class function QuestionClassToStr(aType: Word): string; static;
+    class function QuestionClassToStr(aType: Word): string;virtual;
 
     /// <summary>
     ///  Converts the DNS header to a string and adds it to the list of header details.
@@ -459,14 +462,22 @@ begin
 
   end;
   if LCompressed then
-    aOffset := LCompressPos+2 // skip compressed name pointer      
+    aOffset := LCompressPos+2; // skip compressed name pointer      
 
+  Result := ApplyConversionName(Result);  
 end;
 
-class function TWPcapProtocolDNS.GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word;
+class function TWPcapProtocolDNS.ApplyConversionName(const aName:String):String;
 begin
+  {NO CONVERSION IN DNS protocol}
+  Result := aName;
+end;
+
+class function TWPcapProtocolDNS.GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): byte;
+begin
+  
   // Read the QClass field as a big-endian 16-bit integer
-  Result := wpcapntohs(PWord(@LDataQuestions[aOffset])^);
+  Result := HIBYTE( wpcapntohs( (LDataQuestions[aOffset] shl 8) or LDataQuestions[aOffset+1]));
 end;
 
 
@@ -550,15 +561,13 @@ begin
               For example, the QCLASS field is IN for the Internet.
     }
 
-    LQClass := GetDNSQClass(LDataQuestions,aOffSetQuestion);
-    AListDetail.Add(AddHeaderInfo(3,'Class:',QClasToString(LQClass),PByte(@LDataQuestions[aOffSetQuestion]),2)); 
-
+    ParserDNSClass(rtQuestion,LDataQuestions,aOffSetQuestion,AListDetail);
     Inc(aOffSetQuestion, SizeOf(Word));    
   end;  
 end;
 
-class function TWPcapProtocolDNS.QClasToString(const aQClass : Word):String;
-begin
+class function TWPcapProtocolDNS.QClassToString(const aQClass : byte):String;
+  begin
   case aQClass of
     1  : Result := 'IN [Internet]';
     2  : Result := 'CS [CSNET class (Obsolete)]';
@@ -577,7 +586,6 @@ var LPUDPHdr        : PUDPHdr;
     LDataRss        : TBytes;
     LUDPPayLoad     : PByte;
     LRssType        : Word;
-    LRssClass       : Word;
     LRssTTL         : Word;
     LRssName        : string; 
     LAddress        : String;
@@ -585,7 +593,7 @@ var LPUDPHdr        : PUDPHdr;
     J               : Integer;    
     LRecordLength   : Integer;
     LTotalNameLen   : Integer;
-    LInternalOffdet : Integer;
+    LInternalOffset : Integer;
     LIPAddr         : LongWord;
     LIPv6Addr       : TIPv6AddrBytes;    
 begin
@@ -648,7 +656,7 @@ begin
                    end;
   end;
   
-  LInternalOffdet := 0;
+  LInternalOffset := 0;
   for i := 0 to LCountRss - 1 do
   begin
     {
@@ -656,19 +664,19 @@ begin
            resource record pertains.
     }
   
-    LRssName := String(ParseDNSName(LDataRss, LInternalOffdet,LTotalNameLen));
+    LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen));
     AListDetail.Add(AddHeaderInfo(2, 'Name', ifThen(LRssName.Trim.IsEmpty,'<Root>',LRssName), nil, 0));
     AListDetail.Add(AddHeaderInfo(3, 'Name length',LTotalNameLen,nil,0));    
 
     {TYPE  two octets containing one of the RR TYPE codes.}    
-    LRssType := Swap(PWord(@LDataRss[LInternalOffdet])^);
-    AListDetail.Add(AddHeaderInfo(3, 'Type:', QuestionClassToStr(LRssType), PByte(@LDataRss[LInternalOffdet]), 2));
-    Inc(LInternalOffdet, SizeOf(Word));
+    LRssType := Swap(PWord(@LDataRss[LInternalOffset])^);
+    AListDetail.Add(AddHeaderInfo(3, 'Type:', QuestionClassToStr(LRssType), PByte(@LDataRss[LInternalOffset]), 2));
+    Inc(LInternalOffset, SizeOf(Word));
 
     {CLASS two octets containing one of the RR CLASS codes.}
-    LRssClass := GetDNSQClass(LDataRss,LInternalOffdet);
-    AListDetail.Add(AddHeaderInfo(3, 'Class:',QClasToString(LRssClass), PByte(@LDataRss[LInternalOffdet]), 2));    
-    Inc(LInternalOffdet, SizeOf(word));    
+
+    ParserDNSClass(aRRsType,LDataRss,LInternalOffset,AListDetail);
+    Inc(LInternalOffset, SizeOf(word));    
     
     {
       TTL a 32 bit signed integer that specifies the time interval
@@ -680,17 +688,17 @@ begin
           with a zero TTL to prohibit caching.  Zero values can
           also be used for extremely volatile data.
     }
-    LRssTTL := wpcapntohl(PInteger(@LDataRss[LInternalOffdet])^);
-    AListDetail.Add(AddHeaderInfo(3, 'Time to live:', Format('%d seconds', [LRssTTL]),PByte(@LDataRss[LInternalOffdet]), 4));    
-    Inc(LInternalOffdet, SizeOf(integer));
+    
+    ParserDNSTTL(aRRsType,LDataRss,LInternalOffset,AListDetail);
+    Inc(LInternalOffset, SizeOf(integer));
 
     {
       RDLENGTH  an unsigned 16 bit integer that specifies the length in
                 octets of the RDATA field.
     }    
-    LRecordLength := wpcapntohs(PWord(@LDataRss[LInternalOffdet])^);
-    AListDetail.Add(AddHeaderInfo(3, 'Data length:', LRecordLength,PByte(@LDataRss[LInternalOffdet]), 2));    
-    Inc(LInternalOffdet, SizeOf(word));
+    LRecordLength := wpcapntohs(PWord(@LDataRss[LInternalOffset])^);
+    AListDetail.Add(AddHeaderInfo(3, 'Data length:', LRecordLength,PByte(@LDataRss[LInternalOffset]), 2));    
+    Inc(LInternalOffset, SizeOf(word));
 
     {
       RDATA  a variable length string of octets that describes the
@@ -712,27 +720,36 @@ begin
         end;  }
         TYPE_DNS_QUESTION_MX:
         begin
-          LRssTTL := wpcapntohl(Pinteger(@LDataRss[LInternalOffdet])^);
-          AListDetail.Add(AddHeaderInfo(3, 'Time to live MX:', Format('%d seconds', [LRssTTL]),PByte(@LDataRss[LInternalOffdet]), 4));    
-          Inc(LInternalOffdet, SizeOf(Pinteger));
+          LRssTTL := wpcapntohl(Pinteger(@LDataRss[LInternalOffset])^);
+          AListDetail.Add(AddHeaderInfo(3, 'Time to live MX:', Format('%d seconds', [LRssTTL]),PByte(@LDataRss[LInternalOffset]), 4));    
+          Inc(LInternalOffset, SizeOf(Pinteger));
 
 
-          LRssName := String(ParseDNSName(LDataRss, LInternalOffdet,LTotalNameLen));
+          LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen));
         end;
         TYPE_DNS_QUESTION_SRV:
         begin
-          LRssTTL := wpcapntohl(Pinteger(@LDataRss[LInternalOffdet])^);
-          Inc(LInternalOffdet, SizeOf(Pinteger));
-          AListDetail.Add(AddHeaderInfo(3, 'Time to live MX:', Format('%d seconds', [LRssTTL]),PByte(@LDataRss[LInternalOffdet]), 4)); 
-          LRssName := String(ParseDNSName(LDataRss, LInternalOffdet,LTotalNameLen));
+          LRssTTL := wpcapntohl(Pinteger(@LDataRss[LInternalOffset])^);
+          Inc(LInternalOffset, SizeOf(Pinteger));
+          AListDetail.Add(AddHeaderInfo(3, 'Time to live MX:', Format('%d seconds', [LRssTTL]),PByte(@LDataRss[LInternalOffset]), 4)); 
+          LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen));
         end;
       else
-        LRssName := String(ParseDNSName(LDataRss, LInternalOffdet,LTotalNameLen));
+        LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen));
       end;
       Result := FOrmat('%s RData[%d] %s',[Result,I+1,LRssName]);
       AListDetail.Add(AddHeaderInfo(3, 'RData name',LRssName, nil, 0));
   end;
-  Inc(aOffset,LInternalOffdet);
+  Inc(aOffset,LInternalOffset);
+end;
+
+Class procedure TWPcapProtocolDNS.ParserDNSClass(const aRRsType:TRRsType;const aDataRss:TBytes;aInternalOffset:Integer;AListDetail: TListHeaderString);
+var LRssClass : Word;
+begin
+   if not Assigned(AListDetail) then exit;
+
+  LRssClass := GetDNSClass(aDataRss,aInternalOffset);
+  AListDetail.Add(AddHeaderInfo(3, 'Class:',QClassToString(LRssClass), PByte(@aDataRss[aInternalOffset]), 2));    
 end;
 
 
@@ -786,6 +803,11 @@ begin
     GetRSS(rtAdditional,aPacketData,aPacketSize,AListDetail,LOffSetQuestion);
 
   Result := True;
+end;
+
+class procedure TWPcapProtocolDNS.ParserDNSTTL(const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);
+begin
+  AListDetail.Add(AddHeaderInfo(3, 'Time to live:', Format('%d seconds', [wpcapntohl(PInteger(@aDataRss[aInternalOffset])^)]),PByte(@aDataRss[aInternalOffset]), 4));    
 end;
 
 end.

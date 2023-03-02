@@ -73,7 +73,7 @@ type
 
 implementation
 
-uses wpcap.Level.Ip;
+uses wpcap.Level.Ip,wpcap.Protocol.ARP;
 
 { TEthHeader }
 
@@ -161,6 +161,55 @@ begin
     AListDetail.Add(AddHeaderInfo(1,'Source:',LInternalPacket.Eth.SrcAddr,@(LHeader.SrcAddr),5));      
     AListDetail.Add(AddHeaderInfo(1,'Type:',Format('%s [%d]',[LInternalPacket.Eth.Acronym,LInternalPacket.Eth.EtherType]),@(LHeader.EtherType),2));   
     
+    case LInternalPacket.Eth.EtherType of
+
+      ETH_P_IP,  
+      ETH_P_IPV6:;
+    
+      ETH_P_LOOP,
+      ETH_P_PUP,      
+      ETH_P_PUPAT,             
+      ETH_P_X25:;      
+      
+      ETH_P_ARP: TWPcapProtocolARP.HeaderToString(aPacketData,aPacketSize,AListDetail);     
+
+      ETH_P_BPQ,
+      ETH_P_IEEEPUP,  
+      ETH_P_IEEEPUPAT,
+      ETH_P_DEC,      
+      ETH_P_DNA_DL,   
+      ETH_P_DNA_RC,   
+      ETH_P_DNA_RT,   
+      ETH_P_LAT,      
+      ETH_P_DIAG,     
+      ETH_P_CUST,     
+      ETH_P_SCA,      
+      ETH_P_RARP,     
+      ETH_P_ATALK,    
+      ETH_P_AARP,     
+      ETH_P_8021Q,    
+      ETH_P_IPX,             
+      ETH_P_PAUSE,    
+      ETH_P_SLOW,     
+      ETH_P_WCCP,     
+      ETH_P_PPP_DISC, 
+      ETH_P_PPP_SES,  
+      ETH_P_MPLS_UC,  
+      ETH_P_ATMMPOA,  
+      ETH_P_LINK_CTL, 
+      ETH_P_ATMFATE,  
+      ETH_P_PAE,      
+      ETH_P_AOE,      
+      ETH_P_8021AD,  
+      ETH_P_TIPC,        
+      ETH_P_IEEE1588, 
+      ETH_P_FCOE,     
+      ETH_P_FIP,      
+      ETH_P_EDSA,     
+      ETH_P_802_3,    
+      ETH_P_AX25,     
+      ETH_P_ALL:  ;
+    end;    
     Result := True;
   finally               
     Dispose(LInternalPacket)

@@ -32,7 +32,9 @@ uses
   wpcap.Level.IP in '..\..\Source\wpcap.Level.IP.pas',
   wpcap.BufferUtils in '..\..\Source\wpcap.BufferUtils.pas',
   UnitGridUtils in 'UnitGridUtils.pas',
-  wpcap.Protocol.ICMP in '..\..\Source\Protocols\wpcap.Protocol.ICMP.pas';
+  wpcap.Protocol.ICMP in '..\..\Source\Protocols\wpcap.Protocol.ICMP.pas',
+  wpcap.Protocol.ARP in '..\..\Source\Protocols\wpcap.Protocol.ARP.pas',
+  wpcap.Protocol.NBNS in '..\..\Source\Protocols\wpcap.Protocol.NBNS.pas';
 
 {$R *.res}
 

@@ -13,7 +13,7 @@ type
   private
     class function IsLLMNRIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
   protected
-    class function GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word; override;
+    class function GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): byte; override;
   public
     /// <summary>
     /// Returns the default LLMNR port (5355).
@@ -51,19 +51,10 @@ begin
   Result := DETECT_PROTO_LLMNR
 end;
 
-class function TWPcapProtocolLLMNR.GetDNSQClass(LDataQuestions: TBytes; aOffset: Integer): Word;
-var LQClass: Word;
+class function TWPcapProtocolLLMNR.GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): byte;
 begin
   // Read the QClass field as a big-endian 16-bit integer
-  LQClass := inherited GetDNSQClass(LDataQuestions,aOffset);
-  
-  // Check if the QClass value is a LLMNR-specific class
-  case LQClass of
-    65280: Result := TYPE_DNS_QUESTION_ALL; // ALL (Wildcard)
-  else
-    // If the QClass value is not a LLMNR-specific class, return it as is
-    Result := LQClass;
-  end;
+  result := inherited GetDNSClass(LDataQuestions,aOffset);
 end;
 
 class function TWPcapProtocolLLMNR.ProtoName: String;
