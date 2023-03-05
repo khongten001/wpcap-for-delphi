@@ -14,7 +14,8 @@ The package contains several units including:
 + **wpcap.StrUtils.pas:** which contains string manipulation functions.
 + **wpcap.IOUtils.pas:**  which contains functions for filesystem.
 + **wpcap.Pcap.pas:**  which contains abstract function for load and save PCAP.
-+ **wpcap.PCAP.SQLite.pas:**  which contains abstract function for create SQLiteDB with packet of PCAP.
++ **wpcap.PCAP.SQLite.pas:**  which contains abstract function for create SQLiteDB.
++ **wpcap.PCAP.SQLite.Packet.pas:**  which contains abstract function for create SQLiteDB with packet of PCAP.
 + **wpcap.DB.Base:**  which contains base class for managing database.
 + **wpcap.DB.SQLite.pas:**  which contains function SQLiteDB.
 + **wpcap.Filter.pas:**  which contains function for filter PCAP.
@@ -25,6 +26,9 @@ The package contains several units including:
 + **wpcap.Level.IP:**  which contains class for IP level
 + **wpcap.IANA.DBPort:**  which contains databse of IANA Db Port to Protocol name
 + **wpcap.Packet.pas:** witch contains internal structure for packet analisys
++ **wpcap.GEOLite2:** Import Database GeoLite2 by MaxMind and IP enrichment
++ **wpcap.Geometry:** GrantCircle implementation for Delphi
++ **wpcap.IPUtils:** which contains class for IP conversion
 
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
