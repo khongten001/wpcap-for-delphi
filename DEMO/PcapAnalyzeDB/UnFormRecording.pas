@@ -7,33 +7,44 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, cxGraphics, cxControls, cxLookAndFeels,wpcap.Packet,
   cxLookAndFeelPainters, cxContainer, cxEdit, dxSkinsCore, dxSkinBasic, wpcap.Filter,
   Vcl.Menus, Vcl.StdCtrls, cxButtons, cxGroupBox, cxCheckBox, cxCustomListBox,system.UITypes ,
-  cxCheckListBox, cxLabel,wpcap.NetDevice, cxTextEdit,wpcap.DB.SQLite,wpcap.PCAP,
-  cxCustomData, cxStyles, dxScrollbarAnnotations, cxTL, cxTLdxBarBuiltInMenu,
+  cxCheckListBox, cxLabel,wpcap.NetDevice, cxTextEdit,wpcap.DB.SQLite.Packet,wpcap.PCAP,
+  cxCustomData, cxStyles, dxScrollbarAnnotations, cxTL, cxTLdxBarBuiltInMenu,System.DateUtils,
   cxInplaceContainer,wpcap.StrUtils, dxToggleSwitch, cxMaskEdit, cxButtonEdit,
-  System.ImageList, Vcl.ImgList, cxImageList;
+  System.ImageList, Vcl.ImgList, cxImageList, cxSpinEdit, Vcl.ExtCtrls,
+  dxNavBarCollns, cxClasses, dxNavBarBase, dxNavBar, cxTimeEdit;
 
 type
   TFormRecording = class(TForm)
+    SaveDialog1: TSaveDialog;
+    cxImageList1: TcxImageList;
+    dxNavBar1: TdxNavBar;
+    cxGroupBox4: TcxGroupBox;
     cxGroupBox1: TcxGroupBox;
-    cxGroupBox2: TcxGroupBox;
     BCancel: TcxButton;
     BEndRecording: TcxButton;
     BStartRecording: TcxButton;
     cxLabel1: TcxLabel;
-    cxGroupBox3: TcxGroupBox;
-    cxLabel2: TcxLabel;
-    EFilter: TcxTextEdit;
-    ListInterface: TcxTreeList;
-    ListInterfaceColumGUID: TcxTreeListColumn;
-    ListInterfaceCOMMENT: TcxTreeListColumn;
-    ListInterfaceColumPROMISC: TcxTreeListColumn;
-    ListInterfaceColumIP: TcxTreeListColumn;
+    cxGroupBox2: TcxGroupBox;
     EPathDB: TcxButtonEdit;
     cxLabel3: TcxLabel;
     TSfileDumb: TdxToggleSwitch;
-    SaveDialog1: TSaveDialog;
-    cxImageList1: TcxImageList;
+    cxGroupBox3: TcxGroupBox;
+    cxLabel2: TcxLabel;
+    EFilter: TcxTextEdit;
+    dxNavBar1Group1: TdxNavBarGroup;
+    dxNavBar1Group1Control: TdxNavBarGroupControl;
+    cxLabel4: TcxLabel;
+    sTimeOutMs: TcxSpinEdit;
+    cxLabel5: TcxLabel;
+    sMaxSizePacket: TcxSpinEdit;
+    ChkEnabledStopRecording: TcxCheckBox;
+    tStopRecordingTime: TcxTimeEdit;
+    ListInterface: TcxTreeList;
     ListInterfaceColumnNAME: TcxTreeListColumn;
+    ListInterfaceColumGUID: TcxTreeListColumn;
+    ListInterfaceCOMMENT: TcxTreeListColumn;
+    ListInterfaceColumIP: TcxTreeListColumn;
+    ListInterfaceColumPROMISC: TcxTreeListColumn;
     procedure FormCreate(Sender: TObject);
     procedure BStartRecordingClick(Sender: TObject);
     procedure EFilterPropertiesValidate(Sender: TObject;
@@ -42,9 +53,11 @@ type
     procedure BEndRecordingClick(Sender: TObject);
     procedure EPathDBPropertiesButtonClick(Sender: TObject;
       AButtonIndex: Integer);
+    procedure ChkEnabledStopRecordingPropertiesEditValueChanged(
+      Sender: TObject);
   private
     FTotalSize      : Int64;
-    FWPcapDBSqLite  : TWPcapDBSqLite;  
+    FWPcapDBSqLite  : TWPcapDBSqLitePacket;  
     FCurrentDBName  : String;  
     FPCAPUtils      : TPCAPUtils;
     procedure DoPCAPCallBackError(const aFileName, aError: String);
@@ -69,11 +82,12 @@ var LListInterface : TListCardInterface;
     LCurrentNode: TcxTreeListNode;
 begin
   ListInterface.Clear;
-  FCurrentDBName        := Format('%sRealtime_%d.db',[ExtractFilePath(Application.ExeName),GetTickCount]);
-  EPathDB.Text          := FCurrentDBName;
-  SaveDialog1.FileName  := FCurrentDBName;   
-  ModalResult           := mrCancel;
-  LListInterface        := GetAdapterList;
+  FCurrentDBName             := Format('%sRealtime_%d.db',[ExtractFilePath(Application.ExeName),GetTickCount]);
+  EPathDB.Text               := FCurrentDBName;
+  SaveDialog1.FileName       := FCurrentDBName;   
+  tStopRecordingTime.Enabled := False;
+  ModalResult                := mrCancel;
+  LListInterface             := GetAdapterList;
   Try
     for I := 0 to LListInterface.Count -1 do 
     begin
@@ -110,10 +124,12 @@ begin
 end;
 
 procedure TFormRecording.BStartRecordingClick(Sender: TObject);
-var LIndex : Integer;
-    I      : Integer;
+var LIndex       : Integer;
+    I            : Integer;
+    LStopRecTime : TTime;
 begin
-  LIndex := -1;
+  LIndex       := -1;
+  LStopRecTime := 0;
   if Not Trim(EFilter.Text).IsEmpty then
   begin
     if not EFilter.ValidateEdit(False) then
@@ -124,11 +140,19 @@ begin
   end;
 
 
-  if Trim(EPathDB.Text  ).IsEmpty then
+  if Trim(EPathDB.Text).IsEmpty then
   begin
     MessageDlg('Filename is empty',mtWarning,[mbOK],0);      
     Exit;
   end;
+
+  if FileExists(EPathDB.Text) then
+  begin  
+    if MessageDlg('Database already exists. Continue ?',mtConfirmation,mbYesNo,0) = mrNo then exit;
+
+    DeleteFile(EPathDB.Text);
+  end;
+  
   
   //TODO recording multi interface
   for I := 0 to ListInterface.AbsoluteCount  -1 do
@@ -145,12 +169,15 @@ begin
     MessageDlg('Select one interface',mtWarning,[mbOK],0);
     Exit;
   end;
+
+  if tStopRecordingTime.Enabled then
+    LStopRecTime := tStopRecordingTime.Time;
   
   FCurrentDBName := EPathDB.Text;
   {Create database}
   DestroyDatabase;
   FTotalSize     := 0;
-  FWPcapDBSqLite := TWPcapDBSqLite.Create;
+  FWPcapDBSqLite := TWPcapDBSqLitePacket.Create;
   Try
 
     FWPcapDBSqLite.CreateDatabase(CurrentDBName);
@@ -166,7 +193,8 @@ begin
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumGUID.Position.ColIndex],
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumIP.Position.ColIndex],                                     
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumPROMISC.Position.ColIndex],TSfileDumb.Checked,
-                                       DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackProgress);          
+                                       DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackProgress,
+                                       sTimeOutMs.Value,sMaxSizePacket.Value,LStopRecTime);          
       Finally
         FreeAndNil(FPCAPUtils);
       End;
@@ -216,6 +244,12 @@ procedure TFormRecording.EPathDBPropertiesButtonClick(Sender: TObject;
 begin
   if SaveDialog1.Execute then
     EPathDB.Text := SaveDialog1.FileName;
+end;
+
+procedure TFormRecording.ChkEnabledStopRecordingPropertiesEditValueChanged(
+  Sender: TObject);
+begin
+  tStopRecordingTime.Enabled := ChkEnabledStopRecording.Checked;
 end;
 
 end.

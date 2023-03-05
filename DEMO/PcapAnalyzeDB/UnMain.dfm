@@ -40,12 +40,20 @@ object FormMain: TFormMain
         item
           Kind = skCount
           Column = GridPcapDBTableView1NPACKET
+        end
+        item
+          Kind = skSum
+          Column = GridPcapDBTableView1PACKET_LEN
         end>
       DataController.Summary.FooterSummaryItems = <
         item
           Kind = skSum
           OnGetText = GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText
           Column = GridPcapDBTableView1PACKET_LEN
+        end
+        item
+          Kind = skCount
+          Column = GridPcapDBTableView1NPACKET
         end>
       DataController.Summary.SummaryGroups = <>
       OptionsBehavior.CellHints = True
@@ -134,6 +142,38 @@ object FormMain: TFormMain
         Caption = 'IANA_Protocol'
         DataBinding.FieldName = 'IANA_PROTO'
       end
+      object GridPcapDBTableView1IPPROTO_STR: TcxGridDBColumn
+        Caption = 'IP protocol'
+        DataBinding.FieldName = 'IPPROTO_STR'
+      end
+      object GridPcapDBTableView1ASN: TcxGridDBColumn
+        Caption = 'Src ASN'
+        DataBinding.FieldName = 'SRC_ASN'
+      end
+      object GridPcapDBTableView1ORGANIZZATION: TcxGridDBColumn
+        Caption = 'Organizzation'
+        DataBinding.FieldName = 'SRC_ORGANIZZATION'
+      end
+      object GridPcapDBTableView1DST_ASN: TcxGridDBColumn
+        Caption = 'Dst ASN'
+        DataBinding.FieldName = 'DST_ASN'
+      end
+      object GridPcapDBTableView1DstORGANIZZATION: TcxGridDBColumn
+        Caption = 'Dst organizzation'
+        DataBinding.FieldName = 'DST_ORGANIZZATION'
+      end
+      object GridPcapDBTableView1SRC_LATITUDE: TcxGridDBColumn
+        DataBinding.FieldName = 'SRC_LATITUDE'
+      end
+      object GridPcapDBTableView1SRC_LONGITUDE: TcxGridDBColumn
+        DataBinding.FieldName = 'SRC_LONGITUDE'
+      end
+      object GridPcapDBTableView1DST_LATITUDE: TcxGridDBColumn
+        DataBinding.FieldName = 'DST_LATITUDE'
+      end
+      object GridPcapDBTableView1DST_LONGITUDE: TcxGridDBColumn
+        DataBinding.FieldName = 'DST_LONGITUDE'
+      end
     end
     object GridPcapLevel1: TcxGridLevel
       GridView = GridPcapDBTableView1
@@ -183,6 +223,7 @@ object FormMain: TFormMain
       Properties.OnValidate = EFilterPropertiesValidate
       ShowHint = True
       TabOrder = 1
+      OnKeyPress = EFilterKeyPress
       Width = 1263
     end
   end
@@ -337,6 +378,11 @@ object FormMain: TFormMain
           BeginGroup = True
           Visible = True
           ItemName = 'BSaevGrid'
+        end
+        item
+          BeginGroup = True
+          Visible = True
+          ItemName = 'BSubTools'
         end>
       NotDocking = [dsNone, dsLeft, dsTop, dsRight, dsBottom]
       OneOnRow = True
@@ -445,6 +491,58 @@ object FormMain: TFormMain
       Visible = ivAlways
       ImageIndex = 4
       OnClick = BCopyGridClick
+    end
+    object dxBarButton1: TdxBarButton
+      Caption = 'Load GeoIP'
+      Category = 0
+      Hint = 'Load GeoIP'
+      Visible = ivAlways
+      OnClick = dxBarButton1Click
+    end
+    object TActiveGEOIP: TcxBarEditItem
+      Caption = 'Active GeoIP'
+      Category = 0
+      Hint = 'Active GeoIP'
+      Visible = ivAlways
+      ShowCaption = True
+      Width = 0
+      PropertiesClassName = 'TdxToggleSwitchProperties'
+      Properties.DisplayGrayed = 'False'
+      Properties.ImmediatePost = True
+      Properties.ShowEndEllipsis = True
+      InternalEditValue = False
+    end
+    object BSubTools: TdxBarSubItem
+      Caption = 'Tools'
+      Category = 0
+      Visible = ivAlways
+      ItemLinks = <
+        item
+          Visible = True
+          ItemName = 'dxBarSeparator1'
+        end
+        item
+          Visible = True
+          ItemName = 'dxBarButton1'
+        end
+        item
+          ViewLayout = ivlGlyphControlCaption
+          Visible = True
+          ItemName = 'TActiveGEOIP'
+        end>
+    end
+    object dxBarSeparator1: TdxBarSeparator
+      Caption = 'GeoIP'
+      Category = 0
+      Hint = 'GeoIP'
+      Visible = ivAlways
+    end
+    object BMap: TdxBarButton
+      Caption = 'Map'
+      Category = 0
+      Hint = 'Map'
+      Visible = ivAlways
+      OnClick = BMapClick
     end
   end
   object cxImageList1: TcxImageList
@@ -859,7 +957,20 @@ object FormMain: TFormMain
     ItemLinks = <
       item
         Visible = True
+        ItemName = 'BSavePCAP'
+      end
+      item
+        Visible = True
+        ItemName = 'BSaevGrid'
+      end
+      item
+        BeginGroup = True
+        Visible = True
         ItemName = 'BCopyGrid'
+      end
+      item
+        Visible = True
+        ItemName = 'BMap'
       end>
     UseOwnFont = False
     Left = 400

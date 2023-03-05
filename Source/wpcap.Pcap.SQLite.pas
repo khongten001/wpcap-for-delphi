@@ -2,14 +2,14 @@
 
 interface
 
-uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite,wpcap.Packet;
+uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite.Packet,wpcap.Packet,wpcap.GEOLite2;
 
 type
   TPCAP2SQLite = class
   Strict private
     class var FPCAPCallBackEnd  : TPCAPCallBackEnd;
     class var FPCAPCallBackError: TPCAPCallBackError;
-    class var FWPcapDBSqLite    : TWPcapDBSqLite;
+    class var FWPcapDBSqLite    : TWPcapDBSqLitePacket;
   private
     class procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
     class procedure DoPCAPCallBackEnd(const aFileName:String);
@@ -42,7 +42,8 @@ type
     /// The procedure reads the capture file packet by packet, inserting the packets into the specified SQLite database. 
     //  The progress callback is optional and can be used to report progress to the user during long-running capture file analysis.
     ///</remarks>   
-    class procedure PCAP2SQLite(const aFilename,aFilenameDB,aFilter:String;                              
+    class procedure PCAP2SQLite(const aFilename,aFilenameDB,aFilter:String;
+                              aGeoLiteDB           : TWpcapGEOLITE;
                               aPCAPCallBackError   : TPCAPCallBackError;
                               aPCAPCallBackEnd     : TPCAPCallBackEnd;
                               aPCAPCallBackProgress: TPCAPCallBackProgress = nil); static;
@@ -70,8 +71,9 @@ begin
 end;
 
 class procedure TPCAP2SQLite.PCAP2SQLite( const aFilename, aFilenameDB,aFilter: String;
-                                          aPCAPCallBackError: TPCAPCallBackError;
-                                          aPCAPCallBackEnd: TPCAPCallBackEnd;
+                                          aGeoLiteDB           : TWpcapGEOLITE;
+                                          aPCAPCallBackError   : TPCAPCallBackError;
+                                          aPCAPCallBackEnd     : TPCAPCallBackEnd;
                                           aPCAPCallBackProgress: TPCAPCallBackProgress);
 begin
   if not Assigned(aPCAPCallBackError) then
@@ -95,12 +97,13 @@ begin
   FPCAPCallBackEnd   := aPCAPCallBackEnd;
 
   {Create database}
-  FWPcapDBSqLite := TWPcapDBSqLite.Create;
+  FWPcapDBSqLite := TWPcapDBSqLitePacket.Create;
   Try
     Try
       FWPcapDBSqLite.CreateDatabase(aFilenameDB);
       Try
-        TPCAPUtils.AnalyzePCAPOffline(aFileName,afilter,DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackEnd,aPCAPCallBackProgress);          
+        FWPcapDBSqLite.Connection.StartTransaction;
+        TPCAPUtils.AnalyzePCAPOffline(aFileName,afilter,aGeoLiteDB,DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackEnd,aPCAPCallBackProgress);          
       except on E: Exception do
         DoPCAPCallBackError(aFilenameDB,Format('Exception analyze PCAP %s',[E.Message]));
       end;    

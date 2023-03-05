@@ -34,7 +34,13 @@ uses
   UnitGridUtils in 'UnitGridUtils.pas',
   wpcap.Protocol.ICMP in '..\..\Source\Protocols\wpcap.Protocol.ICMP.pas',
   wpcap.Protocol.ARP in '..\..\Source\Protocols\wpcap.Protocol.ARP.pas',
-  wpcap.Protocol.NBNS in '..\..\Source\Protocols\wpcap.Protocol.NBNS.pas';
+  wpcap.Protocol.NBNS in '..\..\Source\Protocols\wpcap.Protocol.NBNS.pas',
+  wpcap.GEOLite2 in '..\..\Source\wpcap.GEOLite2.pas',
+  wpcap.DB.SQLite.Packet in '..\..\Source\wpcap.DB.SQLite.Packet.pas',
+  UnFormImportGeoLite in 'UnFormImportGeoLite.pas' {FormImportGeoLite},
+  UnFormMap in 'UnFormMap.pas' {FormMap},
+  wpcap.IPUtils in '..\..\Source\wpcap.IPUtils.pas',
+  wpcap.Geometry in '..\..\Source\wpcap.Geometry.pas';
 
 {$R *.res}
 

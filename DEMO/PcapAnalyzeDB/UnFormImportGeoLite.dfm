@@ -1,10 +1,10 @@
-object FormRecording: TFormRecording
+object FormImportGeoLite: TFormImportGeoLite
   Left = 0
   Top = 0
   BorderStyle = bsDialog
-  Caption = 'Recording module'
-  ClientHeight = 691
-  ClientWidth = 1091
+  Caption = 'Import GEOLite'
+  ClientHeight = 489
+  ClientWidth = 748
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -13,373 +13,258 @@ object FormRecording: TFormRecording
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
-  object dxNavBar1: TdxNavBar
-    Left = 1051
-    Top = 0
-    Width = 40
-    Height = 691
-    Align = alRight
-    ActiveGroupIndex = 0
-    TabOrder = 0
-    ViewReal = 15
-    OptionsBehavior.NavigationPane.Collapsible = True
-    OptionsBehavior.NavigationPane.Collapsed = True
-    OptionsView.Common.ShowGroupCaptions = False
-    OptionsView.NavigationPane.ShowActiveGroupCaptionWhenCollapsed = True
-    OptionsView.NavigationPane.ShowOverflowPanel = False
-    OriginalWidth = 259
-    object dxNavBar1Group1: TdxNavBarGroup
-      Caption = 'Options'
-      SelectedLinkIndex = -1
-      TopVisibleLinkIndex = 0
-      OptionsGroupControl.AllowControlResizing = True
-      OptionsGroupControl.ShowControl = True
-      OptionsGroupControl.UseControl = True
-      Links = <>
-    end
-    object dxNavBar1Group1Control: TdxNavBarGroupControl
-      Left = 0
-      Top = 0
-      Width = 40
-      Height = 691
-      Caption = 'dxNavBar1Group1Control'
-      TabOrder = 0
-      UseStyle = True
-      GroupIndex = 0
-      OriginalHeight = 41
-      object cxLabel4: TcxLabel
-        AlignWithMargins = True
-        Left = 3
-        Top = 3
-        Align = alTop
-        Caption = 'Time out(ms)'
-        Properties.Alignment.Vert = taVCenter
-        Transparent = True
-        AnchorY = 12
-      end
-      object sTimeOutMs: TcxSpinEdit
-        AlignWithMargins = True
-        Left = 3
-        Top = 26
-        Align = alTop
-        Properties.Alignment.Horz = taRightJustify
-        Properties.Increment = 250.000000000000000000
-        Properties.LargeIncrement = 1000.000000000000000000
-        Properties.MinValue = 500.000000000000000000
-        Properties.SpinButtons.Position = sbpHorzLeftRight
-        Properties.SpinButtons.ShowFastButtons = True
-        TabOrder = 1
-        Value = 1000
-        ExplicitLeft = 56
-        ExplicitTop = 40
-        Width = 34
-      end
-      object cxLabel5: TcxLabel
-        AlignWithMargins = True
-        Left = 3
-        Top = 53
-        Align = alTop
-        Caption = 'Max size packet(bytes)'
-        Properties.Alignment.Vert = taVCenter
-        Transparent = True
-        AnchorY = 62
-      end
-      object sMaxSizePacket: TcxSpinEdit
-        AlignWithMargins = True
-        Left = 3
-        Top = 76
-        Align = alTop
-        Properties.Alignment.Horz = taRightJustify
-        Properties.Increment = 500.000000000000000000
-        Properties.LargeIncrement = 1000.000000000000000000
-        Properties.MaxValue = 65535.000000000000000000
-        Properties.MinValue = 500.000000000000000000
-        Properties.SpinButtons.Position = sbpHorzLeftRight
-        Properties.SpinButtons.ShowFastButtons = True
-        TabOrder = 3
-        Value = 65535
-        ExplicitLeft = -5
-        ExplicitTop = 103
-        Width = 34
-      end
-      object ChkEnabledStopRecording: TcxCheckBox
-        Left = 0
-        Top = 100
-        Align = alTop
-        Caption = 'Stop recordin at:'
-        Properties.OnEditValueChanged = ChkEnabledStopRecordingPropertiesEditValueChanged
-        Style.TransparentBorder = False
-        TabOrder = 4
-        Transparent = True
-        ExplicitLeft = 24
-        ExplicitTop = 112
-        ExplicitWidth = 87
-      end
-      object tStopRecordingTime: TcxTimeEdit
-        AlignWithMargins = True
-        Left = 3
-        Top = 124
-        Align = alTop
-        Properties.Alignment.Horz = taRightJustify
-        Properties.Circular = True
-        Properties.Increment = 10.000000000000000000
-        Properties.LargeIncrement = 60.000000000000000000
-        Properties.SpinButtons.Position = sbpHorzLeftRight
-        Properties.SpinButtons.ShowFastButtons = True
-        TabOrder = 5
-        ExplicitLeft = 32
-        ExplicitTop = 136
-        Width = 34
-      end
-    end
-  end
-  object cxGroupBox4: TcxGroupBox
+  object dxWizardControl1: TdxWizardControl
     Left = 0
     Top = 0
-    Align = alClient
-    Caption = 'cxGroupBox4'
-    TabOrder = 1
-    Height = 691
-    Width = 1051
-    object cxGroupBox1: TcxGroupBox
-      Left = 4
-      Top = 632
-      Align = alBottom
-      PanelStyle.Active = True
-      TabOrder = 0
-      Height = 43
-      Width = 1043
-      object BCancel: TcxButton
-        Left = 928
-        Top = 4
-        Width = 111
-        Height = 35
-        Align = alRight
-        Cancel = True
-        Caption = 'Cancel'
-        ModalResult = 2
-        OptionsImage.ImageIndex = 2
-        OptionsImage.Images = cxImageList1
-        TabOrder = 0
-        ExplicitLeft = 818
-      end
-      object BEndRecording: TcxButton
-        Left = 817
-        Top = 4
-        Width = 111
-        Height = 35
-        Align = alRight
-        Caption = 'Stort recording'
-        Enabled = False
-        ModalResult = 1
-        OptionsImage.ImageIndex = 0
-        OptionsImage.Images = cxImageList1
+    Width = 748
+    Height = 489
+    Buttons.CustomButtons.Buttons = <>
+    Buttons.Finish.Caption = '&Import'
+    Buttons.Help.Enabled = False
+    Buttons.Help.Visible = False
+    OnButtonClick = dxWizardControl1ButtonClick
+    OnPageChanging = dxWizardControl1PageChanging
+    object wPageAsn: TdxWizardControlPage
+      Header.Description = 'Select file path for ASN Database'
+      Header.Title = 'Import GeoLite'
+      object cxGroupBox2: TcxGroupBox
+        AlignWithMargins = True
+        Left = 3
+        Top = 235
+        Margins.Top = 60
+        Align = alTop
+        PanelStyle.Active = True
         TabOrder = 1
-        OnClick = BEndRecordingClick
-        ExplicitLeft = 707
+        Height = 43
+        Width = 720
+        object EASNIpv6: TcxButtonEdit
+          AlignWithMargins = True
+          Left = 111
+          Top = 7
+          Align = alClient
+          Properties.Buttons = <
+            item
+              Default = True
+              ImageIndex = 1
+              Hint = 'Select a file'
+              Kind = bkGlyph
+            end>
+          Properties.Images = cxImageList1
+          Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
+          TabOrder = 0
+          ExplicitLeft = 151
+          ExplicitWidth = 562
+          Width = 602
+        end
+        object cxLabel3: TcxLabel
+          AlignWithMargins = True
+          Left = 7
+          Top = 7
+          Align = alLeft
+          Caption = 'ASN Database IPv6'
+          Properties.Alignment.Vert = taVCenter
+          Transparent = True
+          AnchorY = 22
+        end
       end
-      object BStartRecording: TcxButton
-        Left = 706
-        Top = 4
-        Width = 111
-        Height = 35
-        Align = alRight
-        Caption = 'Start recording'
-        OptionsImage.ImageIndex = 3
-        OptionsImage.Images = cxImageList1
-        TabOrder = 2
-        OnClick = BStartRecordingClick
-        ExplicitLeft = 596
-      end
-      object cxLabel1: TcxLabel
-        Left = 4
-        Top = 4
-        Align = alClient
-        Properties.Alignment.Vert = taVCenter
-        Transparent = True
-        AnchorY = 22
-      end
-    end
-    object cxGroupBox2: TcxGroupBox
-      Left = 4
-      Top = 16
-      Align = alTop
-      PanelStyle.Active = True
-      TabOrder = 1
-      ExplicitTop = -9
-      Height = 43
-      Width = 1043
-      object EPathDB: TcxButtonEdit
+      object cxGroupBox1: TcxGroupBox
         AlignWithMargins = True
-        Left = 86
-        Top = 7
-        Align = alClient
-        Properties.Buttons = <
-          item
-            Default = True
-            ImageIndex = 1
-            Hint = 'Select a file'
-            Kind = bkGlyph
-          end>
-        Properties.Images = cxImageList1
-        Properties.OnButtonClick = EPathDBPropertiesButtonClick
+        Left = 3
+        Top = 129
+        Margins.Top = 60
+        Align = alTop
+        PanelStyle.Active = True
         TabOrder = 0
-        ExplicitLeft = 134
-        ExplicitWidth = 793
-        ExplicitHeight = 21
-        Width = 783
+        Height = 43
+        Width = 720
+        object EASNIpv4: TcxButtonEdit
+          AlignWithMargins = True
+          Left = 111
+          Top = 7
+          Align = alClient
+          Properties.Buttons = <
+            item
+              Default = True
+              ImageIndex = 1
+              Hint = 'Select a file'
+              Kind = bkGlyph
+            end>
+          Properties.Images = cxImageList1
+          Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
+          TabOrder = 0
+          Width = 602
+        end
+        object cxLabel1: TcxLabel
+          AlignWithMargins = True
+          Left = 7
+          Top = 7
+          Align = alLeft
+          Caption = 'ASN Database IPv4'
+          Properties.Alignment.Vert = taVCenter
+          Transparent = True
+          AnchorY = 22
+        end
       end
-      object cxLabel3: TcxLabel
-        AlignWithMargins = True
-        Left = 7
-        Top = 7
-        Align = alLeft
-        Caption = 'Dabase name:'
-        Properties.Alignment.Vert = taVCenter
+      object dxFormattedLabel1: TdxFormattedLabel
+        Left = 0
+        Top = 0
+        Align = alTop
+        Caption = 
+          '[B]GeoLite2 Free Geolocation Data[SIZE=12][/SIZE][/B]'#13#10'GeoLite2 ' +
+          'databases are free IP geolocation databases comparable to, but l' +
+          'ess accurate than, MaxMind'#8217's GeoIP2 databases. '#13#10'The GeoLite2 Co' +
+          'untry, City, and ASN databases are updated twice weekly, every T' +
+          'uesday and Friday.'#13#10#13#10'[URL=https://dev.maxmind.com/geoip/geolite' +
+          '2-free-geolocation-data?lang=en]MaxMind download[/URL]'
         Transparent = True
-        AnchorY = 22
-      end
-      object TSfileDumb: TdxToggleSwitch
-        AlignWithMargins = True
-        Left = 875
-        Top = 7
-        Align = alRight
-        Caption = 'Save dump file'
-        Checked = False
-        Style.TransparentBorder = False
-        TabOrder = 2
-        Transparent = True
-        ExplicitLeft = 765
-        ExplicitHeight = 21
       end
     end
-    object cxGroupBox3: TcxGroupBox
-      Left = 4
-      Top = 59
-      Align = alTop
-      PanelStyle.Active = True
-      TabOrder = 2
-      ExplicitTop = 34
-      Height = 43
-      Width = 1043
-      object cxLabel2: TcxLabel
+    object wPageLocation: TdxWizardControlPage
+      Header.Description = 'Select file path for location database'
+      Header.Title = 'Import GeoLite'
+      object cxGroupBox3: TcxGroupBox
         AlignWithMargins = True
-        Left = 7
-        Top = 7
-        Align = alLeft
-        Caption = 'Filter by WinPCAP API:'
-        Properties.Alignment.Vert = taVCenter
-        Transparent = True
-        AnchorY = 22
+        Left = 3
+        Top = 60
+        Margins.Top = 60
+        Align = alTop
+        PanelStyle.Active = True
+        TabOrder = 0
+        Height = 43
+        Width = 720
+        object ELocationIPv4: TcxButtonEdit
+          AlignWithMargins = True
+          Left = 114
+          Top = 7
+          Align = alClient
+          Properties.Buttons = <
+            item
+              Default = True
+              ImageIndex = 1
+              Hint = 'Select a file'
+              Kind = bkGlyph
+            end>
+          Properties.Images = cxImageList1
+          Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
+          TabOrder = 0
+          ExplicitLeft = 82
+          ExplicitWidth = 631
+          Width = 599
+        end
+        object cxLabel2: TcxLabel
+          AlignWithMargins = True
+          Left = 7
+          Top = 7
+          Align = alLeft
+          Caption = 'Location IPv4 Blocks'
+          Properties.Alignment.Vert = taVCenter
+          Transparent = True
+          AnchorY = 22
+        end
       end
-      object EFilter: TcxTextEdit
+      object cxGroupBox4: TcxGroupBox
         AlignWithMargins = True
-        Left = 127
-        Top = 7
-        Align = alClient
-        ParentShowHint = False
-        Properties.ValidationOptions = [evoShowErrorIcon, evoAllowLoseFocus]
-        Properties.OnValidate = EFilterPropertiesValidate
-        ShowHint = True
+        Left = 3
+        Top = 166
+        Margins.Top = 60
+        Align = alTop
+        PanelStyle.Active = True
         TabOrder = 1
-        ExplicitLeft = 134
-        ExplicitHeight = 21
-        Width = 909
+        Height = 43
+        Width = 720
+        object ELocationIPv6: TcxButtonEdit
+          AlignWithMargins = True
+          Left = 109
+          Top = 7
+          Align = alClient
+          Properties.Buttons = <
+            item
+              Default = True
+              ImageIndex = 1
+              Hint = 'Select a file'
+              Kind = bkGlyph
+            end>
+          Properties.Images = cxImageList1
+          Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
+          TabOrder = 0
+          ExplicitLeft = 122
+          ExplicitWidth = 591
+          Width = 604
+        end
+        object cxLabel4: TcxLabel
+          AlignWithMargins = True
+          Left = 7
+          Top = 7
+          Align = alLeft
+          Caption = 'Location IPv6 Block'
+          Properties.Alignment.Vert = taVCenter
+          Transparent = True
+          AnchorY = 22
+        end
+      end
+      object cxGroupBox5: TcxGroupBox
+        AlignWithMargins = True
+        Left = 3
+        Top = 272
+        Margins.Top = 60
+        Align = alTop
+        PanelStyle.Active = True
+        TabOrder = 2
+        ExplicitTop = 310
+        Height = 43
+        Width = 720
+        object cxButtonEdit1: TcxButtonEdit
+          AlignWithMargins = True
+          Left = 82
+          Top = 7
+          Align = alClient
+          Properties.Buttons = <
+            item
+              Default = True
+              ImageIndex = 1
+              Hint = 'Select a file'
+              Kind = bkGlyph
+            end>
+          Properties.Images = cxImageList1
+          Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
+          TabOrder = 0
+          ExplicitLeft = 134
+          ExplicitWidth = 579
+          Width = 631
+        end
+        object cxLabel5: TcxLabel
+          AlignWithMargins = True
+          Left = 7
+          Top = 7
+          Align = alLeft
+          Caption = 'Location IPv6'
+          Properties.Alignment.Vert = taVCenter
+          Transparent = True
+          AnchorY = 22
+        end
       end
     end
-    object ListInterface: TcxTreeList
-      Left = 4
-      Top = 102
-      Width = 1043
-      Height = 530
-      Align = alClient
-      Bands = <
-        item
-        end>
-      FindPanel.DisplayMode = fpdmAlways
-      FindPanel.Layout = fplCompact
-      Navigator.Buttons.CustomButtons = <>
-      OptionsBehavior.CellHints = True
-      OptionsData.CancelOnExit = False
-      OptionsData.Editing = False
-      OptionsData.Deleting = False
-      OptionsView.CellAutoHeight = True
-      OptionsView.CellEndEllipsis = True
-      OptionsView.ColumnAutoWidth = True
-      OptionsView.CheckGroups = True
-      OptionsView.ShowRoot = False
-      ScrollbarAnnotations.CustomAnnotations = <>
-      TabOrder = 3
-      ExplicitLeft = 0
-      ExplicitTop = 86
-      ExplicitWidth = 1091
-      ExplicitHeight = 397
-      Data = {
-        00000500DF0000000F00000044617461436F6E74726F6C6C6572310500000012
-        000000546378537472696E6756616C7565547970651200000054637853747269
-        6E6756616C75655479706512000000546378537472696E6756616C7565547970
-        6513000000546378426F6F6C65616E56616C7565547970651200000054637853
-        7472696E6756616C75655479706502000000445855464D5401445855464D5401
-        020000000000000008000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF0100
-        000008000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF1A0C1002000000}
-      object ListInterfaceColumnNAME: TcxTreeListColumn
-        Caption.Text = 'Simple name'
-        Width = 233
-        Position.ColIndex = 0
-        Position.RowIndex = 0
-        Position.BandIndex = 0
-        Summary.FooterSummaryItems = <>
-        Summary.GroupFooterSummaryItems = <>
+    object wEndOperation: TdxWizardControlPage
+      Header.Description = 'Click on the import button to start the procedure.'
+      Header.Title = 'Import GeoLite'
+      object cxProgressBar1: TcxProgressBar
+        Left = 125
+        Top = 183
+        TabOrder = 0
+        Width = 465
       end
-      object ListInterfaceColumGUID: TcxTreeListColumn
-        Caption.Text = 'GUID'
-        Width = 283
-        Position.ColIndex = 1
-        Position.RowIndex = 0
-        Position.BandIndex = 0
-        Summary.FooterSummaryItems = <>
-        Summary.GroupFooterSummaryItems = <>
-      end
-      object ListInterfaceCOMMENT: TcxTreeListColumn
-        Caption.Text = 'Comment'
-        Width = 197
-        Position.ColIndex = 2
-        Position.RowIndex = 0
-        Position.BandIndex = 0
-        Summary.FooterSummaryItems = <>
-        Summary.GroupFooterSummaryItems = <>
-      end
-      object ListInterfaceColumIP: TcxTreeListColumn
-        BestFitMaxWidth = 40
-        Caption.Text = 'Promisc'
-        DataBinding.ValueType = 'Boolean'
-        Width = 43
-        Position.ColIndex = 4
-        Position.RowIndex = 0
-        Position.BandIndex = 0
-        Summary.FooterSummaryItems = <>
-        Summary.GroupFooterSummaryItems = <>
-      end
-      object ListInterfaceColumPROMISC: TcxTreeListColumn
-        Caption.Text = 'IP'
-        Width = 110
-        Position.ColIndex = 3
-        Position.RowIndex = 0
-        Position.BandIndex = 0
-        Summary.FooterSummaryItems = <>
-        Summary.GroupFooterSummaryItems = <>
+      object LInfo: TcxLabel
+        Left = 125
+        Top = 150
+        Caption = 'LInfo'
+        Transparent = True
       end
     end
-  end
-  object SaveDialog1: TSaveDialog
-    DefaultExt = '.db'
-    Filter = 'SQLite database (.db)| *.db'
-    Left = 488
-    Top = 208
   end
   object cxImageList1: TcxImageList
     SourceDPI = 96
@@ -742,5 +627,10 @@ object FormRecording: TFormRecording
           3673362E332C31342C31342C31347331342D362E332C31342D31345332332E37
           2C322C31362C327A222F3E0D0A3C2F7376673E0D0A}
       end>
+  end
+  object dxOpenFileDialog1: TdxOpenFileDialog
+    Filter = 'Comma file separator(*.csv)|*.csv'
+    Left = 387
+    Top = 307
   end
 end

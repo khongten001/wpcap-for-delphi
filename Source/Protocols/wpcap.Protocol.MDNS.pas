@@ -136,7 +136,6 @@ begin
         AListDetail.Add(AddHeaderInfo(3, 'Z:',Lz, PByte(@aDataRss[aInternalOffset]), 2));
         AListDetail.Add(AddHeaderInfo(4, 'Reserved:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));
         AListDetail.Add(AddHeaderInfo(4, 'Do bit:',GetBitValue(aDataRss[aInternalOffset],1), PByte(@aDataRss[aInternalOffset]), 2));
-
       end;
   end;
 end;
@@ -173,7 +172,7 @@ begin
         }
 
         LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
-        LQClass  := wpcapntohs( LQClass  and $7FFF);      
+        LQClass  := ( LQClass  and $7FFF);      
         AListDetail.Add(AddHeaderInfo(3, 'Class:',QClassToString(LQClass), PByte(@aDataRss[aInternalOffset]), 2));   
         AListDetail.Add(AddHeaderInfo(3, 'QU:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));
       end;

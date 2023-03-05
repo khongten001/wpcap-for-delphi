@@ -5,7 +5,7 @@ interface
 uses
   wpcap.Protocol.Base, wpcap.Conts, WinSock2, wpcap.Protocol.UDP, wpcap.Types,
   System.StrUtils, System.Rtti, System.SysUtils, System.Variants, WinApi.Windows,
-  wpcap.BufferUtils, System.Win.ScktComp, DateUtils,wpcap.StrUtils,System.Generics.Collections;
+  wpcap.BufferUtils, System.Win.ScktComp, DateUtils,wpcap.IpUtils,System.Generics.Collections;
 
 type
   {https://datatracker.ietf.org/doc/html/rfc2661#section-5.1}

@@ -4,9 +4,9 @@ interface
 
 uses
   wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts,wpcap.IANA.DbPort,
-  WinApi.Windows, wpcap.Packet, wpcap.IOUtils, System.SysUtils, 
-  Winsock,wpcap.Level.Eth,wpcap.BufferUtils,Forms,System.Math,
-  DateUtils, System.Generics.Collections,System.Variants;
+  WinApi.Windows, wpcap.Packet, wpcap.IOUtils, System.SysUtils,System.DateUtils, 
+  Winsock,wpcap.Level.Eth,wpcap.BufferUtils,Forms,System.Math,System.Types ,
+  System.Generics.Collections,System.Variants,wpcap.GEOLite2,wpcap.IPUtils;
 
 type
 
@@ -82,6 +82,7 @@ type
     class var FPCAPCallBackPacket      : TPCAPCallBackPacket;
     class var FAbort                   : Boolean; 
     class var FPCapRT                  : Ppcap_t;      
+    class var FTimeStopRecording       : TDateTime;      
     class var FIANADictionary          : TDictionary<String,TIANARow>;   
     /// <summary>
     /// This is a class procedure that handles a packet in real time. 
@@ -102,7 +103,7 @@ type
     /// </summary>
     /// <param name="aPacketData">A pointer to the packet data.</param>
     /// <param name="aHeader">A pointer to the packet header.</param>
-    class procedure AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr); static;
+    class procedure AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE); static;
 
     /// <summary>
     /// This is a static class function that checks a wpcap filter. It takes four parameters: a handle to the pcap file, the name of the file, the filter to check, and a callback function to handle errors.
@@ -139,6 +140,7 @@ type
     ///</param>
     ///<param name="aPCAPCallBackProgress">
     /// A callback procedure to be called to report progress during packet processing.
+
     ///</param>
     ///<remarks>
     /// This procedure analyzes an packet capture file using a specified set of callbacks. The specified callbacks are responsible for processing packets, 
@@ -147,6 +149,7 @@ type
     /// The progress callback is optional and can be used to report progress to the user during long-running capture file analysis.
     ///</remarks>
     class procedure AnalyzePCAPOffline( const aFilename, aFilter: String;
+                                        aGeoLiteDB           : TWpcapGEOLITE;    
                                         aPCAPCallBackPacket  : TPCAPCallBackPacket;
                                         aPCAPCallBackError   : TPCAPCallBackError;
                                         aPCAPCallBackEnd     : TPCAPCallBackEnd;
@@ -183,12 +186,20 @@ type
     /// <param name="aTimeOut">
     ///  Timeout in millisecond for data collection
     /// </param>
+    /// <param name="aMaxSizePakcet">
+    ///  Max size in byte for capture packet 
+    /// </param>
+    /// <param name="aTimeRecoStop">
+    ///  Time recording stopping 0 disable 
+    /// </param>
     procedure AnalyzePCAPRealtime(  const aFilename, aFilter,aInterfaceName,aIP: string;
                                           aPromisc,aSevePcapDump:Boolean;
                                           aPCAPCallBackPacket  : TPCAPCallBackPacket;
                                           aPCAPCallBackError   : TPCAPCallBackError;
                                           aPCAPCallBackProgress: TPCAPCallBackProgress = nil;
-                                          aTimeOutMs:Integer=1000);                     
+                                          aTimeOutMs:Integer=1000;
+                                          aMaxSizePakcet:Integer = MAX_PACKET_SIZE;
+                                          aTimeRecoStop : TTime = 0); 
 
     class var FPCAPCallBackProgressRT  : TPCAPCallBackProgress;
     /// <summary>
@@ -209,15 +220,16 @@ type
     class procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);static;
 
     {Property}
-    class Property Abort  : Boolean Read FAbort;
-    class Property PCapRT : Ppcap_t Read FPCapRT;
+    class Property Abort             : Boolean     Read FAbort;
+    class Property PCapRT            : Ppcap_t     Read FPCapRT;
+    class Property TimeStopRecording : TDateTime   Read FTimeStopRecording;    
   end;
   
   function  PacketHandlerRealtime ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; cdecl;  
   
 implementation
 
-class procedure TPCAPUtils.AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr);
+class procedure TPCAPUtils.AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE);
 var LInternalPacket  : PTInternalPacket;  
 begin
   if not Assigned(aPacketData) then Exit;
@@ -226,6 +238,32 @@ begin
   Try
     LInternalPacket.PacketDate := UnixToDateTime(aHeader.ts.tv_sec,false);    
     TWpcapEthHeader.InternalPacket(aPacketData,aHeader.len,FIANADictionary,LInternalPacket);  
+
+    LInternalPacket.IP.SrcGeoIP.ASNumber        := String.Empty;
+    LInternalPacket.IP.SrcGeoIP.ASOrganization  := String.Empty;
+    LInternalPacket.IP.SrcGeoIP.Location        := String.Empty;            
+    LInternalPacket.IP.SrcGeoIP.Latitude        := 0;
+    LInternalPacket.IP.SrcGeoIP.Longitude       := 0;
+
+    LInternalPacket.IP.DestGeoIP.ASNumber       := String.Empty;
+    LInternalPacket.IP.DestGeoIP.ASOrganization := String.Empty;
+    LInternalPacket.IP.DestGeoIP.Location       := String.Empty;            
+    LInternalPacket.IP.DestGeoIP.Latitude       := 0;
+    LInternalPacket.IP.DestGeoIP.Longitude      := 0;
+    
+    if Assigned(aGeoLiteDB) and aGeoLiteDB.Connection.Connected then
+    begin
+      if ( LInternalPacket.Eth.EtherType = ETH_P_IP ) or
+         ( LInternalPacket.Eth.EtherType = ETH_P_IPV6 ) 
+      then
+      begin
+        if IsValidPublicIP(LInternalPacket.IP.Src) then        
+          aGeoLiteDB.GetGeoIPByIp(LInternalPacket.IP.Src,@LInternalPacket.IP.SrcGeoIP);
+        if IsValidPublicIP(LInternalPacket.IP.Dst) then        
+          aGeoLiteDB.GetGeoIPByIp(LInternalPacket.IP.Dst,@LInternalPacket.IP.DestGeoIP);
+      end;
+    end;
+        
     FPCAPCallBackPacket(LInternalPacket);
   Finally
     Dispose(LInternalPacket);
@@ -250,10 +288,13 @@ begin
     aNewHeader.len := LPacketLen ;
 
     Move(aPacketData^, PacketBuffer[0], LPacketLen);
-    TPCAPUtils(aUser).AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader);
+    TPCAPUtils(aUser).AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil);
     dispose(aNewHeader);
   end;
-  if TPCAPUtils(aUser).Abort then
+  
+  if ( TPCAPUtils(aUser).Abort) or 
+      ( ( TPCAPUtils(aUser).TimeStopRecording>0 ) and (Now> TPCAPUtils(aUser).TimeStopRecording) ) 
+  then
     pcap_breakloop(TPCAPUtils(aUser).PcapRT);                             
 
   Result := 0;
@@ -264,7 +305,9 @@ procedure TPCAPUtils.AnalyzePCAPRealtime( const aFilename, aFilter,aInterfaceNam
                                                 aPCAPCallBackPacket  : TPCAPCallBackPacket;
                                                 aPCAPCallBackError   : TPCAPCallBackError;
                                                 aPCAPCallBackProgress: TPCAPCallBackProgress = nil;
-                                                aTimeOutMs:Integer=1000
+                                                aTimeOutMs:Integer=1000;
+                                                aMaxSizePakcet:Integer = MAX_PACKET_SIZE;
+                                                aTimeRecoStop : TTime = 0 
                                              );
 var Lerrbuf      : array[0..PCAP_ERRBUF_SIZE-1] of AnsiChar;
     LPcapDumper  : ppcap_dumper_t;
@@ -299,11 +342,20 @@ begin
     Exit;
   end;  
 
+  FTimeStopRecording := 0;
+  if aTimeRecoStop > 0 then
+  begin
+    FTimeStopRecording := now;
+    ReplaceTime(FTimeStopRecording,aTimeRecoStop);    
+    if CompareTime(aTimeRecoStop,now) <> GreaterThanValue then
+      FTimeStopRecording := IncDay(FTimeStopRecording,1)
+  end;
+  
   FPCAPCallBackPacket      := aPCAPCallBackPacket;
   FPCAPCallBackProgressRT  := aPCAPCallBackProgress;
   
   // Open the network adapter for capturing
-  FPcapRT := pcap_open_live(PAnsiChar(AnsiString(aInterfaceName)), MAX_PACKET_SIZE, ifthen(aPromisc,1,0), aTimeOutMs, Lerrbuf);
+  FPcapRT := pcap_open_live(PAnsiChar(AnsiString(aInterfaceName)), aMaxSizePakcet, ifthen(aPromisc,1,0), aTimeOutMs, Lerrbuf);
   if not Assigned(FPcapRT) then
   begin
     aPCAPCallBackError(aFileName,Format('Error opening network adapter: %s', [Lerrbuf]));
@@ -338,6 +390,8 @@ begin
          aPCAPCallBackError(aFileName,Format('pcap_loop ended unknow return code [%d] error %s',[LLoopResult,string(pcap_geterr(FPcapRT))]));   
       end;
 
+      
+
     Finally
       // Close the output file and the network adapter
       if aSevePcapDump then     
@@ -350,7 +404,6 @@ end;
 
 Class function TPCAPUtils.CheckWPcapFilter(aHandlePcap : Ppcap_t;const aFileName,aFilter,aIP: string;aPCAPCallBackError:TPCAPCallBackError) : Boolean;
 var LFilterCode : BPF_program;  
-    LNetMask    : bpf_u_int32;
 begin
   Result := False;
   {Filter}
@@ -422,6 +475,7 @@ begin
 end;
 
 class procedure TPCAPUtils.AnalyzePCAPOffline( const aFilename,aFilter:String;
+                              aGeoLiteDB           : TWpcapGEOLITE;
                               aPCAPCallBackPacket  : TPCAPCallBackPacket;
                               aPCAPCallBackError   : TPCAPCallBackError;
                               aPCAPCallBackEnd     : TPCAPCallBackEnd;
@@ -495,7 +549,7 @@ begin
         case LResultPcapNext of
           1:  // packet read correctly           
             begin      
-              AnalyzePacketCallBack(LPktData,LHeader);
+              AnalyzePacketCallBack(LPktData,LHeader,aGeoLiteDB);
               Inc(LLenAnalyze,LHeader^.Len);
               DoPcapProgress(LTolSizePcap,LLenAnalyze);
 

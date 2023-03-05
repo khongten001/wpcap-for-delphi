@@ -14,14 +14,15 @@ uses
   FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,UnitGridUtils,
   FireDAC.VCLUI.Wait, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf,
-  FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,
-  FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView, wpcap.DB.SQLite,
+  FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.GEOLite2,
+  FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView, wpcap.DB.SQLite.Packet,
   FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,wpcap.Protocol,
   FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,
   cxTextEdit, cxMemo, cxSplitter, dxBar, System.ImageList, Vcl.ImgList,
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
-  cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,
-  cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox;
+  cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
+  cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
+  cxBarEditItem,wpcap.Geometry;
 
 type
   TFormMain = class(TForm)
@@ -73,6 +74,20 @@ type
     cxGridPopupMenu1: TcxGridPopupMenu;
     PopupGrid: TdxBarPopupMenu;
     BCopyGrid: TdxBarButton;
+    GridPcapDBTableView1IPPROTO_STR: TcxGridDBColumn;
+    dxBarButton1: TdxBarButton;
+    GridPcapDBTableView1ORGANIZZATION: TcxGridDBColumn;
+    GridPcapDBTableView1ASN: TcxGridDBColumn;
+    GridPcapDBTableView1DST_ASN: TcxGridDBColumn;
+    GridPcapDBTableView1DstORGANIZZATION: TcxGridDBColumn;
+    TActiveGEOIP: TcxBarEditItem;
+    BSubTools: TdxBarSubItem;
+    dxBarSeparator1: TdxBarSeparator;
+    GridPcapDBTableView1SRC_LATITUDE: TcxGridDBColumn;
+    GridPcapDBTableView1SRC_LONGITUDE: TcxGridDBColumn;
+    GridPcapDBTableView1DST_LATITUDE: TcxGridDBColumn;
+    GridPcapDBTableView1DST_LONGITUDE: TcxGridDBColumn;
+    BMap: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -94,16 +109,23 @@ type
     procedure BSaevGridClick(Sender: TObject);
     procedure BSaveListPacketClick(Sender: TObject);
     procedure BCopyGridClick(Sender: TObject);
+    procedure dxBarButton1Click(Sender: TObject);
+    procedure EFilterKeyPress(Sender: TObject; var Key: Char);
+    procedure BMapClick(Sender: TObject);
   private
     { Private declarations }
-    FWPcapDBSqLite : TWPcapDBSqLite;
+    FWPcapDBSqLite : TWPcapDBSqLitePacket;
+    FWpcapGeoLite  : TWpcapGEOLITE;
     FPCAPUtils     : TPCAPUtils;
+    FFFormMap      : TFormMap;
     FLastPercProg  : Byte;
+    FLastFileOpened: String;
     procedure OpenPcap(const aFileName: String);
     procedure SetPositionProgressBar(aNewPos: Int64);
     procedure DoPCAPOfflineCallBackEnd(const aFileName: String);
     procedure DoPCAPOfflineCallBackError(const aFileName, aError: String);
     procedure DoPCAPOfflineCallBackProgress(aTotalSize, aCurrentSize: Int64);
+    function GetGeoLiteDatabaseName: String;
   public
     { Public declarations }
   end;
@@ -113,7 +135,7 @@ var
 
 implementation
 
-uses UnFormRecording;
+uses UnFormRecording,UnFormImportGeoLite;
 
 {$R *.dfm}
 
@@ -161,7 +183,7 @@ begin
   FWPcapDBSqLite.Connection.Close;
   FWPcapDBSqLite.FDQueryGrid.Close;
   SetPositionProgressBar(0);
-  
+  FLastFileOpened := aFileName;
   {TODO 
     Thread with syncronize
     Query bulder 
@@ -179,8 +201,12 @@ begin
       Exit;
     end;
   end;
+  if Boolean(TActiveGEOIP.EditValue ) and FileExists(GetGeoLiteDatabaseName) then
+    FWpcapGeoLite.OpenDatabase(GetGeoLiteDatabaseName)
+  else
+    FWPcapDBSqLite.Connection.Connected := False;
     
-  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),EFilter.Text,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
 end;
 
 procedure TFormMain.GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
@@ -230,7 +256,7 @@ var LHexList    : TArray<String>;
 begin
   MemoHex.Lines.Clear;
   ListPacketDetail.Clear;
-
+  LCurrentNode := nil;
   if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
     LListDetail := TListHeaderString.Create;
@@ -265,9 +291,9 @@ begin
     begin
       LParentNode := FindParentNode(0);
       if Assigned(LParentNode) then
-        LParentNode.Expand(True)  
-      
+        LParentNode.Expand(True)        
     end;  
+    
     MemoHex.Lines.BeginUpdate;
     Try 
       for I := Low(LHexList) to High(LHexList) do
@@ -285,11 +311,15 @@ procedure TFormMain.FormCreate(Sender: TObject);
 begin
   MemoHex.Style.Font.Name := 'Courier New';
   MemoHex.Style.Font.Size := 10;
-  FWPcapDBSqLite          := TWPcapDBSqLite.Create;
+  FWPcapDBSqLite          := TWPcapDBSqLitePacket.Create;
+  FWpcapGeoLite           := TWpcapGEOLITE.Create;
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
 begin
+  if Assigned(FFFormMap) then
+    FreeAndNil(FFFormMap);
+  FreeAndNil(FWpcapGeoLite);
   FreeAndNil(FWPcapDBSqLite);
 end;
 
@@ -315,6 +345,7 @@ begin
     Try
       for I := 0 to GridPcapDBTableView1.DataController.RecordCount -1 do
       begin
+          
         LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.DataController.Values[I,GridPcapDBTableView1NPACKET.Index],LPcketSize);
         if Assigned(LPacket) then
         begin
@@ -411,9 +442,7 @@ begin
           end;
       2: MemoHex.Lines.SaveToFile(ChangeFileExt(SaveDialog1.FileName,'.txt'));
     end;
-
   end;
-
 end;
 
 procedure TFormMain.BSaevGridClick(Sender: TObject);
@@ -429,6 +458,71 @@ end;
 procedure TFormMain.BCopyGridClick(Sender: TObject);
 begin
   CopyCellValue(GridPcapDBTableView1);
+end;
+
+procedure TFormMain.dxBarButton1Click(Sender: TObject);
+begin
+  FormImportGeoLite := TFormImportGeoLite.Create(nil);
+  Try
+    FormImportGeoLite.DatabaseOutPut := GetGeoLiteDatabaseName;
+    FormImportGeoLite.ShowModal;
+  Finally
+    FreeAndNil(FormImportGeoLite);
+  End;
+end;
+
+Function TFormMain.GetGeoLiteDatabaseName:String;
+begin
+  Result := Format('%s\GeoLite\GeoLite.db',[ExtractFilePath(Application.ExeName)])
+end;
+
+procedure TFormMain.EFilterKeyPress(Sender: TObject; var Key: Char);
+begin
+  if Ord(key) = VK_RETURN then
+  begin
+    if FLastFileOpened.IsEmpty then Exit;
+    
+    if Trim(EFilter.Text).isEmpty  or EFilter.ValidateEdit(False) then
+      OpenPcap(FLastFileOpened);    
+  end;
+end;
+
+procedure TFormMain.BMapClick(Sender: TObject);
+
+
+  Procedure AddCoordinate(IndexLat,IndexLong:byte);
+  var aCoordinate : PTMapCoordinate;
+  begin
+    New(aCoordinate);
+    aCoordinate.Latitude  := 0;
+    aCoordinate.Longitude := 0;
+    
+    if not VarIsNull(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLat]) then      
+      aCoordinate.Latitude  := StrToFloatDef(VarToStrDef( GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLat],String.Empty),0); 
+    if not VarIsNull(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLong]) then             
+      aCoordinate.Longitude := StrToFloatDef(VarToStrDef(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLong],String.Empty),0); 
+      
+    aCoordinate.DateTime  := StrToDateTime( GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PACKET_DATE.Index]);  
+    aCoordinate.Info      := VarToStrDef(GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1ASN.Index],String.Empty)+';';
+    if (aCoordinate.Latitude <> 0) and (aCoordinate.Longitude <> 0) then    
+      FFFormMap.CurrentCoordinates.Add(aCoordinate);   
+  end;
+begin
+  if Assigned(GridPcapDBTableView1.Controller.FocusedRow) then
+  begin
+    if Not Assigned(FFFormMap) then
+      FFFormMap := TFormMap.Create(nil);
+
+    FFFormMap.CurrentCoordinates.Clear;
+    AddCoordinate(GridPcapDBTableView1SRC_LATITUDE.Index,GridPcapDBTableView1SRC_LONGITUDE.Index);
+    AddCoordinate(GridPcapDBTableView1DST_LATITUDE.Index,GridPcapDBTableView1DST_LONGITUDE.Index);
+      
+    if FFFormMap.CurrentCoordinates.Count > 0 then
+    begin
+      FFFormMap.DrawGeoIp(True,True);
+      FFFormMap.Show;    
+    end;
+  end;
 end;
 
 end.

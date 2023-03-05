@@ -4,7 +4,7 @@ interface
 
 uses
   System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,wpcap.Protocol.ICMP,
-  wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,
+  wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,wpcap.IpUtils,
   wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2;
 
 
@@ -473,7 +473,7 @@ begin
 
       AListDetail.Add(AddHeaderInfo(1,'Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
       AListDetail.Add(AddHeaderInfo(1,'Payload Length:',wpcapntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
-      AListDetail.Add(AddHeaderInfo(1,'Next Header:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
+      AListDetail.Add(AddHeaderInfo(1,'Next Header:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
       AListDetail.Add(AddHeaderInfo(1,'Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
       AListDetail.Add(AddHeaderInfo(1,'Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
       AListDetail.Add(AddHeaderInfo(1,'Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress))); 
@@ -502,7 +502,7 @@ begin
       LFlagOffInfo := GetIpFlag(LHeaderV4.FlagsOfF shr 13,AListDetail); 
       AListDetail.Add(AddHeaderInfo(2,'Fragment OffSet:',wpcapntohs(LHeaderV4.FlagsOff and $1FFF),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff)));
       AListDetail.Add(AddHeaderInfo(1,'Time to live:',Format('%d hop',[LHeaderV4.TTL]),PByte(@LHeaderV4.TTL),SizeOf(LHeaderV4.TTL)));                                     
-      AListDetail.Add(AddHeaderInfo(1,'Protocol:',Format('%s [%d]',[LInternalIP.IpProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV4.Protocol),SizeOf(LHeaderV4.Protocol)));                     
+      AListDetail.Add(AddHeaderInfo(1,'Protocol:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV4.Protocol),SizeOf(LHeaderV4.Protocol)));                     
       AListDetail.Add(AddHeaderInfo(1,'CheckSum:',wpcapntohs(LHeaderV4.CheckSum),PByte(@LHeaderV4.CheckSum),SizeOf(LHeaderV4.CheckSum)));                  
       AListDetail.Add(AddHeaderInfo(1,'Source:',LInternalIP.Src,PByte(@LHeaderV4.SrcIP),SizeOf(LHeaderV4.SrcIP)));                        
       AListDetail.Add(AddHeaderInfo(1,'Destination:',LInternalIP.Dst,PByte(@LHeaderV4.DestIP),SizeOf(LHeaderV4.DestIP)));                              
@@ -644,8 +644,8 @@ end;
 
 class Procedure TWpcapIPHeader.AnalyzeIPProtocol(const aPacketData: PByte;aPacketSize: Integer; aInternalIP: PTInternalIP);
 begin
-  if not TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(aPacketData,aPacketSize,aInternalIP.IpProtoAcronym,aInternalIP.DetectedIPProto) then
-    TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.IpProtoAcronym,aInternalIP.DetectedIPProto);
+  if not TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto) then
+    TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
 end;
 
 class function TWpcapIPHeader.InternalIP(const aPacketData: PByte;aPacketSize: Integer;aIANADictionary:TDictionary<String,TIANARow>; aInternalIP: PTInternalIP): Boolean;
@@ -657,7 +657,6 @@ var LheaderIpV4 : PTIPHeader;
     LCurrentPos : Integer; 
 begin
   Result                     := False;
-  aInternalIP.IpProtoAcronym := String.Empty;
   aInternalIP.IpProto        := 0;
   aInternalIP.Src            := String.Empty;
   aInternalIP.Dst            := String.Empty;
@@ -665,14 +664,14 @@ begin
   aInternalIP.PortDst        := 0;
   aInternalIP.IsIPv6         := False;
   aInternalIP.DetectedIPProto:= 0;  
-  aInternalIP.IANAProtoStr   := String.Empty;
-  
+  aInternalIP.IANAProtoStr   := String.Empty;  
   LheaderIpV4                := HeaderIPv4(aPacketData,aPacketSize);
   case IpClassType(aPacketData,aPacketSize) of
     imtIpv4 : 
       begin
         aInternalIP.IpProto        := LheaderIpV4.Protocol; 
-        aInternalIP.IpProtoAcronym := GetIPv4ProtocolName(aInternalIP.IpProto);
+        aInternalIP.IpPrototr      := GetIPv4ProtocolName(aInternalIP.IpProto);                    
+        aInternalIP.ProtoAcronym   := GetIPv4ProtocolName(aInternalIP.IpProto);
         aInternalIP.Src            := intToIPV4(LheaderIpV4.SrcIP.Addr);
         aInternalIP.Dst            := intToIPV4(LheaderIpV4.DestIP.Addr);
         AnalyzeIPProtocol(aPacketData,aPacketSize,aInternalIP);         
@@ -685,7 +684,8 @@ begin
         aInternalIP.IpProto         := LheaderIpV6.NextHeader;
         LCurrentPos                 := HeaderEthSize + SizeOf(TIPv6Header);
         ExtentionHeader(aPacketData,LCurrentPos, aInternalIP.IpProto,nil);            
-        aInternalIP.IpProtoAcronym  := GetIPv6ProtocolName(aInternalIP.IpProto);                    
+        aInternalIP.ProtoAcronym    := GetIPv6ProtocolName(aInternalIP.IpProto);                    
+        aInternalIP.IpPrototr       := GetIPv6ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.Src             := IPv6AddressToString(LheaderIpV6.SourceAddress);
         aInternalIP.Dst             := IPv6AddressToString(LheaderIpV6.DestinationAddress);
         aInternalIP.IsIPv6          := True;
@@ -693,12 +693,12 @@ begin
         Result := True;
       end;      
   end;
-  
-  case LheaderIpV4.Protocol of
+
+  case aInternalIP.IpProto of
     IPPROTO_HOPOPTS, 
     IPPROTO_ICMP,
 //    IPPROTO_ICMPV62,
-    IPPROTO_ICMPV6  : TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.IpProtoAcronym,aInternalIP.DetectedIPProto);
+    IPPROTO_ICMPV6  : TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
     IPPROTO_TCP     : 
       begin
         if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
@@ -763,9 +763,7 @@ begin
     IPPROTO_PGM     :;
     IPPROTO_SCTP    :;
     IPPROTO_RAW     :;
-
-  end;
-  
+  end;  
 end;
 
 class function TWpcapIPHeader.GetIPv6ProtocolName(aProtocol: Word): string;

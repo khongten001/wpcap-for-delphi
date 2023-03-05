@@ -137,6 +137,18 @@
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.ICMP.pas"/>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.ARP.pas"/>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.NBNS.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.GEOLite2.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.DB.SQLite.Packet.pas"/>
+        <DCCReference Include="UnFormImportGeoLite.pas">
+            <Form>FormImportGeoLite</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="UnFormMap.pas">
+            <Form>FormMap</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="..\..\Source\wpcap.IPUtils.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.Geometry.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

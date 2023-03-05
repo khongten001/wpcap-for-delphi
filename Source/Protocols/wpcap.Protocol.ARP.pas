@@ -3,8 +3,8 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,
-  System.Variants, wpcap.BufferUtils,WinSock,WinSock2,Wpcap.StrUtils;
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,wpcap.StrUtils,
+  System.Variants, wpcap.BufferUtils,WinSock,WinSock2,Wpcap.IpUtils,idGlobal;
 
 type
 
@@ -123,8 +123,8 @@ class function TWPcapProtocolARP.HeaderToString(const aPacketData: PByte; aPacke
 var LHeaderARP     : PTARPHeader;
     LSenderIP      : string;
     LTargetIP      : string;
-    LTmpBytesSender: TArray<Byte>;
-    LTmpBytesTarget : TArray<Byte>;    
+    LTmpBytesSender: TIdBytes;
+    LTmpBytesTarget: TIdBytes;    
     LCurrentPos    : Integer;
 begin
   Result := False;
@@ -167,13 +167,13 @@ begin
   case wpcapntohs(LHeaderARP.ProtocolType) of
     ETH_P_IP    :
       begin
-        AListDetail.Add(AddHeaderInfo(1, 'Sender IP:', BytesToIpV4(LTmpBytesSender), PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
-        AListDetail.Add(AddHeaderInfo(1, 'Target IP:', BytesToIpV4(LTmpBytesTarget), PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));          
+        AListDetail.Add(AddHeaderInfo(1, 'Sender IP:', BytesToIPv4Str(LTmpBytesSender), PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
+        AListDetail.Add(AddHeaderInfo(1, 'Target IP:', BytesToIPv4Str(LTmpBytesTarget), PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));          
       end;
     ETH_P_ARP   :
       begin
-        AListDetail.Add(AddHeaderInfo(1, 'Sender IP:', BytesToIpV4(LTmpBytesSender), PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
-        AListDetail.Add(AddHeaderInfo(1, 'Target IP:', BytesToIpV4(LTmpBytesTarget), PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));           
+        AListDetail.Add(AddHeaderInfo(1, 'Sender IP:', BytesToIPv4Str(LTmpBytesSender), PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
+        AListDetail.Add(AddHeaderInfo(1, 'Target IP:', BytesToIPv4Str(LTmpBytesTarget), PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));           
       end;
     ETH_P_IPV6  : 
       begin       

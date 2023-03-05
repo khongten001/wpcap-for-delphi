@@ -1,7 +1,7 @@
 ﻿unit wpcap.BufferUtils;
 
 interface
-uses System.SysUtils,winsock2;
+uses System.SysUtils,winsock2,System.Classes;
 
 /// <summary>
 /// Converts an array of bytes to a TBytes dynamic array.
@@ -52,6 +52,7 @@ function IntToBin(Value: integer; Digits: integer): string;
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
 function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
+function HexToBytes(const hex: string): TBytes;
 
 
 implementation
@@ -136,6 +137,12 @@ end;
 function ByteToBinaryString(const AByte: Byte): string;
 begin
   Result := IntToBin(AByte, 8);
+end;
+
+function HexToBytes(const hex: string): TBytes;
+begin
+  SetLength(Result, Length(hex) div 2);
+  HexToBin(PChar(hex), @Result[0], Length(Result));
 end;
 
 
