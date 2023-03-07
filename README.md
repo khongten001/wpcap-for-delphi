@@ -53,8 +53,6 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 
 # TODO LIST
 
-+ Thread with syncronize
-+ Abort loading ( at moment only in RT)
 + Query bulder 
 + Packet detail 
   + DETECTED -->
