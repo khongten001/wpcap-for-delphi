@@ -40,7 +40,7 @@ function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=Tr
 procedure MyProcessMessages;
 function MyProcessMessage(var Msg: TMsg): Boolean;
 function HexStrToBytes(const AHexStr: string): TBytes;
-
+function BufferToASCII(aPByteData: PByte; aDataSize: Integer):String;
 implementation
 
 procedure MyProcessMessages;
@@ -139,6 +139,21 @@ begin
         
     Result[çRowCount - 1] := Format('%s  %s',[Result[çRowCount - 1],LText]);      
   end;  
+end;
+
+function BufferToASCII(aPByteData: PByte; aDataSize: Integer):String;
+var  J : Integer;
+begin
+  Result := String.Empty;
+  for J := 1 to aDataSize do
+  begin
+    if (aPByteData[J]>=32) and 
+       (aPByteData[J]<=127) 
+    then
+      Result := Result + char(aPByteData[J])
+    else
+      Result := Result + '.'; {otherwise display a block char}                                     
+  end;
 end;
 
 function MACAddressToString(const AMacAddress: TIdBytes): string;

@@ -20,12 +20,11 @@ object FormMain: TFormMain
     Left = 0
     Top = 65
     Width = 852
-    Height = 690
+    Height = 672
     Align = alClient
     TabOrder = 0
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
-    ExplicitHeight = 688
     object GridPcapDBTableView1: TcxGridDBTableView
       PopupMenu = PopupGrid
       Navigator.Buttons.CustomButtons = <>
@@ -58,7 +57,6 @@ object FormMain: TFormMain
       DataController.Summary.SummaryGroups = <>
       OptionsBehavior.CellHints = True
       OptionsCustomize.ColumnsQuickCustomization = True
-      OptionsCustomize.ColumnsQuickCustomizationSorted = True
       OptionsData.CancelOnExit = False
       OptionsData.Deleting = False
       OptionsData.DeletingConfirmation = False
@@ -164,34 +162,30 @@ object FormMain: TFormMain
       end
       object GridPcapDBTableView1SRC_LATITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'SRC_LATITUDE'
+        Visible = False
       end
       object GridPcapDBTableView1SRC_LONGITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'SRC_LONGITUDE'
+        Visible = False
       end
       object GridPcapDBTableView1DST_LATITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'DST_LATITUDE'
+        Visible = False
       end
       object GridPcapDBTableView1DST_LONGITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'DST_LONGITUDE'
+        Visible = False
       end
     end
     object GridPcapLevel1: TcxGridLevel
       GridView = GridPcapDBTableView1
     end
   end
-  object cxProgressBar1: TcxProgressBar
-    Left = 0
-    Top = 755
-    Align = alBottom
-    TabOrder = 1
-    ExplicitTop = 753
-    Width = 1397
-  end
   object cxSplitter1: TcxSplitter
     Left = 852
     Top = 65
     Width = 10
-    Height = 690
+    Height = 672
     AlignSplitter = salRight
     Control = PHexMemo
   end
@@ -200,7 +194,7 @@ object FormMain: TFormMain
     Top = 22
     Align = alTop
     PanelStyle.Active = True
-    TabOrder = 3
+    TabOrder = 2
     Height = 43
     Width = 1397
     object cxLabel1: TcxLabel
@@ -232,13 +226,12 @@ object FormMain: TFormMain
     Top = 65
     Align = alRight
     PanelStyle.Active = True
-    TabOrder = 8
-    ExplicitHeight = 688
-    Height = 690
+    TabOrder = 6
+    Height = 672
     Width = 535
     object MemoHex: TcxMemo
       Left = 4
-      Top = 436
+      Top = 418
       Align = alBottom
       Lines.Strings = (
         '')
@@ -260,7 +253,7 @@ object FormMain: TFormMain
     end
     object cxSplitter2: TcxSplitter
       Left = 4
-      Top = 426
+      Top = 408
       Width = 527
       Height = 10
       AlignSplitter = salBottom
@@ -270,7 +263,7 @@ object FormMain: TFormMain
       Left = 4
       Top = 26
       Width = 527
-      Height = 400
+      Height = 382
       Align = alClient
       Bands = <
         item
@@ -313,6 +306,34 @@ object FormMain: TFormMain
         Summary.FooterSummaryItems = <>
         Summary.GroupFooterSummaryItems = <>
       end
+    end
+  end
+  object pProgressImport: TcxGroupBox
+    Left = 0
+    Top = 737
+    Align = alBottom
+    PanelStyle.Active = True
+    TabOrder = 8
+    Visible = False
+    Height = 37
+    Width = 1397
+    object cxProgressBar1: TcxProgressBar
+      AlignWithMargins = True
+      Left = 7
+      Top = 7
+      Align = alClient
+      TabOrder = 0
+      Width = 1308
+    end
+    object cxButton1: TcxButton
+      Left = 1318
+      Top = 4
+      Width = 75
+      Height = 29
+      Align = alRight
+      Caption = 'Cancel'
+      TabOrder = 1
+      OnClick = cxButton1Click
     end
   end
   object OpenDialog1: TOpenDialog
@@ -543,6 +564,13 @@ object FormMain: TFormMain
       Hint = 'Map'
       Visible = ivAlways
       OnClick = BMapClick
+    end
+    object BFlow: TdxBarButton
+      Caption = 'Flow stream'
+      Category = 0
+      Hint = 'Flow stream'
+      Visible = ivAlways
+      OnClick = BFlowClick
     end
   end
   object cxImageList1: TcxImageList
@@ -971,10 +999,18 @@ object FormMain: TFormMain
       item
         Visible = True
         ItemName = 'BMap'
+      end
+      item
+        Visible = True
+        ItemName = 'BFlow'
       end>
     UseOwnFont = False
     Left = 400
     Top = 432
     PixelsPerInch = 96
+  end
+  object FDConnection1: TFDConnection
+    Left = 544
+    Top = 336
   end
 end

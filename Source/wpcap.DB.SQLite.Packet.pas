@@ -4,14 +4,14 @@ interface
 
 uses
   wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math,
-  System.Generics.Collections, wpcap.StrUtils, wpcap.Level.IP, wpcap.Types,FireDac.Stan.Param,
-  wpcap.Level.Eth, wpcap.Packet,System.Classes,System.SysUtils,Data.Db;
+  FireDAC.Comp.Client, System.Generics.Collections, wpcap.StrUtils,Vcl.Graphics,
+  wpcap.Level.IP, wpcap.Types, FireDac.Stan.Param, wpcap.Level.Eth, wpcap.Packet,
+  System.Classes, System.SysUtils, Data.Db,System.StrUtils,winApi.Winsock2;
 
   type
     TWPcapDBSqLitePacket = Class(TWPcapDBSqLite)
   private
-
-
+    FDQueryFlow : TFDQuery;
   protected
     function GetSQLScriptDatabaseSchema: String;override;
     procedure InitConnection;override;
@@ -33,6 +33,7 @@ uses
     /// An EDatabaseError exception is raised if an error occurs while inserting the packet.
     ///</exception>
     procedure InsertPacket(const aInternalPacket : PTInternalPacket);  
+    
     /// <summary>
     /// Retrieves the packet data from the database at the specified packet number.
     /// </summary>
@@ -48,6 +49,8 @@ uses
     /// <param name="aNPacket">The number of packet to display (starting from 0)</param>
     /// <returns>A list of string containing the hexadecimal dump of the packet data</returns>
     function GetListHexPacket(aNPacket: Integer;var aListDetail:TListHeaderString): TArray<String>;    
+
+    Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
   End;
 implementation
 
@@ -132,11 +135,15 @@ begin
   inherited;
   { The default journal mode is WRITE-AHEAD LOGGING (WAL), which can improve 
     performance by reducing the amount of disk I/O required for write operations. }
-//  Connection.Params.Add('JournalMode=WAL'); // Enable WAL mode      
+//  Connection.Params.Add('JournalMode=WAL'); // Enable WAL mode   
+
+
   Connection.Params.Values['Synchronous'] := 'OFF'; 
   Connection.Params.Values['Cache']       := 'True'; 
   Connection.Params.Values['JournalMode'] := 'MEMORY';
   Connection.Params.Values['PageSize']    := '20480';
+  Connection.FormatOptions.StrsEmpty2Null := True;
+
     
   FFDQueryTmp.SQL.Text                              := SQL_INSERT; 
   FFDQueryTmp.ParamByName('pLen').DataType          := ftInteger; {Packet}
@@ -166,13 +173,21 @@ begin
   FFDQueryTmp.ParamByName('pDstLat').DataType       := ftFloat;   
   FFDQueryTmp.ParamByName('pDstLong').DataType      := ftFloat;   
   FFDQueryTmp.ParamByName('pPacket').DataType       := ftBlob;    
+  FFDQueryTmp.CachedUpdates                         := True;   
   FFDQueryGrid.SQL.Text                             := 'SELECT * FROM VST_PACKETS ORDER BY NPACKET ';
-  FFDGetDataByID.SQL.Text                           := 'SELECT PACKET_DATA FROM PACKETS WHERE NPACKET = :pNPACKET ';    
-end;
+  FFDGetDataByID.SQL.Text                           := 'SELECT PACKET_DATA FROM PACKETS WHERE NPACKET = :pNPACKET '; 
+
+  FDQueryFlow                                       := TFDQuery.Create(nil);
+  FDQueryFlow.Connection                            := FConnection;
+  FDQueryFlow.SQL.Text                              := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                 '+sLineBreak+ 
+                                                       'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) OR (IP_SRC = :pIpDst AND IP_DST= :pIpSrc )  )                '+sLineBreak+ 
+                                                       'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst ) OR (PORT_SRC = :pPortDst AND PORT_DST= :pPortSrc )  ) '+sLineBreak+
+                                                       'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';
+end; 
 
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
-begin      
+begin
   {TODO use Batch insert}
   if not FFDQueryTmp.Prepared then
     FFDQueryTmp.Prepare;
@@ -282,33 +297,126 @@ begin
   SetLength(Result,0);
 
   LPacket := GetPacketDataFromDatabase(aNPacket,LPacketSize);
-  if Assigned(LPacket) then
-  begin
-    Result := DisplayHexData(LPacket,LPacketSize);
-    TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
-    if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
+  Try
+    if Assigned(LPacket) then
     begin
-      New(LInternalPacket);
-      Try
-        TWpcapEthHeader.InternalPacket(LPacket,LPacketSize,nil,LInternalPacket);
+      Result := DisplayHexData(LPacket,LPacketSize);
+      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
+      if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
+      begin
+        New(LInternalPacket);
+        Try
+          TWpcapEthHeader.InternalPacket(LPacket,LPacketSize,nil,LInternalPacket);
 
-        aUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
-        if Assigned(aUDPProtoDetected) then
-          aUDPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
-        else 
-        begin
-          aTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
-          if Assigned(aTCPProtoDetected) then
-            aTCPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
-        end;
-      Finally
-        Dispose(LInternalPacket);
-      End;
+          aUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+          if Assigned(aUDPProtoDetected) then
+            aUDPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
+          else 
+          begin
+            aTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+            if Assigned(aTCPProtoDetected) then
+              aTCPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
+          end;
+        Finally
+          Dispose(LInternalPacket);
+        End;
+      end;
     end;
-  end;
+  Finally
+     FreeMem(LPacket);
+  End;
 end;
 
+function TWPcapDBSqLitePacket.GetFlowString(const aIpSrc, aIpDst: String;aPortSrc, aPortDst,aIPProto: Integer; aColorSrc, aColorDst: TColor): TStringList;
+CONST HTML_FORMAT = '<pre class="%s">%s</pre>';
+var LPacketSize : Integer;
+    LPacketData : PByte;
+    LStream     : TMemoryStream;
+    LPayLoad    : PByte;
+    LCurrentIP  : String; 
+    LFlowBuffer : PByte;
+    LTCPHdr     : PTCPHdr;
+    LIsClient   : Boolean;
+    LPayloadSize: Integer;
+    LUDPHdr     : PUDPHdr;
+begin
+  Result      := TStringList.Create;
+  FDQueryFlow.Close;
+  FDQueryFlow.ParamByName('pIpSrc').AsString    := aIpSrc; 
+  FDQueryFlow.ParamByName('pIpDst').AsString    := aIpDst; 
+  FDQueryFlow.ParamByName('pPortSrc').AsInteger := aPortSrc; 
+  FDQueryFlow.ParamByName('pPortDst').AsInteger := aPortDst;    
+  FDQueryFlow.ParamByName('pIpProto').AsInteger := aIPProto;      
+  FDQueryFlow.Open;
+  
+  LCurrentIP   := String.Empty;
+  LFlowBuffer  := nil;
+  LIsClient    := False;
+  
+  if not FDQueryFlow.IsEmpty then
+  begin
+    LStream := TMemoryStream.Create;
+    Try
+      while not FDQueryFlow.eof do
+      begin
+        LStream.Seek(0, soBeginning);
+        TBlobField(FDQueryFlow.FieldByName('PACKET_DATA')).SaveToStream(LStream);
+        LPacketSize := LStream.Size;
+        GetMem(LPacketData, LPacketSize);
+        Try
+          LStream.Seek(0, soBeginning);
+          LStream.ReadBuffer(LPacketData^, LPacketSize);
+          case aIPProto of
+           IPPROTO_TCP :  
+              begin
+                if not TWPcapProtocolBaseTCP.HeaderTCP(LPacketData,LPacketSize,LTCPHdr) then exit;
+                LPayLoad    := TWPcapProtocolBaseTCP.GetTCPPayLoad(LPacketData,LPacketSize);
+                LPayloadSize := TWPcapProtocolBaseTCP.TCPPayLoadLength(LTCPHdr,LPacketData,LPacketSize)
+              end;
+           IPPROTO_UDP :
+              begin
+                if not TWPcapProtocolBaseUDP.HeaderUDP(LPacketData,LPacketSize,LUDPHdr) then exit;
+                LPayLoad    := TWPcapProtocolBaseUDP.GetUDPPayLoad(LPacketData,LPacketSize);
+                LPayloadSize := TWPcapProtocolBaseUDP.UDPPayLoadLength(LUDPHdr)            
+              end
+          else
+            raise Exception.Create('Error invalid protocolo only TCP and UP protocol are supported');
+          end;
 
+  
 
+          if LCurrentIP <> FDQueryFlow.FieldByName('IP_SRC').AsString then
+          begin
+            LCurrentIP := FDQueryFlow.FieldByName('IP_SRC').AsString;
+            LIsClient  := not  LIsClient;
+            
+            if Result.Count > 0 then
+              Result.Add(String.Empty)
+            else
+              Result.Add('<!DOCTYPE html>                                                                                                            ' +sLineBreak+
+                         '         <head>                                                                                                            ' +sLineBreak+
+                         '            <style>                                                                                                        ' +sLineBreak+
+                         '                  pre{width: 100%; display:inline;font-family:Lucida console;white-space: pre-wrap;word-break: break-all;} ' +sLineBreak+
+                         '                  pre.ServerStyle{background-color:#EDEDFB;color:#00007F;white-space: pre-wrap;}                           ' +sLineBreak+
+                         '                  pre.ClientStyle{background-color:#FBEDED;color:#7F0000;white-space: pre-wrap;}                           ' +sLineBreak+
+                         '            </style>                                                                                                       ' +sLineBreak+
+                         '          </head>                                                                                                          ' +sLineBreak+
+                         '         <html>                                                                                                            ' +sLineBreak+
+                         ' <body style="background-color:#ffff"><pre>')
+
+          end;
+          Result.Add(Format(HTML_FORMAT,[ ifthen(LIsClient,'ClientStyle','ServerStyle'),
+                                          BufferToASCII(LPayLoad,LPayloadSize)]));          
+        Finally
+          FreeMem(LPacketData)
+        End;
+        FDQueryFlow.Next;
+      end;
+    finally
+      LStream.Free;
+    end;    
+  end;
+  FDQueryFlow.Close;  
+end;
 
 end.

@@ -2,19 +2,21 @@
 
 interface
 
-uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite.Packet,wpcap.Packet,wpcap.GEOLite2;
+uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite.Packet,wpcap.Packet,wpcap.GEOLite2,Wpcap.Types;
 
 type
   TPCAP2SQLite = class
-  Strict private
-    class var FPCAPCallBackEnd  : TPCAPCallBackEnd;
-    class var FPCAPCallBackError: TPCAPCallBackError;
-    class var FWPcapDBSqLite    : TWPcapDBSqLitePacket;
   private
-    class procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
-    class procedure DoPCAPCallBackEnd(const aFileName:String);
-    class procedure DoPCAPCallBackError(const aFileName, aError: String); 
+    FWPcapDBSqLite    : TWPcapDBSqLitePacket;   
+    FPCAPCallBackEnd  : TPCAPCallBackEnd;
+    FPCAPCallBackError: TPCAPCallBackError;
+    FPcapUtils        : TPCAPUtils;
+    procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
+    procedure DoPCAPCallBackEnd(const aFileName:String);
+    procedure DoPCAPCallBackError(const aFileName, aError: String);
+    procedure SetAbort(const Value: Boolean);
    public
+    destructor Destroy; override;
     ///<summary>
     /// Converts an offline packet capture file to an SQLite database using a specified set of callbacks.
     ///</summary>
@@ -42,39 +44,41 @@ type
     /// The procedure reads the capture file packet by packet, inserting the packets into the specified SQLite database. 
     //  The progress callback is optional and can be used to report progress to the user during long-running capture file analysis.
     ///</remarks>   
-    class procedure PCAP2SQLite(const aFilename,aFilenameDB,aFilter:String;
+    procedure PCAP2SQLite(const aFilename,aFilenameDB,aFilter:String;
                               aGeoLiteDB           : TWpcapGEOLITE;
                               aPCAPCallBackError   : TPCAPCallBackError;
                               aPCAPCallBackEnd     : TPCAPCallBackEnd;
-                              aPCAPCallBackProgress: TPCAPCallBackProgress = nil); static;
+                              aPCAPCallBackProgress: TPCAPCallBackProgress = nil);
+    property Abort : Boolean write SetAbort;
   end;
 
 implementation
 
 { TPCAP2SQLite }
 
-class procedure TPCAP2SQLite.DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
+procedure TPCAP2SQLite.DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
 begin
   FWPcapDBSqLite.InsertPacket(aInternalPacket);
 end;
 
-class procedure TPCAP2SQLite.DoPCAPCallBackError(const aFileName,aError:String);
+procedure TPCAP2SQLite.DoPCAPCallBackError(const aFileName,aError:String);
 begin
   FWPcapDBSqLite.RollbackAndClose(True);    
   FPCAPCallBackError(aFileName,aError)
 end;
 
-class procedure TPCAP2SQLite.DoPCAPCallBackEnd(const aFileName:String);
+procedure TPCAP2SQLite.DoPCAPCallBackEnd(const aFileName:String);
 begin
   FWPcapDBSqLite.CommitAndClose;
   FPCAPCallBackEnd(aFileName)
 end;
 
-class procedure TPCAP2SQLite.PCAP2SQLite( const aFilename, aFilenameDB,aFilter: String;
+procedure TPCAP2SQLite.PCAP2SQLite( const aFilename, aFilenameDB,aFilter: String;
                                           aGeoLiteDB           : TWpcapGEOLITE;
                                           aPCAPCallBackError   : TPCAPCallBackError;
                                           aPCAPCallBackEnd     : TPCAPCallBackEnd;
                                           aPCAPCallBackProgress: TPCAPCallBackProgress);
+                                          
 begin
   if not Assigned(aPCAPCallBackError) then
   begin
@@ -96,23 +100,48 @@ begin
   FPCAPCallBackError := aPCAPCallBackError;
   FPCAPCallBackEnd   := aPCAPCallBackEnd;
 
+  if Assigned(FWPcapDBSqLite) then
+    FreeAndNil(FWPcapDBSqLite);
   {Create database}
   FWPcapDBSqLite := TWPcapDBSqLitePacket.Create;
   Try
+    FWPcapDBSqLite.CreateDatabase(aFilenameDB);
     Try
-      FWPcapDBSqLite.CreateDatabase(aFilenameDB);
+      FWPcapDBSqLite.Connection.StartTransaction;
+      
+      if Not Assigned(FPcapUtils) then      
+        FPcapUtils := TPCAPUtils.Create;
       Try
-        FWPcapDBSqLite.Connection.StartTransaction;
-        TPCAPUtils.AnalyzePCAPOffline(aFileName,afilter,aGeoLiteDB,DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackEnd,aPCAPCallBackProgress);          
-      except on E: Exception do
-        DoPCAPCallBackError(aFilenameDB,Format('Exception analyze PCAP %s',[E.Message]));
-      end;    
+        FPcapUtils.OnPCAPCallBackError    := DoPCAPCallBackError;
+        FPcapUtils.OnPCAPCallBackProgress := aPCAPCallBackProgress;
+        FPcapUtils.OnPCAPCallBackPacket   := DoPCAPCallBackPacket;
+        FPcapUtils.OnPCAPCallBackEnd      := DoPCAPCallBackEnd;                    
+        FPcapUtils.AnalyzePCAPOffline(aFileName,afilter,aGeoLiteDB);          
+      finally
+        
+      End;
     except on E: Exception do
-      DoPCAPCallBackError(aFilenameDB,Format('Exception create database %s',[E.Message]));
+      DoPCAPCallBackError(aFilenameDB,Format('Exception analyze PCAP %s',[E.Message]));
     end;    
-  finally
-    FreeAndNil(FWPcapDBSqLite);
+  except on E: Exception do
+    DoPCAPCallBackError(aFilenameDB,Format('Exception create database %s',[E.Message]));
   end;    
+   
+end;
+
+destructor TPCAP2SQLite.Destroy;
+begin
+  if Assigned(FPcapUtils) then
+    FreeAndNil(FPcapUtils);
+  if Assigned(FWPcapDBSqLite) then
+    FreeAndNil(FWPcapDBSqLite);
+  inherited;
+end;
+
+procedure TPCAP2SQLite.SetAbort(const Value: Boolean);
+begin
+  if Assigned(FPcapUtils) then
+    FPcapUtils.Abort := True;  
 end;
 
 end.

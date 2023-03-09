@@ -40,7 +40,8 @@ uses
   UnFormImportGeoLite in 'UnFormImportGeoLite.pas' {FormImportGeoLite},
   UnFormMap in 'UnFormMap.pas' {FormMap},
   wpcap.IPUtils in '..\..\Source\wpcap.IPUtils.pas',
-  wpcap.Geometry in '..\..\Source\wpcap.Geometry.pas';
+  wpcap.Geometry in '..\..\Source\wpcap.Geometry.pas',
+  UnFormFlow in 'UnFormFlow.pas' {FormFlow};
 
 {$R *.res}
 

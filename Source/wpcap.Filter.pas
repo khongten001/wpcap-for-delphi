@@ -2,7 +2,7 @@
 
 interface
 
-uses wpcap.Wrapper,wpcap.Types,wpcap.Conts;
+uses wpcap.Wrapper,wpcap.Types,wpcap.Conts,WinSock;
 
 /// <summary>
 ///   Validates a given WinPcap filter expression string to ensure its syntax is correct.
@@ -14,6 +14,17 @@ uses wpcap.Wrapper,wpcap.Types,wpcap.Conts;
 ///   Returns True if the filter expression is valid, False otherwise.
 /// </returns>
 function ValidateWinPCAPFilterExpression(const aFilterExpression: string): Boolean;
+
+/// <summary>
+/// This is a static class function that checks a wpcap filter. It takes four parameters: a handle to the pcap file, the name of the file, the filter to check, and a callback function to handle errors.
+/// </summary>
+/// <param name="aHandlePcap">A handle to the pcap file.</param>
+/// <param name="aFileName">The name of the pcap file.</param>
+/// <param name="aFilter">The filter to check.</param>
+/// <param name="aPCAPCallBackError">A callback function to handle errors.</param>
+/// <returns>True if the filter is valid; otherwise, False.</returns>
+function CheckWPcapFilter(aHandlePcap: Ppcap_t; const aFileName, aFilter,aIP: string; aPCAPCallBackError: TPCAPCallBackError): Boolean;
+
 
 implementation
 
@@ -30,6 +41,28 @@ begin
   finally
     pcap_close(LFilterHandle);
   end;
+end;
+
+function CheckWPcapFilter(aHandlePcap : Ppcap_t;const aFileName,aFilter,aIP: string;aPCAPCallBackError:TPCAPCallBackError) : Boolean;
+var LFilterCode : BPF_program;  
+begin
+  Result := False;
+  {Filter}
+ // if Not aFilter.Trim.IsEmpty then
+  begin
+    if pcap_compile(aHandlePcap, @LFilterCode, PAnsiChar(AnsiString(aFilter)), 1, inet_addr(PAnsiChar(AnsiString(aIP)))) <> 0 then
+    begin
+      aPCAPCallBackError(aFileName,string(pcap_geterr(aHandlePcap)));            
+      Exit;
+    end;
+      
+    if pcap_setfilter(aHandlePcap,@LFilterCode) <>0 then
+    begin
+      aPCAPCallBackError(aFileName,string(pcap_geterr(aHandlePcap)));
+      Exit;
+    end;
+  end;
+  Result := True;
 end;
 
 

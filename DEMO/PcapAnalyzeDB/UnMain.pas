@@ -13,7 +13,7 @@ uses
   cxContainer, cxProgressBar,wpcap.Pcap.SQLite,wpcap.StrUtils, FireDAC.Stan.Intf,
   FireDAC.Stan.Option, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,UnitGridUtils,
-  FireDAC.VCLUI.Wait, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf,
+  FireDAC.VCLUI.Wait, FireDAC.Stan.Param, FireDAC.DatS, FireDAC.DApt.Intf, UnFormFlow,
   FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.GEOLite2,
   FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView, wpcap.DB.SQLite.Packet,
   FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,wpcap.Protocol,
@@ -22,14 +22,13 @@ uses
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
   cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
-  cxBarEditItem,wpcap.Geometry;
+  cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons;
 
 type
   TFormMain = class(TForm)
     OpenDialog1: TOpenDialog;
     GridPcapLevel1: TcxGridLevel;
     GridPcap: TcxGrid;
-    cxProgressBar1: TcxProgressBar;
     GridPcapDBTableView1: TcxGridDBTableView;
     DsGrid: TDataSource;
     GridPcapDBTableView1NPACKET: TcxGridDBColumn;
@@ -88,6 +87,11 @@ type
     GridPcapDBTableView1DST_LATITUDE: TcxGridDBColumn;
     GridPcapDBTableView1DST_LONGITUDE: TcxGridDBColumn;
     BMap: TdxBarButton;
+    FDConnection1: TFDConnection;
+    pProgressImport: TcxGroupBox;
+    cxProgressBar1: TcxProgressBar;
+    cxButton1: TcxButton;
+    BFlow: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -112,12 +116,15 @@ type
     procedure dxBarButton1Click(Sender: TObject);
     procedure EFilterKeyPress(Sender: TObject; var Key: Char);
     procedure BMapClick(Sender: TObject);
+    procedure cxButton1Click(Sender: TObject);
+    procedure BFlowClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
     FWpcapGeoLite  : TWpcapGEOLITE;
     FPCAPUtils     : TPCAPUtils;
     FFFormMap      : TFormMap;
+    FPcapImport    : TPCAP2SQLite;
     FLastPercProg  : Byte;
     FLastFileOpened: String;
     procedure OpenPcap(const aFileName: String);
@@ -154,6 +161,7 @@ end;
 procedure TFormMain.DoPCAPOfflineCallBackError(const aFileName,aError:String);
 begin
   MessageDlg(Format('PCAP %s Error %s',[aFileName,aError]),mtError,[mbOK],0);
+  pProgressImport.Visible := False;  
 end;
 
 procedure TFormMain.DoPCAPOfflineCallBackProgress(aTotalSize,aCurrentSize:Int64);
@@ -173,9 +181,11 @@ begin
     BSavePCAP.Enabled := True;
     BSaevGrid.Enabled := True;
   end;
+  pProgressImport.Visible := False;    
 end;
 
 procedure TFormMain.OpenPcap(const aFileName:String);
+
 begin
   Caption           := Format('PCAP Analisys %s - %s',[ExtractFileName(aFileName),PacketGetVersion]);
   BSavePCAP.Enabled := False;
@@ -205,8 +215,11 @@ begin
     FWpcapGeoLite.OpenDatabase(GetGeoLiteDatabaseName)
   else
     FWPcapDBSqLite.Connection.Connected := False;
-    
-  TPCAP2SQLite.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+
+  if not Assigned(FPcapImport) then 
+    FPcapImport := TPCAP2SQLite.Create;
+  FPcapImport.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+
 end;
 
 procedure TFormMain.GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
@@ -321,13 +334,19 @@ begin
     FreeAndNil(FFFormMap);
   FreeAndNil(FWpcapGeoLite);
   FreeAndNil(FWPcapDBSqLite);
+  if Assigned(FPcapImport) then 
+    FreeAndNil(FPcapImport);  
+  
 end;
 
 procedure TFormMain.BLoadPCAPClick(Sender: TObject);
 begin
   OpenDialog1.Filter := 'Pcap file|*.pcap|All files|*.*';
   if OpenDialog1.Execute then
+  begin
+    pProgressImport.Visible := True;
     OpenPcap(OpenDialog1.FileName);
+  end;
 end;
 
 procedure TFormMain.BSavePCAPClick(Sender: TObject);
@@ -522,6 +541,35 @@ begin
       FFFormMap.DrawGeoIp(True,True);
       FFFormMap.Show;    
     end;
+  end;
+end;
+
+procedure TFormMain.cxButton1Click(Sender: TObject);
+begin
+  if Assigned(FPcapImport) then
+    FPcapImport.Abort := True;
+  
+end;
+
+procedure TFormMain.BFlowClick(Sender: TObject);
+var LFormFlow : TFormFlow;
+begin
+  if Assigned(GridPcapDBTableView1.Controller.FocusedRow) then
+  begin
+    LFormFlow := TFormFlow.Create(nil);
+    Try
+      LFormFlow.LoadHTML(
+      FWPcapDBSqLite.GetFlowString( GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_SRC.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_DST.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_SRC.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_DST.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IPPROTO.Index],
+                                    clRed,clBlue
+                                  ).Text);
+      LFormFlow.ShowModal;
+    Finally
+      FreeAndNil(LFormFlow);
+    End;
   end;
 end;
 

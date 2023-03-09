@@ -311,6 +311,15 @@ function pcap_createsrcstr(source: PAnsiChar; type_: PAnsiChar; const name: PAns
 /// <returns>Returns the link-layer header type of the session, as one of the "DLT_*" constants defined in "pcap.h". Returns "PCAP_ERROR" if an error occurs.</returns>
 function pcap_datalink(p: Ppcap_t): Integer; cdecl; external 'wpcap.dll';
 
+
+/// <summary>
+/// Sets the link-layer header type for packet capture.
+/// </summary>
+/// <param name="p">A pointer to the "pcap" structure.</param>
+/// <param name="dlt">The link-layer header type to be set.</param>
+/// <returns>Returns 0 on success, -1 on error.</returns>
+function pcap_set_datalink(p: Ppcap_t; dlt: Integer): Integer; cdecl; external 'wpcap.dll';
+
 ///  <summary>
 ///  Looks up the default network device name.
 ///  </summary>
@@ -322,6 +331,53 @@ function pcap_datalink(p: Ppcap_t): Integer; cdecl; external 'wpcap.dll';
 ///  </remarks>
 function pcap_lookupdev(errbuf: PAnsiChar): PAnsiChar; cdecl; external 'wpcap.dll';
 
+/// <summary>
+/// Sets the promiscuous mode flag for the given pcap_t structure.
+/// </summary>
+/// <param name="p">The pcap_t structure.</param>
+/// <param name="promisc">The value to set the promiscuous mode flag to (1 to enable, 0 to disable).</param>
+/// <returns>Returns 0 on success, or -1 on failure.</returns>
+/// <remarks>
+/// Enabling promiscuous mode allows the adapter to capture all packets on the network, rather than just those addressed to it.
+/// </remarks>
+function pcap_set_promisc(p: Ppcap_t; promisc: Integer): Integer; external 'wpcap.dll';
+
+/// <summary>
+/// Set the monitor mode for a given capture handle.
+/// </summary>
+/// <param name="p">The capture handle to set the monitor mode on.</param>
+/// <param name="rfmon">1 to enable monitor mode, 0 to disable it.</param>
+/// <returns>0 on success, or a negative value on failure.</returns>
+function pcap_set_rfmon(p: Ppcap_t; rfmon: Integer): Integer; cdecl; external 'wpcap.dll';
+
+///<summary>
+/// Sets the buffer size used by the adapter when capturing packets. This function should be called before starting a packet capture session with <c>pcap_open_live</c>.
+///</summary>
+/// <param name="p">
+/// A pointer to a <c>pcap_t</c> structure returned by a previous call to <c>pcap_open_live</c> or <c>pcap_create</c>.
+/// </param>
+/// <param name="size">
+/// The buffer size, in bytes. This value should be larger than the maximum expected packet size.
+/// </param>
+///<returns>
+/// Returns 0 on success or -1 on failure.
+///</returns>
+/// <remarks>
+/// The buffer size specified by this function is used by the driver to store packets received from the network before they are read by the application. If the buffer is too small, packets may be lost. To determine the optimal buffer size for a given network adapter, use the <c>pcap_findalldevs</c> function to enumerate the available adapters and query their capabilities using <c>pcap_snapshot</c> and <c>pcap_list_datalinks</c>.
+///</remarks>
+function pcap_set_buffer_size(p: Ppcap_t; size: Integer): Integer; external 'wpcap.dll';
+
+/// <summary>
+/// Set the snapshot length for the capture. 
+/// </summary>
+/// <remarks>
+/// The snapshot length sets the maximum amount of data to be captured for each packet. 
+/// This can be useful if you only need to capture certain parts of the packet (e.g. the headers).
+/// </remarks>
+/// <param name="p">Pointer to the <c>pcap_t</c> struct for the session.</param>
+/// <param name="snaplen">Snapshot length to set.</param>
+/// <returns>Returns 0 on success, -1 on failure.</returns>
+function pcap_set_snaplen(p: Ppcap_t; len: Integer): Integer; cdecl; external 'wpcap.dll';
 
 
 //******************************************************************************************************

@@ -10,9 +10,14 @@ uses vcl.Graphics,System.SysUtils,WinApi.Windows;
 /// <param name="ABackgroundColor">The background color to check.</param>
 /// <returns>The font color (black or white) that has good contrast with the background color.</returns>
 function GetFontColor(const ABackgroundColor: TColor): TColor;
+function ColorToHTMLColor(const aColor:TColor):String;
 
 implementation
 
+function ColorToHTMLColor(const aColor:TColor):String;
+begin
+  Result := Format('#%.2x%.2x%.2x', [GetRValue(aColor), GetGValue(aColor), GetBValue(aColor)]);
+end;
 
 function GetFontColor(const ABackgroundColor: TColor): TColor;
 var LRed             : Byte;

@@ -4,10 +4,12 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, wpcap.Conts,
-  WinSock, System.Generics.Collections;
+  WinSock, System.Generics.Collections,wpcap.Packet;
 
 
 type
+
+
 
   bpf_u_int32 = LongWord;  
   Ppcap_t = Pointer;
@@ -273,6 +275,18 @@ type
 
   TListHeaderString = class(TList<THeaderString>);
 
+  /// <summary>
+  ///  Represents a row in the IANA registry, which maps port numbers to protocol names, IP protocol numbers, and descriptions.
+  /// </summary>
+  TIANARow = record
+    PortNumber   : Word;      // Port number
+    ProtocolName : string;    // Protocol name
+    IPPROTP      : Integer;   // IP protocol number internal for IANA
+    Description  : string;    // Description
+  end;
+  
+  TIANADatabase     = class(TDictionary<String,TIANARow>);
+
                      
   /// <summary>
   ///  Record containing string representations interface
@@ -290,6 +304,66 @@ type
     PCAP_D_IN_NOFILTER    = 4,
     PCAP_D_OUT_NOFILTER   = 5  
  );
+
+  ///<summary>
+  /// Type definition for a callback to be called when an offline packet is processed.
+  ///</summary>
+  ///<param name="aInternalPacket">
+  /// Internal rappresentazion of packet in TInternalPacket structure
+  ///</param>
+  ///<remarks>
+  /// This type definition is used for a callback procedure that is called by the packet capture module when a packet is processed. 
+  //  The callback procedure is responsible for processing the packet data in a way that is appropriate for the application. The packet information, such as the date and time, 
+  //  Ethernet type, MAC addresses, Layer 3 protocol, IP addresses, and port numbers, is passed to the callback procedure as parameters.
+  ///</remarks>
+
+  TPCAPCallBackPacket        = procedure(const aInternalPacket : PTInternalPacket) of object; 
+  
+  ///<summary>
+  /// Type definition for a callback procedure to be called when an error occurs during packet processing.
+  ///</summary>
+  ///<param name="aFileName">
+  /// The name of the file being processed when the error occurred.
+  ///</param>
+  ///<param name="aError">
+  /// The error message.
+  ///</param>
+  ///<remarks>
+  /// This type definition is used for a callback procedure that is called by the packet capture module when an error occurs during packet processing. 
+  //  The callback procedure is responsible for handling the error in a way that is appropriate for the application. 
+  //  The name of the file being processed and the error message are passed to the callback procedure as parameters.
+  ///</remarks>                                                  
+  TPCAPCallBackError         = procedure(const aFileName,aError:String) of object;
+
+  ///<summary>
+  /// Type definition for a callback procedure to be called to report progress during packet processing.
+  ///</summary>
+  ///<param name="aTotalSize">
+  /// The total size of the file being processed.
+  ///</param>
+  ///<param name="aCurrentSize">
+  /// The number of bytes processed so far.
+  ///</param>
+  ///<remarks>
+  /// This type definition is used for a callback procedure that is called by the packet capture module to report progress during packet processing. 
+  /// The callback procedure is responsible for displaying progress information to the user, such as a progress bar or a status message. 
+  /// The total size of the file being processed and the number of bytes processed so far are passed to the callback procedure as parameters.
+  ///</remarks>  
+  TPCAPCallBackProgress      = procedure(aTotalSize,aCurrentSize:Int64) of object;
+  
+  ///<summary>
+  /// Type definition for a callback procedure to be called when packet processing is complete.
+  ///</summary>
+  ///<param name="aFileName">
+  /// The name of the file that was processed.
+  ///</param>
+  ///<remarks>
+  /// This type definition is used for a callback procedure that is called by the packet capture module when packet processing is complete. 
+  /// The callback procedure is responsible for any post-processing that may be required, such as closing files or displaying a message to the user. 
+  /// The name of the file that was processed is passed to the callback procedure as a parameter.
+  ///</remarks>  
+  TPCAPCallBackEnd           = procedure(const aFileName:String) of object;
+ 
   
 implementation
 

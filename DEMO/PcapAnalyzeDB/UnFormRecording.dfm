@@ -13,6 +13,7 @@ object FormRecording: TFormRecording
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
+  OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
@@ -74,8 +75,6 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 1
         Value = 1000
-        ExplicitLeft = 56
-        ExplicitTop = 40
         Width = 34
       end
       object cxLabel5: TcxLabel
@@ -102,8 +101,6 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 3
         Value = 65535
-        ExplicitLeft = -5
-        ExplicitTop = 103
         Width = 34
       end
       object ChkEnabledStopRecording: TcxCheckBox
@@ -115,14 +112,11 @@ object FormRecording: TFormRecording
         Style.TransparentBorder = False
         TabOrder = 4
         Transparent = True
-        ExplicitLeft = 24
-        ExplicitTop = 112
-        ExplicitWidth = 87
       end
       object tStopRecordingTime: TcxTimeEdit
         AlignWithMargins = True
         Left = 3
-        Top = 124
+        Top = 123
         Align = alTop
         Properties.Alignment.Horz = taRightJustify
         Properties.Circular = True
@@ -131,8 +125,6 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.Position = sbpHorzLeftRight
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 5
-        ExplicitLeft = 32
-        ExplicitTop = 136
         Width = 34
       end
     end
@@ -165,7 +157,6 @@ object FormRecording: TFormRecording
         OptionsImage.ImageIndex = 2
         OptionsImage.Images = cxImageList1
         TabOrder = 0
-        ExplicitLeft = 818
       end
       object BEndRecording: TcxButton
         Left = 817
@@ -180,7 +171,6 @@ object FormRecording: TFormRecording
         OptionsImage.Images = cxImageList1
         TabOrder = 1
         OnClick = BEndRecordingClick
-        ExplicitLeft = 707
       end
       object BStartRecording: TcxButton
         Left = 706
@@ -193,7 +183,6 @@ object FormRecording: TFormRecording
         OptionsImage.Images = cxImageList1
         TabOrder = 2
         OnClick = BStartRecordingClick
-        ExplicitLeft = 596
       end
       object cxLabel1: TcxLabel
         Left = 4
@@ -210,7 +199,6 @@ object FormRecording: TFormRecording
       Align = alTop
       PanelStyle.Active = True
       TabOrder = 1
-      ExplicitTop = -9
       Height = 43
       Width = 1043
       object EPathDB: TcxButtonEdit
@@ -228,10 +216,8 @@ object FormRecording: TFormRecording
         Properties.Images = cxImageList1
         Properties.OnButtonClick = EPathDBPropertiesButtonClick
         TabOrder = 0
-        ExplicitLeft = 134
-        ExplicitWidth = 793
-        ExplicitHeight = 21
-        Width = 783
+        ExplicitWidth = 783
+        Width = 793
       end
       object cxLabel3: TcxLabel
         AlignWithMargins = True
@@ -245,7 +231,7 @@ object FormRecording: TFormRecording
       end
       object TSfileDumb: TdxToggleSwitch
         AlignWithMargins = True
-        Left = 875
+        Left = 885
         Top = 7
         Align = alRight
         Caption = 'Save dump file'
@@ -253,8 +239,7 @@ object FormRecording: TFormRecording
         Style.TransparentBorder = False
         TabOrder = 2
         Transparent = True
-        ExplicitLeft = 765
-        ExplicitHeight = 21
+        ExplicitLeft = 875
       end
     end
     object cxGroupBox3: TcxGroupBox
@@ -263,7 +248,6 @@ object FormRecording: TFormRecording
       Align = alTop
       PanelStyle.Active = True
       TabOrder = 2
-      ExplicitTop = 34
       Height = 43
       Width = 1043
       object cxLabel2: TcxLabel
@@ -286,8 +270,6 @@ object FormRecording: TFormRecording
         Properties.OnValidate = EFilterPropertiesValidate
         ShowHint = True
         TabOrder = 1
-        ExplicitLeft = 134
-        ExplicitHeight = 21
         Width = 909
       end
     end
@@ -314,10 +296,6 @@ object FormRecording: TFormRecording
       OptionsView.ShowRoot = False
       ScrollbarAnnotations.CustomAnnotations = <>
       TabOrder = 3
-      ExplicitLeft = 0
-      ExplicitTop = 86
-      ExplicitWidth = 1091
-      ExplicitHeight = 397
       Data = {
         00000500DF0000000F00000044617461436F6E74726F6C6C6572310500000012
         000000546378537472696E6756616C7565547970651200000054637853747269

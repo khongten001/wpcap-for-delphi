@@ -49,6 +49,16 @@ function ByteToBinaryString(const AByte: Byte): string;
 /// <param name="Digits">The number of digits in the binary string representation.</param>
 /// <returns>Returns a string containing the binary representation of the input integer value with the specified number of digits.</returns>
 function IntToBin(Value: integer; Digits: integer): string;
+
+/// <summary>
+/// Calculates the actual length of a packet by checking for any padding bytes (0x0D 0xF0 0xAD 0xBA) at the end of the packet.
+/// </summary>
+/// <param name="aPacketData">Pointer to the packet data buffer.</param>
+/// <param name="aPacketLen">Length of the packet data buffer in bytes.</param>
+/// <returns>The actual length of the packet in bytes.</returns>
+function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
+
+
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
 function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
@@ -56,6 +66,28 @@ function HexToBytes(const hex: string): TBytes;
 
 
 implementation
+
+function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
+var LIdx            : Integer;
+    LHasPendingBytes: Boolean;
+begin
+  Result           := False;
+  LHasPendingBytes := False;
+                                        
+  for LIdx := Low(aPacketData) to High(aPacketData) do
+  begin
+    if aPacketData[LIdx] = $0D then
+    begin
+      if (LIdx+3<High(aPacketData))and (aPacketData[LIdx + 1] = $F0) and (aPacketData[LIdx + 2] = $AD) and (aPacketData[LIdx + 3] = $BA) then
+      begin
+        aPacketLen       := LIdx;
+        LHasPendingBytes := True;
+        Break;
+      end;
+    end;
+  end;
+end;
+
 
 function SwapInt64(Value: Int64): Int64;
 {https://stackoverflow.com/questions/33197523/combining-asm-with-non-asm-code-or-swapint64-asm-function-needed}

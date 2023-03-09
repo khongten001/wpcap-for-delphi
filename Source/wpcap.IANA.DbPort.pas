@@ -1,24 +1,15 @@
 ﻿unit wpcap.IANA.DbPort;
 
 interface
-uses WinSock,wpcap.Conts;
+uses WinSock,wpcap.Conts,wpcap.Types,System.SysUtils,System.Classes;
 
 
 {Service Name and Transport Protocol Port Number Registry by IANA
 
  https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?skey=-3
 }
-Type 
-  /// <summary>
-  ///  Represents a row in the IANA registry, which maps port numbers to protocol names, IP protocol numbers, and descriptions.
-  /// </summary>
-  TIANARow = record
-    PortNumber   : Word;      // Port number
-    ProtocolName : string;    // Protocol name
-    IPPROTP      : Integer;   // IP protocol number internal for IANA
-    Description  : string;    // Description
-  end;
-
+ 
+var FIANADictionary : TIANADatabase;  
   
 CONST
   IPPROTO_IANA_TPC  = 1;
@@ -11473,8 +11464,31 @@ CONST
   (PortNumber: 49001; ProtocolName:'NUSDP-DISC';	   	IPPROTP:IPPROTO_IANA_UDP;  Description: 'Nuance Unity Service Discovery Protocol'),
   (PortNumber: 49150; ProtocolName:'INSPIDER';		           IPPROTP:IPPROTO_IANA_TPC;  Description: 'InSpider System')
   );
-  
+
+/// <summary>
+/// This static class procedure initializes an IANA dictionary.
+/// </summary>
+procedure InitIANADictionary;  
+
 implementation
+
+Procedure InitIANADictionary;
+var aRow : TIANARow;
+begin
+  FIANADictionary := TIANADatabase.Create;
+  for aRow in PROTOCOL_IANA_PORTS do
+    FIANADictionary.Add(Format('%d_%d',[aRow.PortNumber,aRow.IPPROTP]), aRow);
+end;
+
+initialization
+    InitIANADictionary;
+
+finalization
+  if Assigned(FIANADictionary) then  
+    FreeAndNil(FIANADictionary);
+
+
+
 
 end.
 

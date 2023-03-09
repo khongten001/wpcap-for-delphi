@@ -14,6 +14,7 @@ type
   /// data from SQLite database files that store packets captured using
   /// the WinPcap library.
   /// </summary>
+
   TWPcapDBSqLite = Class(TWPcapDBBase)
   Strict private
     var FDriverLink : TFDPhysSQLiteDriverLink;   

@@ -55,6 +55,7 @@ type
       AButtonIndex: Integer);
     procedure ChkEnabledStopRecordingPropertiesEditValueChanged(
       Sender: TObject);
+    procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
   private
     FTotalSize      : Int64;
     FWPcapDBSqLite  : TWPcapDBSqLitePacket;  
@@ -120,6 +121,8 @@ end;
 
 procedure TFormRecording.DoPCAPCallBackPacket(const aInternalPacket: PTInternalPacket);
 begin
+  if not Assigned(FWPcapDBSqLite) then exit;
+
   FWPcapDBSqLite.InsertPacket(aInternalPacket);
 end;
 
@@ -186,18 +189,20 @@ begin
       BStartRecording.Enabled := False;
       BCancel.Enabled         := False;
 
+
       {TODO PCAP BY SIZE AND TIME AND END RECORDING DATE}
-      FPCAPUtils := TPCAPUtils.Create;
-      Try
+      if not Assigned(FPCAPUtils) then
+        FPCAPUtils := TPCAPUtils.Create;
+        
+        FPCAPUtils.OnPCAPCallBackError    := DoPCAPCallBackError;
+        FPCAPUtils.OnPCAPCallBackProgress := DoPCAPCallBackProgress;
+        FPCAPUtils.OnPCAPCallBackPacket   := DoPCAPCallBackPacket;
+        FPCAPUtils.OnPCAPCallBackEnd      := nil;                
         FPCAPUtils.AnalyzePCAPRealtime(FCurrentDBName,EFilter.Text,
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumGUID.Position.ColIndex],
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumIP.Position.ColIndex],                                     
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumPROMISC.Position.ColIndex],TSfileDumb.Checked,
-                                       DoPCAPCallBackPacket,DoPCAPCallBackError,DoPCAPCallBackProgress,
                                        sTimeOutMs.Value,sMaxSizePacket.Value,LStopRecTime);          
-      Finally
-        FreeAndNil(FPCAPUtils);
-      End;
     except on E: Exception do
       DoPCAPCallBackError(CurrentDBName,Format('Exception analyze PCAP %s',[E.Message]));
     end;    
@@ -205,8 +210,6 @@ begin
     DoPCAPCallBackError(CurrentDBName,Format('Exception create database %s',[E.Message]));
   end;    
 end;
-
-
 
 procedure TFormRecording.DestroyDatabase;
 begin
@@ -228,15 +231,18 @@ end;
 
 procedure TFormRecording.FormDestroy(Sender: TObject);
 begin
+  if Assigned(FPCAPUtils) then
+    FreeAndNil(FPCAPUtils);
   DestroyDatabase;
+  
 end;
 
 procedure TFormRecording.BEndRecordingClick(Sender: TObject);
 begin
-  FPCAPUtils.StopAnalyze;
-      BEndRecording.Enabled   := FaLse;
-      BStartRecording.Enabled := True;
-      BCancel.Enabled         := True;  
+  BEndRecording.Enabled   := FaLse;
+  BStartRecording.Enabled := True;
+  BCancel.Enabled         := True;  
+  
 end;
 
 procedure TFormRecording.EPathDBPropertiesButtonClick(Sender: TObject;
@@ -250,6 +256,16 @@ procedure TFormRecording.ChkEnabledStopRecordingPropertiesEditValueChanged(
   Sender: TObject);
 begin
   tStopRecordingTime.Enabled := ChkEnabledStopRecording.Checked;
+end;
+
+procedure TFormRecording.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
+begin
+  if Assigned(FPCAPUtils) then
+  begin
+    FPCAPUtils.Abort := True;
+    while Assigned(FPCAPUtils.ThreadCaptureRT) do
+      Application.ProcessMessages;
+  end;
 end;
 
 end.
