@@ -80,7 +80,7 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 # TODO LIST FOR DEMO
 + ChartStatistics by protocol
 
-# TODO Other protocols
+# TODO Other protocols for packet detail
 
 + STUN
 + HTTP
@@ -98,6 +98,8 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + OpenVPN
 + Wiregurad
 + TELNET
++ RTP
++ SIP
 + OTHERS...
 
 
