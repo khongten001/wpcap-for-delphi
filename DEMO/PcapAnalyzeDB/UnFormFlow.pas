@@ -26,8 +26,6 @@ type
     Procedure LoadHTML(const aHTML:String);
   end;
 
-
-
 implementation
 
 {$R *.dfm}

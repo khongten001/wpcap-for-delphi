@@ -6,7 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,System.UITypes,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,Wpcap.types, 
   Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,wpcap.Graphics,
-  cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,DateUtils,
+  cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,DateUtils,wpcap.conts,
   cxGrid,  cxLookAndFeels,wpcap.Wrapper,wpcap.Filter,System.Generics.Collections,
   cxLookAndFeelPainters, dxSkinsCore, cxStyles, cxFilter, cxData, cxDataStorage,
   cxEdit, cxNavigator, dxDateRanges, dxScrollbarAnnotations, cxGridCustomView,
@@ -92,6 +92,7 @@ type
     cxProgressBar1: TcxProgressBar;
     cxButton1: TcxButton;
     BFlow: TdxBarButton;
+    BRTPCall: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -118,6 +119,7 @@ type
     procedure BMapClick(Sender: TObject);
     procedure cxButton1Click(Sender: TObject);
     procedure BFlowClick(Sender: TObject);
+    procedure BRTPCallClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -133,6 +135,8 @@ type
     procedure DoPCAPOfflineCallBackError(const aFileName, aError: String);
     procedure DoPCAPOfflineCallBackProgress(aTotalSize, aCurrentSize: Int64);
     function GetGeoLiteDatabaseName: String;
+    procedure ExecuteAndWait(const aCommando: string);
+    function GetTmpPath: String;
   public
     { Public declarations }
   end;
@@ -142,7 +146,7 @@ var
 
 implementation
 
-uses UnFormRecording,UnFormImportGeoLite;
+uses UnFormRecording,UnFormImportGeoLite,UnFormPlayerWave;
 
 {$R *.dfm}
 
@@ -195,7 +199,7 @@ begin
   SetPositionProgressBar(0);
   FLastFileOpened := aFileName;
   {TODO 
-    Thread with syncronize
+
     Query bulder 
     Packet detail [TreeView Like wireshark with syncronize with memo ???? HOW ?]
     ChartStatistics by protocol
@@ -269,10 +273,13 @@ var LHexList    : TArray<String>;
 begin
   MemoHex.Lines.Clear;
   ListPacketDetail.Clear;
-  LCurrentNode := nil;
+  LCurrentNode     := nil;
+  BRTPCall.Enabled := False;
   if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
-    LListDetail := TListHeaderString.Create;
+    BRTPCall.Enabled := AFocusedRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index] = DETECT_PROTO_RTP;
+    
+    LListDetail      := TListHeaderString.Create;
     Try
      LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],LListDetail);
 
@@ -341,7 +348,7 @@ end;
 
 procedure TFormMain.BLoadPCAPClick(Sender: TObject);
 begin
-  OpenDialog1.Filter := 'Pcap file|*.pcap|All files|*.*';
+  OpenDialog1.Filter := 'Pcap file|*.pcap;*.raw;*.pcapng|All files|*.*';
   if OpenDialog1.Execute then
   begin
     pProgressImport.Visible := True;
@@ -571,6 +578,102 @@ begin
       FreeAndNil(LFormFlow);
     End;
   end;
+end;
+
+function TFormMain.GetTmpPath:String;
+begin
+  Result := Format('%sTMP\',[ExtractFilePath(Application.ExeName)]);
+end;
+
+procedure TFormMain.ExecuteAndWait(const aCommando: string);
+var tmpStartupInfo       : TStartupInfo;
+    tmpProcessInformation: TProcessInformation;
+    tmpProgram           : String;
+    aIcount              : Integer;
+begin
+  tmpProgram := trim(aCommando);
+  FillChar(tmpStartupInfo, SizeOf(tmpStartupInfo), 0);
+  with tmpStartupInfo do
+  begin
+    cb          := SizeOf(TStartupInfo);
+    wShowWindow := SW_HIDE;
+  end;
+
+  aIcount := 0;
+
+  if CreateProcess(nil, pchar(WideString(tmpProgram)), nil, nil, true, CREATE_NO_WINDOW,nil, PChar(ExtractFilePath(Application.ExeName)), tmpStartupInfo, tmpProcessInformation)then
+  begin
+    Try
+      while WaitForSingleObject(tmpProcessInformation.hProcess, 10) > 0 do
+      begin
+        if Application.Terminated then Exit;
+        Inc(aIcount);
+        if aIcount > 1024 then
+        begin
+          aIcount := 0;
+          Application.ProcessMessages;
+        end;
+      end;
+    Finally
+      CloseHandle(tmpProcessInformation.hProcess);
+      CloseHandle(tmpProcessInformation.hThread);
+    End;
+  end
+  else
+    RaiseLastOSError;
+end;
+
+
+procedure TFormMain.BRTPCallClick(Sender: TObject);
+var LSoxCommand : String;
+    LFileRaw    : String;
+    LFileWave   : String; 
+    LFormWave   : TFormPlayerWave;   
+begin
+  if Assigned(GridPcapDBTableView1.Controller.FocusedRow) then
+  begin
+    if GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PROTO_DETECT.Index] = DETECT_PROTO_RTP then
+    begin
+      LFileRaw := Format('%sRTPFile.Raw',[GetTmpPath]);
+      LFileWave:= ChangeFileExt(LFileRaw,'.wav');
+      ForceDirectories(GetTmpPath);
+      
+      if FWPcapDBSqLite.SaveRTPPayloadToFile(LFileRaw, GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_SRC.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_DST.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_SRC.Index],
+                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_DST.Index],LSoxCommand) 
+      then
+      begin                               
+        if LSoxCommand.IsEmpty then
+        begin
+          MessageDlg('Payload type unsupported',mtError,[mbOK],0);
+          Exit;                                            
+        end;
+
+        if not FileExists('sox.exe') then
+        begin
+          MessageDlg('Sox.exe not present',mtError,[mbOK],0);
+          Exit;                                            
+        end;                
+        
+        ExecuteAndWait(Format(LSoxCommand,[LFileRaw,LFileWave]));
+
+        if FileExists(LFileWave) then
+        begin 
+          LFormWave := TFormPlayerWave.Create(nil);
+          Try
+            LFormWave.LoadFile(LFileWave);
+            LFormWave.ShowModal;
+          Finally
+            FreeAndNil(LFormWave);
+          End;
+        end;
+      end
+      else
+        MessageDlg('Invalid RTP flow',mtError,[mbOK],0);                                    
+    end;
+  end;
+
 end;
 
 end.

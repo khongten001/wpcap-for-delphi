@@ -52,9 +52,10 @@ type
   /// </summary>
   TWPcapProtocolBaseTCP = Class(TWPcapProtocolBase)
   private
+
   protected
     class function GetDataOFFSetBytes(const aDataOFFset: Byte): integer; 
-
+    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
   protected
     /// <summary>
     /// Checks whether the length of the payload is valid for the protocol.
@@ -218,16 +219,23 @@ end;
 class function TWPcapProtocolBaseTCP.IsValidByDefaultPort(aDstPort: Integer;
   var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
 begin
+  Result := IsValidByPort(DefaultPort,aDstPort,aAcronymName,aIdProtoDetected);
+end;
+
+class function TWPcapProtocolBaseTCP.IsValidByPort(aTestPort,aDstPort: Integer;
+  var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
+begin
   Result := False;
-  if DefaultPort = 0 then Exit;
+  if aTestPort = 0 then Exit;
   
-   Result := ( aDstPort = DefaultPort );
+   Result := ( aDstPort = aTestPort );
 
    if not Result then exit;
 
    aAcronymName     := AcronymName;
    aIdProtoDetected := IDDetectProto;   
 end;
+
 
 class function TWPcapProtocolBaseTCP.GetTCPPayLoad(const AData: PByte; aSize: word): PByte;
 var LTCPHeader : PTCPhdr;

@@ -126,7 +126,7 @@ begin
         AListDetail.Add(AddHeaderInfo(1, 'Sequence number (BE):', wpcapntohs(LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));
         
       end;
-      3, 4, 5, 11, 12:
+    3, 4, 5, 11, 12:
       begin
 
       end;

@@ -6,16 +6,18 @@ uses
   wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math,
   FireDAC.Comp.Client, System.Generics.Collections, wpcap.StrUtils,Vcl.Graphics,
   wpcap.Level.IP, wpcap.Types, FireDac.Stan.Param, wpcap.Level.Eth, wpcap.Packet,
-  System.Classes, System.SysUtils, Data.Db,System.StrUtils,winApi.Winsock2;
+  System.Classes, System.SysUtils, Data.Db,System.StrUtils,winApi.Winsock2,Wpcap.Protocol.RTP;
 
   type
     TWPcapDBSqLitePacket = Class(TWPcapDBSqLite)
   private
-    FDQueryFlow : TFDQuery;
+    FDQueryFlow     : TFDQuery;
+    FDQuerySession  : TFDQuery;
   protected
     function GetSQLScriptDatabaseSchema: String;override;
     procedure InitConnection;override;
   public
+    Destructor Destroy;override;
     ///<summary>
     /// Inserts a network packet into the database.
     ///</summary>
@@ -51,6 +53,8 @@ uses
     function GetListHexPacket(aNPacket: Integer;var aListDetail:TListHeaderString): TArray<String>;    
 
     Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
+    function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
+    
   End;
 implementation
 
@@ -183,6 +187,13 @@ begin
                                                        'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) OR (IP_SRC = :pIpDst AND IP_DST= :pIpSrc )  )                '+sLineBreak+ 
                                                        'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst ) OR (PORT_SRC = :pPortDst AND PORT_DST= :pPortSrc )  ) '+sLineBreak+
                                                        'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';
+
+  FDQuerySession                                    := TFDQuery.Create(nil);
+  FDQuerySession.Connection                         := FConnection;
+  FDQuerySession.SQL.Text                           := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                 '+sLineBreak+ 
+                                                       'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) )                '+sLineBreak+ 
+                                                       'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst )  ) '+sLineBreak+
+                                                       'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';                                                       
 end; 
 
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
@@ -334,7 +345,6 @@ var LPacketSize : Integer;
     LStream     : TMemoryStream;
     LPayLoad    : PByte;
     LCurrentIP  : String; 
-    LFlowBuffer : PByte;
     LTCPHdr     : PTCPHdr;
     LIsClient   : Boolean;
     LPayloadSize: Integer;
@@ -350,7 +360,6 @@ begin
   FDQueryFlow.Open;
   
   LCurrentIP   := String.Empty;
-  LFlowBuffer  := nil;
   LIsClient    := False;
   
   if not FDQueryFlow.IsEmpty then
@@ -382,8 +391,6 @@ begin
           else
             raise Exception.Create('Error invalid protocolo only TCP and UP protocol are supported');
           end;
-
-  
 
           if LCurrentIP <> FDQueryFlow.FieldByName('IP_SRC').AsString then
           begin
@@ -417,6 +424,69 @@ begin
     end;    
   end;
   FDQueryFlow.Close;  
+end;
+
+function TWPcapDBSqLitePacket.SaveRTPPayloadToFile(const aFilename,aIpSrc, aIpDst: String;aPortSrc, aPortDst:Integer;var aSoxCommand:String): Boolean;
+var LPacketSize : Integer;
+    LPacketData : PByte;
+    LStream     : TMemoryStream;
+    LPayLoad    : PByte;
+    LPayloadSize: Integer;
+    LFileRaw    : TFileStream;
+begin
+  Result      := False;
+  aSoxCommand := String.Empty;
+  FDQuerySession.Close;
+  FDQuerySession.ParamByName('pIpSrc').AsString    := aIpSrc; 
+  FDQuerySession.ParamByName('pIpDst').AsString    := aIpDst; 
+  FDQuerySession.ParamByName('pPortSrc').AsInteger := aPortSrc; 
+  FDQuerySession.ParamByName('pPortDst').AsInteger := aPortDst;    
+  FDQuerySession.ParamByName('pIpProto').AsInteger := IPPROTO_UDP;      
+  FDQuerySession.Open;
+
+  if not FDQuerySession.IsEmpty then
+  begin
+    LStream := TMemoryStream.Create;
+    Try
+      LFileRaw := TFileStream.Create(aFilename, fmCreate);
+      Try
+        while not FDQuerySession.eof do
+        begin
+          LStream.Seek(0, soBeginning);
+          TBlobField(FDQuerySession.FieldByName('PACKET_DATA')).SaveToStream(LStream);
+          LPacketSize := LStream.Size;
+          GetMem(LPacketData, LPacketSize);
+          Try
+            LStream.Seek(0, soBeginning);
+            LStream.ReadBuffer(LPacketData^, LPacketSize);
+
+            LPayLoad    := TWPcapProtocolRTP.GetPayLoadRTP(LPacketData,LPacketSize,LPayloadSize); 
+            if aSoxCommand.Trim.IsEmpty then            
+              aSoxCommand :=  TWPcapProtocolRTP.GetSoxCommandDecode(LPacketData,LPacketSize);
+            if (LPayLoad <> nil) and (LPayloadSize > 0) then
+              LFileRaw.WriteBuffer(LPayLoad^, LPayloadSize);
+        
+          Finally
+            FreeMem(LPacketData)
+          End;
+          FDQuerySession.Next;
+        end;
+        Result := True;
+      Finally
+        FreeAndNil(LFileRaw);
+      End;
+    finally
+      LStream.Free;
+    end;    
+  end;
+  FDQuerySession.Close;  
+end;
+
+destructor TWPcapDBSqLitePacket.Destroy;
+begin
+  FreeAndNil(FDQuerySession);
+  FreeAndNil(FDQueryFlow);  
+  inherited;
 end;
 
 end.

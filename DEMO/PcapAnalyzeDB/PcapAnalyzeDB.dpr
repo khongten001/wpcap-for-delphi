@@ -41,7 +41,12 @@ uses
   UnFormMap in 'UnFormMap.pas' {FormMap},
   wpcap.IPUtils in '..\..\Source\wpcap.IPUtils.pas',
   wpcap.Geometry in '..\..\Source\wpcap.Geometry.pas',
-  UnFormFlow in 'UnFormFlow.pas' {FormFlow};
+  UnFormFlow in 'UnFormFlow.pas' {FormFlow},
+  wpcap.Protocol.HTTP in '..\..\Source\Protocols\wpcap.Protocol.HTTP.pas',
+  wpcap.Protocol.POP3 in '..\..\Source\Protocols\wpcap.Protocol.POP3.pas',
+  wpcap.Protocol.FTP in '..\..\Source\Protocols\wpcap.Protocol.FTP.pas',
+  wpcap.Protocol.RTP in '..\..\Source\Protocols\wpcap.Protocol.RTP.pas',
+  UnFormPlayerWave in 'UnFormPlayerWave.pas' {FormPlayerWave};
 
 {$R *.res}
 

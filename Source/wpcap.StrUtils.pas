@@ -5,7 +5,6 @@ interface
 uses WinApi.Windows,WinSock,System.SysUtils,DateUtils,System.Classes,idGlobal;
 
 
-
 /// <summary>
 /// The function MACAddrToStr takes an array of bytes representing a MAC address and converts it into a string representation in the format of "XX:XX:XX:XX:XX:XX", 
 /// where each "XX" represents a two-digit hexadecimal number corresponding to each byte in the array. The resulting string is returned by the function.
@@ -82,7 +81,6 @@ begin
     end;
   end;
 end;
-
 
 function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
 const HEXCHARS: array[0..15] of Char = '0123456789ABCDEF';

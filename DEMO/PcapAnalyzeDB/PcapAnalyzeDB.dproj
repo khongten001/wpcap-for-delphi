@@ -153,6 +153,14 @@
             <Form>FormFlow</Form>
             <FormType>dfm</FormType>
         </DCCReference>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.HTTP.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.POP3.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.FTP.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.RTP.pas"/>
+        <DCCReference Include="UnFormPlayerWave.pas">
+            <Form>FormPlayerWave</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

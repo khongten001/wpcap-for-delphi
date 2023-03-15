@@ -226,7 +226,7 @@ object FormMain: TFormMain
     Top = 65
     Align = alRight
     PanelStyle.Active = True
-    TabOrder = 6
+    TabOrder = 4
     Height = 672
     Width = 535
     object MemoHex: TcxMemo
@@ -571,6 +571,13 @@ object FormMain: TFormMain
       Hint = 'Flow stream'
       Visible = ivAlways
       OnClick = BFlowClick
+    end
+    object BRTPCall: TdxBarButton
+      Caption = 'Try decode RTP audio'
+      Category = 0
+      Hint = 'Try decode RTP audio'
+      Visible = ivAlways
+      OnClick = BRTPCallClick
     end
   end
   object cxImageList1: TcxImageList
@@ -997,12 +1004,17 @@ object FormMain: TFormMain
         ItemName = 'BCopyGrid'
       end
       item
+        BeginGroup = True
         Visible = True
         ItemName = 'BMap'
       end
       item
         Visible = True
         ItemName = 'BFlow'
+      end
+      item
+        Visible = True
+        ItemName = 'BRTPCall'
       end>
     UseOwnFont = False
     Left = 400

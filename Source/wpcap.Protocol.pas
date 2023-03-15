@@ -3,9 +3,14 @@
 interface              
 
 uses
-  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2, wpcap.Protocol.Base,wpcap.Protocol.TCP,
-  vcl.Graphics, wpcap.Graphics,wpcap.Protocol.DNS, wpcap.Protocol.UDP,System.Generics.Collections,
-  wpcap.Protocol.L2TP,wpcap.Protocol.NTP,wpcap.Protocol.MDNS,wpcap.Protocol.LLMNR,wpcap.Protocol.TLS,wpcap.Protocol.NBNS;
+  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2,
+  wpcap.Protocol.Base, wpcap.Protocol.TCP, wpcap.Protocol.POP3, vcl.Graphics,
+  wpcap.Graphics, wpcap.Protocol.DNS, wpcap.Protocol.UDP,wpcap.Protocol.FTP,
+  System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP,
+  wpcap.Protocol.NTP, wpcap.Protocol.MDNS, wpcap.Protocol.LLMNR,
+  wpcap.Protocol.TLS, wpcap.Protocol.NBNS,wpcap.Protocol.RTP;
+
+
 
 
 /// <summary>
@@ -90,6 +95,8 @@ begin
        DETECT_PROTO_TCP      : aBackGroundColor := TCP_COLOR;
        DETECT_PROTO_ICMP     : aBackGroundColor := ICMP_COLOR;
        DETECT_PROTO_ARP      : aBackGroundColor := ARP_COLOR;
+       DETECT_PROTO_HTTP     : aBackGroundColor := $008FBC8F;
+       DETECT_PROTO_NBNS     : aBackGroundColor := $00D0FFFE;//Giallo
     else
       LDetectProtoFound := False;
     end;
@@ -177,10 +184,14 @@ begin
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolMDNS>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolLLMNR>);
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolNBNS>);  
-  
+  FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolRTP>);   
+   
   {TCP}  
   FListProtolsTCPDetected := TListProtolsTCPDetected.Create;  
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolTLS>);
+  FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolHTTP>);  
+  FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolPOP3>);    
+  FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolFTP>);    
 end;
 
 { TListProtolsTCPDetected }
