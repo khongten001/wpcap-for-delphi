@@ -66,6 +66,9 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
     +  TLS TO COMPLEATE
     +  ICMP TO COMPLEATE
     +  NBNS TO COMPLEATE
+    +  HTTP TODO
+    +  FTP TODO
+    +  POP3 TODO
   + OTHERS --> TODO
 + DETAIL INFO FOR DATABASE
 + Whois online ??
@@ -83,22 +86,18 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 # TODO Other protocols for packet detail
 
 + STUN
-+ HTTP
 + HTTPS
 + IMAP
 + IMAPS
-+ POP3
 + POP3S
 + SMTP
 + SMTPS
-+ FTP
 + FTP-DATA
 + TFTP
 + DHCP
 + OpenVPN
 + Wiregurad
 + TELNET
-+ RTP
 + SIP
 + OTHERS...
 
