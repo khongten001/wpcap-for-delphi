@@ -46,7 +46,9 @@ uses
   wpcap.Protocol.POP3 in '..\..\Source\Protocols\wpcap.Protocol.POP3.pas',
   wpcap.Protocol.FTP in '..\..\Source\Protocols\wpcap.Protocol.FTP.pas',
   wpcap.Protocol.RTP in '..\..\Source\Protocols\wpcap.Protocol.RTP.pas',
-  UnFormPlayerWave in 'UnFormPlayerWave.pas' {FormPlayerWave};
+  UnFormPlayerWave in 'UnFormPlayerWave.pas' {FormPlayerWave},
+  wpcap.Protocol.TFTP in '..\..\Source\Protocols\wpcap.Protocol.TFTP.pas',
+  wpcap.Protocol.SIP in '..\..\Source\Protocols\wpcap.Protocol.SIP.pas';
 
 {$R *.res}
 
