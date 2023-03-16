@@ -69,6 +69,7 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
     +  HTTP TODO
     +  FTP TODO
     +  POP3 TODO
+    +  SIP TODO
   + OTHERS --> TODO
 + DETAIL INFO FOR DATABASE
 + Whois online ??
@@ -93,12 +94,10 @@ The demo project uses DevExpress libraries at moment only Database demo is suppo
 + SMTP
 + SMTPS
 + FTP-DATA
-+ TFTP
 + DHCP
 + OpenVPN
 + Wiregurad
 + TELNET
-+ SIP
 + OTHERS...
 
 
