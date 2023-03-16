@@ -5,8 +5,40 @@ The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) libr
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
+# Protocol detection info
+
+I use the IANA PROTOCOL database to identify protocols based on the port (as listed in the IANA PROTOCOL column). 
+
+However, I also have an internal protocol recognition engine that allows me to identify protocols directly within the library.
+
+For protocols that are recognized directly by my library, I provide additional packet details and information directly in the grid (as listed in the INFO column). This helps to provide a more comprehensive and detailed understanding of the protocols being used.
+
+| Protocol | Packet Detail | Info on Grid |
+|----------|--------------|--------------|
+| ARP      | OK    | TODO   |
+| DNS      | OK    | TODO   |
+| FTP      | TODO    | TODO   |
+| HTTP     | TODO | TODO|
+| ICMP     | PARTIAL | TODO |
+| L2TP     | PARTIAL | TODO |
+| LLMNR     | OK | TODO |
+| MDNS     | OK | TODO |
+| NBNS     | PARTIAL | TODO |
+| NTP     | OK | TODO |
+| POP3     | TODO | TODO |
+| RTP     | OK | TODO |
+| SIP     | TODO | TODO |
+| TCP      | OK    | TODO   |
+| TFTP      | OK    | TODO   |
+| TLS     | PARTIAL | TODO |
+| UDP      | OK   | TODO|
+
+
+
 # GeoLite2 by MaxMind
-In this project, I use the GeoLite2 database provided by MaxMind for geodecoding addresses and displaying them on a map. The GeoLite2 database is a free, open-source database that maps IP addresses to their geographic locations. It includes data such as the country, city, and latitude/longitude coordinates of each IP address.
+In this project, I use the GeoLite2 database provided by MaxMind for geodecoding addresses and displaying them on a map. 
+
+The GeoLite2 database is a free, open-source database that maps IP addresses to their geographic locations. It includes data such as the country, city, and latitude/longitude coordinates of each IP address.
 
 I'd like to thank MaxMind for providing this valuable resource. If you're interested in using the GeoLite2 database, you can download it for free from their website at the following link: https://www.maxmind.com/en/home/maxmind-db/geoip2-geolite2.
 
@@ -17,9 +49,26 @@ Please note that while the GeoLite2 database is free to use, it is subject to Ma
 
 
 # Service Name and Transport Protocol Port Number Registry by IANA 
-I am using the Service Name and Transport Protocol Port Number Registry provided by IANA. The Internet Assigned Numbers Authority (IANA) is a department of the Internet Corporation for Assigned Names and Numbers (ICANN) that is responsible for maintaining various Internet-related registries. This includes assigning unique identifiers to devices, protocols, and services, as well as managing the allocation of IP addresses and domain names. The Service Name and Transport Protocol Port Number Registry is a comprehensive list of standardized port numbers and their associated services, which helps ensure that network traffic is properly routed between devices. By using this registry, I can ensure that my software is compatible with the protocols and services used across the Internet.
+
+I am using the Service Name and Transport Protocol Port Number Registry provided by IANA. 
+The Internet Assigned Numbers Authority (IANA) is a department of the Internet Corporation for Assigned Names and Numbers (ICANN) that is responsible for maintaining various Internet-related registries. 
+
+This includes assigning unique identifiers to devices, protocols, and services, as well as managing the allocation of IP addresses and domain names. 
+The Service Name and Transport Protocol Port Number Registry is a comprehensive list of standardized port numbers and their associated services, which helps ensure that network traffic is properly routed between devices. 
+
+By using this registry, I can ensure that my software is compatible with the protocols and services used across the Internet.
 
 # TCP and UPD Flow stream
+
+I'd like to take a moment to explain the concept of TCP and UDP flow stream in my library.
+
+In networking, a flow stream refers to a sequence of packets that are transmitted between two devices. The flow stream is characterized by a unique combination of source and destination IP addresses, as well as source and destination port numbers.
+
+TCP and UDP are two of the most commonly used transport protocols in networking. TCP is a connection-oriented protocol, which means that a session is established between two devices before any data is transmitted. TCP flow streams are identified by the combination of the source and destination IP addresses, as well as source and destination port numbers, and a sequence number that is used to keep track of the packets in the stream.
+
+UDP, on the other hand, is a connectionless protocol, which means that data can be transmitted without first establishing a session. UDP flow streams are identified by the combination of the source and destination IP addresses, as well as source and destination port numbers. However, unlike TCP, UDP does not use sequence numbers to keep track of packets in a flow stream.
+
+In my library, I provide information on TCP and UDP flow streams as part of the network analysis features. This allows users to gain a better understanding of the flow of data between devices on their network, and to identify any potential issues or areas for optimization.
 
 ![image](https://user-images.githubusercontent.com/11525545/223887025-799aa3c9-8dc3-463c-9364-8cc118554e76.png)
 
