@@ -14,6 +14,9 @@ Type
   /// This class defines the base behavior that each protocol should implement.
   /// </summary>
   TWPcapProtocolBase = class(TWpcapEthHeader)
+  protected
+    class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;
+      var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
   public
     /// <summary>
     /// Returns the default port number for the protocol.
@@ -102,18 +105,25 @@ begin
     Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False));
 end;   
 
-class function TWPcapProtocolBase.IsValidByDefaultPort(aSrcPort, aDstPort: integer;
+class function TWPcapProtocolBase.IsValidByPort(aTestPort,aSrcPort,aDstPort: Integer;
   var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
 begin
   Result := False;
-  if DefaultPort = 0 then Exit;
+  if aTestPort = 0 then Exit;
+  
+   Result := ( aSrcPort = aTestPort ) or ( aDstPort = aTestPort );
 
-  Result := ( aSrcPort = DefaultPort ) or ( aDstPort = DefaultPort );
+   if not Result then exit;
 
-  if not Result then exit;
+   aAcronymName     := AcronymName;
+   aIdProtoDetected := IDDetectProto;   
+end;
 
-  aAcronymName     := AcronymName;
-  aIdProtoDetected := IDDetectProto;   
+
+class function TWPcapProtocolBase.IsValidByDefaultPort(aSrcPort, aDstPort: integer;
+  var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
+begin
+  Result := IsValidByPort(DefaultPort,aSrcPort,aDstPort,aAcronymName,aIdProtoDetected);
 end;
 
 class function TWPcapProtocolBase.ProtoName: String;

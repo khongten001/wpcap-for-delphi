@@ -55,7 +55,7 @@ type
 
   protected
     class function GetDataOFFSetBytes(const aDataOFFset: Byte): integer; 
-    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
+    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;
   protected
     /// <summary>
     /// Checks whether the length of the payload is valid for the protocol.

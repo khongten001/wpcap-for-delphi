@@ -314,9 +314,11 @@ begin
 
   if not Assigned(LInternalHeader) then Exit;
   Try
+    if (LInternalHeader.Version <> 2) then exit;
+    
     LPayLoad := GetPayLoadRTP(aPacket,aPacketSize,LSizePayLoad);
     Try
-      Result := (LInternalHeader.Version = 2) and ( LSizePayLoad > 100);
+      Result := ( LSizePayLoad > 100);
     Finally
       FreeMem(LPayLoad);
     End;
