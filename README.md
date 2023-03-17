@@ -28,6 +28,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | POP3     | TODO | TODO |
 | RTP     | OK | TODO |
 | SIP     | TODO | TODO |
+| TELNET   | OK    | TODO   |
 | TCP      | OK    | TODO   |
 | TFTP      | OK    | TODO   |
 | TLS     | PARTIAL | TODO |
