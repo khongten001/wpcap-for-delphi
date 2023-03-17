@@ -169,23 +169,38 @@ begin
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderUDP(const aData: PByte; aSize: Integer; var aPUDPHdr: PUDPHdr): Boolean;
-var aSizeEthIP:Word;
+var LSizeEthIP    :Word;
+    LHeaderV4     : PTIPHeader;
+    LNewPacketLen : Integer;
+    LNewPacketData: PByte;
 begin
   Result     := False;
-  aSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
+  LSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
 
   // Check if the data size is sufficient for the Ethernet, IP, and UDP headers
-  if (aSize < aSizeEthIP + HeaderLength(0)) then Exit;
+  if (aSize < LSizeEthIP + HeaderLength(0)) then Exit;
 
   // Parse the Ethernet header
   case TWpcapIPHeader.IpClassType(aData,aSize) of
     imtIpv4 : 
       begin
         // Parse the IPv4 header
-        if TWpcapIPHeader.HeaderIPv4(aData,aSize).Protocol <> IPPROTO_UDP then Exit;
+        LHeaderV4 := TWpcapIPHeader.HeaderIPv4(aData,aSize) ;
+        if LHeaderV4.Protocol = IPPROTO_IPV6 then
+        begin
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,LNewPacketLen);
+          Try
+            Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
+            Exit;
+          Finally
+            FreeMem(LNewPacketData);
+          End;
+        end;
+        
+        if LHeaderV4.Protocol <> IPPROTO_UDP then Exit;
 
         // Parse the UDP header
-        aPUDPHdr := PUDPHdr(aData + aSizeEthIP);
+        aPUDPHdr := PUDPHdr(aData + LSizeEthIP);
         Result   := True;     
       end;
    imtIpv6:
@@ -193,7 +208,7 @@ begin
 
         if TWpcapIPHeader.HeaderIPv6(aData,aSize).NextHeader <> IPPROTO_UDP then Exit;
         // Parse the UDP header
-        aPUDPHdr := PUDPHdr(aData + aSizeEthIP);
+        aPUDPHdr := PUDPHdr(aData + LSizeEthIP);
         Result   := True;
       end;      
   end;

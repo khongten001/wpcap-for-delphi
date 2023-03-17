@@ -236,7 +236,6 @@ begin
    aIdProtoDetected := IDDetectProto;   
 end;
 
-
 class function TWPcapProtocolBaseTCP.GetTCPPayLoad(const AData: PByte; aSize: word): PByte;
 var LTCPHeader : PTCPhdr;
     DataOffset : word;   
@@ -252,22 +251,38 @@ begin
 end;
 
 class function TWPcapProtocolBaseTCP.HeaderTCP(const aData: PByte; aSize: Integer; var aPTCPHdr: PTCPHdr): Boolean;
-var aSizeEthAndIP: Word;
+var LSizeEthAndIP : Word;
+    LHeaderV4     : PTIPHeader;
+    LNewPacketLen : Integer;
+    LNewPacketData: PByte;
 begin
   Result        := False;
-  aSizeEthAndIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
+  LSizeEthAndIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
   // Check if the data size is sufficient for the Ethernet, IP, and TCP headers
-  if (aSize < aSizeEthAndIP + SizeOf(TCPHdr)) then Exit;
+  if (aSize < LSizeEthAndIP + SizeOf(TCPHdr)) then Exit;
   
     // Parse the Ethernet header
   case TWpcapIPHeader.IpClassType(aData,aSize) of
     imtIpv4 : 
       begin
+        LHeaderV4 := TWpcapIPHeader.HeaderIPv4(aData,aSize) ;
+        if LHeaderV4.Protocol = IPPROTO_IPV6 then
+        begin
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,LNewPacketLen);
+          Try
+            Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
+            Exit;
+          Finally
+            FreeMem(LNewPacketData);
+          End;
+        end;
+        
         // Parse the IPv4 header
-        if TWpcapIPHeader.HeaderIPv4(aData,aSize).Protocol <> IPPROTO_TCP then Exit;
+        if (LHeaderV4.Protocol <> IPPROTO_TCP) then exit;
 
         // Parse the UDP header
         aPTCPHdr := PTCPHdr(aData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize));
+
         Result   := True;     
       end;
    imtIpv6:

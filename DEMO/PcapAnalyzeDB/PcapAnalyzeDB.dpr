@@ -48,7 +48,8 @@ uses
   wpcap.Protocol.RTP in '..\..\Source\Protocols\wpcap.Protocol.RTP.pas',
   UnFormPlayerWave in 'UnFormPlayerWave.pas' {FormPlayerWave},
   wpcap.Protocol.TFTP in '..\..\Source\Protocols\wpcap.Protocol.TFTP.pas',
-  wpcap.Protocol.SIP in '..\..\Source\Protocols\wpcap.Protocol.SIP.pas';
+  wpcap.Protocol.SIP in '..\..\Source\Protocols\wpcap.Protocol.SIP.pas',
+  wpcap.Protocol.Telnet in '..\..\Source\Protocols\wpcap.Protocol.Telnet.pas';
 
 {$R *.res}
 

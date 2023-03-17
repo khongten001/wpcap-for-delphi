@@ -2,7 +2,9 @@
 
 interface
 
-uses wpcap.Protocol.Base,wpcap.Conts,wpcap.Types,System.SysUtils,Wpcap.protocol.TCP;
+uses
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,
+  Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils;
 
 type
 
@@ -29,6 +31,8 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
+    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;            
+    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override;
   end;
 
 
@@ -55,6 +59,33 @@ end;
 class function TWPcapProtocolPOP3.AcronymName: String;
 begin
   Result := 'POP3';
+end;
+
+class function TWPcapProtocolPOP3.IsValid(const aPacket: PByte;aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
+
+var LTCPPtr: PTCPHdr;
+begin
+  Result := False;    
+  if not HeaderTCP(aPacket,aPacketSize,LTCPPtr) then exit;   
+  if not PayLoadLengthIsValid(LTCPPtr,aPacket,aPacketSize) then  Exit;
+
+  Result := IsValidByDefaultPort(DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected)
+  
+end;
+
+class function TWPcapProtocolPOP3.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+var LTCPPayLoad        : PByte;
+    LTCPPHdr           : PTCPHdr;
+begin
+  Result := False;
+
+  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
+
+  LTCPPayLoad := GetTCPPayLoad(aPacketData,aPacketSize);
+
+  AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+
+  Result := True;
 end;
 
 

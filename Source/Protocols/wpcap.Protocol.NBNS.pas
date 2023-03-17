@@ -106,27 +106,12 @@ var LAcronymNameTmp     : String;
   //  aIPClass            : TIpClaseType;  
 begin
   Result  := inherited IsValid(aPacket,aPacketSize,LAcronymNameTmp,LIdProtoDetectedTmp);  
-{  aIPClass:= IpClassType(aPacket,aPacketSize); 
-  if result then
-  begin
-    if aIPClass = imtIpv6 then
-    begin
-      aHederIPv6 := TWpcapIPHeader.HeaderIPv6(aPacket,aPacketSize);
-      Result     := IsLLMNRIPv6Address(aHederIPv6.DestinationAddress);
-    end;
-  end
-  else if aIPClass = imtIpv6 then
-  begin
-    aHederIPv6 := TWpcapIPHeader.HeaderIPv6(aPacket,aPacketSize);
-    Result     := IsLLMNRIPv6Address(aHederIPv6.DestinationAddress);  
-  end; }
         
   if result then
   begin
     aAcronymName     := LAcronymNameTmp;
     aIdProtoDetected := LIdProtoDetectedTmp;
-  end;  
-  
+  end;    
 end;
 
 class function TWPcapProtocolNBNS.QuestionClassToStr(aType: Word): string;

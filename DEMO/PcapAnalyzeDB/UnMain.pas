@@ -348,7 +348,7 @@ end;
 
 procedure TFormMain.BLoadPCAPClick(Sender: TObject);
 begin
-  OpenDialog1.Filter := 'Pcap file|*.pcap;*.raw;*.pcapng|All files|*.*';
+  OpenDialog1.Filter := 'Pcap file|*.pcap;*.raw;*.pcapng;*.cap|All files|*.*';
   if OpenDialog1.Execute then
   begin
     pProgressImport.Visible := True;

@@ -428,9 +428,7 @@ begin
       Move(aPacketData^, PacketBuffer[0], LPacketLen);
       
       if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
-      begin
         SetLength(PacketBuffer,LPacketLen);
-      end;
       aNewHeader.len   := LPacketLen ;
       LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil);
       

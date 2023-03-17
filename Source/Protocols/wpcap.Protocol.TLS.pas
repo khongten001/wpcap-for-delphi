@@ -330,7 +330,7 @@ begin
 
     AListDetail.Add(AddHeaderInfo(1, 'Content type', ContentTypeToString(LRecord.ContentType), @LRecord.ContentType, SizeOf(LRecord.ContentType)));
     AListDetail.Add(AddHeaderInfo(1, 'Protocol version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion)));
-    AListDetail.Add(AddHeaderInfo(1, 'Content length', IntToStr(wpcapntohs(LRecord.Length)), @LRecord.Length, SizeOf(LRecord.Length) ));    
+    AListDetail.Add(AddHeaderInfo(1, 'Content length', wpcapntohs(LRecord.Length), @LRecord.Length, SizeOf(LRecord.Length) ));    
 
     if aPacketSize >= LOffset + SizeOf(TLSHandshake) then
 
@@ -353,7 +353,7 @@ begin
             Inc(LOffset, SizeOf(TLSHandshake));
             AListDetail.Add(AddHeaderInfo(1,'Handshake',null,PByte(LHandshake),SizeOf(TLSHandshake)));
             AListDetail.Add(AddHeaderInfo(2, 'Handshake type', ContentTypeToString(LHandshake.HandshakeType), @LHandshake.HandshakeType, SizeOf(LHandshake.HandshakeType)));
-            AListDetail.Add(AddHeaderInfo(2, 'Length', IntToStr(wpcapntohs(LHandshake.Length)), @LHandshake.Length, SizeOf(LHandshake.Length)));
+            AListDetail.Add(AddHeaderInfo(2, 'Length', wpcapntohs(LHandshake.Length), @LHandshake.Length, SizeOf(LHandshake.Length)));
             case LHandshake.HandshakeType of
               TLS_HANDSHAKE_TYPE_CLIENT_HELLO :
               begin
