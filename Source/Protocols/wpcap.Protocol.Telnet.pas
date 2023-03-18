@@ -4,23 +4,16 @@ interface
 
 uses
   wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.StrUtils,
-  Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils;
+  Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils,System.Math;
 
 type
 
-{
-RFC 854: Telnet Protocol Specification - https://tools.ietf.org/html/rfc854
-RFC 855: Telnet Option Specifications - https://tools.ietf.org/html/rfc855
-RFC 1184: Telnet Linemode Option - https://tools.ietf.org/html/rfc1184
-RFC 1372: Telnet Remote Flow Control Option - https://tools.ietf.org/html/rfc1372
-}
-
-
-  TTelnetHeader = record
-    OpCode             : Byte; // Codice operazione Telnet (ad es. IAC, WILL, WONT, DO, DONT)
-    Option             : Byte; // Codice opzione Telnet (ad es. ECHO, SUPPRESS-GO-AHEAD, LINEMODE, REMOTE-FLOW-CONTROL)
-    Data: array of Byte;       // Dati associati all'operazione Telnet
-  end;
+  {
+  RFC 854: Telnet Protocol Specification - https://tools.ietf.org/html/rfc854
+  RFC 855: Telnet Option Specifications - https://tools.ietf.org/html/rfc855
+  RFC 1184: Telnet Linemode Option - https://tools.ietf.org/html/rfc1184
+  RFC 1372: Telnet Remote Flow Control Option - https://tools.ietf.org/html/rfc1372
+  }
 
   
   /// <summary>
@@ -37,7 +30,6 @@ RFC 1372: Telnet Remote Flow Control Option - https://tools.ietf.org/html/rfc137
           TELNET_CMD_SDS           = 67;
           TELNET_CMD_SIM           = 69;
           TELNET_CMD_SAK           = 70;       
-
           TELNET_CMD_EOF           = 236;          
           TELNET_CMD_SUSP          = 237;
           TELNET_CMD_ABORT         = 238;   
@@ -57,7 +49,6 @@ RFC 1372: Telnet Remote Flow Control Option - https://tools.ietf.org/html/rfc137
           TELNET_CMD_WONT          = 252;
           TELNET_CMD_DO            = 253;  
           TELNET_CMD_DONT          = 254;                
-
           
           {Options}
           TELNET_OPT_BINARY        = 0;
@@ -370,8 +361,8 @@ begin
       end;
     end;
       
-    LIsCommand     := (LCommand >= TELNET_CMD_SE) and (LCommand <= TELNET_CMD_DONT);
-    LIsOption      := (LCommand >= TELNET_OPT_BINARY) and (LCommand <= TELNET_OPT_CHARSET);
+    LIsCommand     := InRange(LCommand,TELNET_CMD_SE,TELNET_CMD_DONT);
+    LIsOption      := InRange(LCommand,TELNET_OPT_BINARY,TELNET_OPT_CHARSET);
     LIsSubCommand  := (LCommand = TELNET_CMD_SB);
   
     if LIsCommand then

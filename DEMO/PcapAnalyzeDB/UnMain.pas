@@ -369,16 +369,16 @@ begin
   begin
     LListPacket := TList<PTPacketToDump>.Create;
     Try
-      for I := 0 to GridPcapDBTableView1.DataController.RecordCount -1 do
+      for I := 0 to GridPcapDBTableView1.ViewData.RecordCount -1 do
       begin
           
-        LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.DataController.Values[I,GridPcapDBTableView1NPACKET.Index],LPcketSize);
+        LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.ViewData.Rows[I].Values[GridPcapDBTableView1NPACKET.Index],LPcketSize);
         if Assigned(LPacket) then
         begin
           New(LPacketToDump);
           LPacketToDump.PacketLen := LPcketSize;
           LPacketToDump.packet    := LPacket;
-          LPacketToDump.tv_sec    := DateTimeToUnix(StrToDateTime(GridPcapDBTableView1.DataController.Values[I,GridPcapDBTableView1PACKET_DATE.Index]),False);            
+          LPacketToDump.tv_sec    := DateTimeToUnix(StrToDateTime(GridPcapDBTableView1.ViewData.Rows[I].Values[GridPcapDBTableView1PACKET_DATE.Index]),False);            
           LListPacket.Add(LPacketToDump);        
         end;
       end;
@@ -515,7 +515,6 @@ end;
 
 procedure TFormMain.BMapClick(Sender: TObject);
 
-
   Procedure AddCoordinate(IndexLat,IndexLong:byte);
   var aCoordinate : PTMapCoordinate;
   begin
@@ -554,8 +553,7 @@ end;
 procedure TFormMain.cxButton1Click(Sender: TObject);
 begin
   if Assigned(FPcapImport) then
-    FPcapImport.Abort := True;
-  
+    FPcapImport.Abort := True;  
 end;
 
 procedure TFormMain.BFlowClick(Sender: TObject);
@@ -622,7 +620,6 @@ begin
   else
     RaiseLastOSError;
 end;
-
 
 procedure TFormMain.BRTPCallClick(Sender: TObject);
 var LSoxCommand : String;

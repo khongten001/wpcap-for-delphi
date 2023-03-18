@@ -161,6 +161,29 @@ type
   /// </summary>
   TWPcapProtocolTLS = Class(TWPcapProtocolBaseTCP)
   private
+
+    {TLS}
+    CONST
+    TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC    = $14;
+    TLS_CONTENT_TYPE_ALERT                 = $15;
+    TLS_CONTENT_TYPE_HANDSHAKE             = $16;
+    TLS_HANDSHAKE_TYPE_HELLO_REQUEST       = $00;
+    TLS_HANDSHAKE_TYPE_CLIENT_HELLO        = $01;
+    TLS_HANDSHAKE_TYPE_SERVER_HELLO        = $02;
+    TLS_HANDSHAKE_TYPE_CERTIFICATE         = $0B;
+    TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE = $0C;
+    TLS_HANDSHAKE_TYPE_CERTIFICATE_REQUEST = $0D;
+    TLS_HANDSHAKE_TYPE_SERVER_HELLO_DONE   = $0E;
+    TLS_HANDSHAKE_TYPE_CERTIFICATE_VERIFY  = $0F;
+    TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE = $10;
+    TLS_HANDSHAKE_TYPE_FINISHED            = $14;
+    TLS_CONTENT_TYPE_APPLICATION_DATA      = $17;
+  
+    TLS_VERSION_1_0                        = $103;
+    TLS_VERSION_1_1                        = $0302;
+    TLS_VERSION_1_2                        = $0303;
+    TLS_VERSION_1_3                        = $0304;
+  
     class function ContentTypeToString(aContentType: Byte): string; static;
     class function TLSVersionToString(aVersion: Word): string; static;
     class function Header(const aUDPPayLoad: PByte): PTTLSRecordHeader; static;
@@ -308,7 +331,7 @@ var LOffset                 : Integer;
     LTCPPayLoad             : PByte;
 begin
   Result  := False;
-  LOffset := 0;
+
 
   if aPacketSize < SizeOf(TTLSRecordHeader) then Exit;
   if not HeaderTCP(aPacketData,aPacketSize,LTCPHdr) then exit;
@@ -325,7 +348,7 @@ begin
   begin
 
 
-    LRecord := PTTLSRecordHeader(PByte(LTCPPayLoad) + LOffset);
+    LRecord := PTTLSRecordHeader(LTCPPayLoad + LOffset);
     Inc(LOffset, SizeOf(TTLSRecordHeader));
 
     AListDetail.Add(AddHeaderInfo(1, 'Content type', ContentTypeToString(LRecord.ContentType), @LRecord.ContentType, SizeOf(LRecord.ContentType)));

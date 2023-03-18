@@ -124,8 +124,6 @@ begin
     rtAuthority  : inherited;
     rtAdditional : 
       begin
-        Lz          := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
-        LWordValue  := ( Lz  and $7FFF);
         AListDetail.Add(AddHeaderInfo(3, 'Higher bits in extended RCODE:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 2));              
         inc(aInternalOffset,1);
         AListDetail.Add(AddHeaderInfo(3, 'EDNS0 version:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 1));              
@@ -141,8 +139,7 @@ begin
 end;
 
 class procedure TWPcapProtocolMDNS.ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);
-var aClass  : TBytes;
-    LQClass : Word;
+var   LQClass : Word;
 begin
   case aRRsType of
     rtAnswer     : inherited; 

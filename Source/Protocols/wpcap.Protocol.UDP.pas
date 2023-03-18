@@ -169,10 +169,11 @@ begin
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderUDP(const aData: PByte; aSize: Integer; var aPUDPHdr: PUDPHdr): Boolean;
-var LSizeEthIP    :Word;
+var LSizeEthIP    : Word;
     LHeaderV4     : PTIPHeader;
     LNewPacketLen : Integer;
     LNewPacketData: PByte;
+    LHeaderV6     : PIpv6Header;  
 begin
   Result     := False;
   LSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
@@ -185,10 +186,11 @@ begin
     imtIpv4 : 
       begin
         // Parse the IPv4 header
-        LHeaderV4 := TWpcapIPHeader.HeaderIPv4(aData,aSize) ;
+        LHeaderV4 := TWpcapIPHeader.HeaderIPv4(aData,aSize);
+        if not Assigned(LHeaderV4) then Exit;        
         if LHeaderV4.Protocol = IPPROTO_IPV6 then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,ETH_P_IPV6,0,LNewPacketLen);
           Try
             Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
             Exit;
@@ -205,10 +207,23 @@ begin
       end;
    imtIpv6:
       begin
+        LHeaderV6 := TWpcapIPHeader.HeaderIPv6(aData,aSize);
 
-        if TWpcapIPHeader.HeaderIPv6(aData,aSize).NextHeader <> IPPROTO_UDP then Exit;
+        if LHeaderV6.NextHeader = IPPROTO_IP then
+        begin
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,IPPROTO_IP,0,LNewPacketLen);
+          Try
+            Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
+            Exit;
+          Finally
+            FreeMem(LNewPacketData);
+          End;
+        end;        
+        if LHeaderV6.NextHeader <> IPPROTO_UDP then Exit;
         // Parse the UDP header
         aPUDPHdr := PUDPHdr(aData + LSizeEthIP);
+
+        
         Result   := True;
       end;      
   end;

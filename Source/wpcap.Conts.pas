@@ -260,39 +260,7 @@ const
   TYPE_DNS_QUESTION_TA		     	= 32768;
   TYPE_DNS_QUESTION_DLV		     	= 32769; 
 
-  {L2TP FLAG}
-  L2TP_HDR_FLAG_OFFSET_SIZE_INCLUDED = $1000; // Indicates whether the Offset Size field is present in the L2TP header
-  L2TP_HDR_FLAG_SEQUENCE             = $2000; // Indicates whether the Sequence Number field is present in the L2TP header
-  L2TP_HDR_FLAG_PRIORITY             = $4000; // Indicates whether the Priority field is present in the L2TP header
-  L2TP_HDR_FLAG_LENGTH_INCLUDED      = $8000; // Indicates whether the Length field is present in the L2TP header
-  L2TP_HDR_FLAG_D_BIT                = $0800; // Delivery Notification Request bit
-  L2TP_HDR_FLAG_S_BIT                = $0400; // Strict-Source bit
-  L2TP_HDR_FLAG_L_BIT                = $0200; // Length-Change bit
-  L2TP_HDR_FLAG_T_BIT                = $0100; // TTL-Present bit
-  L2TP_HDR_FLAG_F_BIT                = $0080; // Firmware-Version bit
-  L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
 
-  {TLS}
-
-  TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC    = $14;
-  TLS_CONTENT_TYPE_ALERT                 = $15;
-  TLS_CONTENT_TYPE_HANDSHAKE             = $16;
-  TLS_HANDSHAKE_TYPE_HELLO_REQUEST       = $00;
-  TLS_HANDSHAKE_TYPE_CLIENT_HELLO        = $01;
-  TLS_HANDSHAKE_TYPE_SERVER_HELLO        = $02;
-  TLS_HANDSHAKE_TYPE_CERTIFICATE         = $0B;
-  TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE = $0C;
-  TLS_HANDSHAKE_TYPE_CERTIFICATE_REQUEST = $0D;
-  TLS_HANDSHAKE_TYPE_SERVER_HELLO_DONE   = $0E;
-  TLS_HANDSHAKE_TYPE_CERTIFICATE_VERIFY  = $0F;
-  TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE = $10;
-  TLS_HANDSHAKE_TYPE_FINISHED            = $14;
-  TLS_CONTENT_TYPE_APPLICATION_DATA      = $17;
-  
-  TLS_VERSION_1_0                        = $103;
-  TLS_VERSION_1_1                        = $0302;
-  TLS_VERSION_1_2                        = $0303;
-  TLS_VERSION_1_3                        = $0304;
 
 
 

@@ -55,7 +55,7 @@ type
 
   protected
     class function GetDataOFFSetBytes(const aDataOFFset: Byte): integer; 
-    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;
+    
   protected
     /// <summary>
     /// Checks whether the length of the payload is valid for the protocol.
@@ -63,6 +63,7 @@ type
     /// </summary>
     class function PayLoadLengthIsValid(const aTCPPtr: PTCPHdr;const aPacketData:PByte;aPacketSize:Word): Boolean; virtual;    
   public
+    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;  
     class function AcronymName: String; override;
     class function DefaultPort: Word; override;
     class function HeaderLength(aFlag:Byte): word; override;
@@ -255,6 +256,7 @@ var LSizeEthAndIP : Word;
     LHeaderV4     : PTIPHeader;
     LNewPacketLen : Integer;
     LNewPacketData: PByte;
+    LHeaderV6     : PIpv6Header;      
 begin
   Result        := False;
   LSizeEthAndIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
@@ -265,10 +267,11 @@ begin
   case TWpcapIPHeader.IpClassType(aData,aSize) of
     imtIpv4 : 
       begin
-        LHeaderV4 := TWpcapIPHeader.HeaderIPv4(aData,aSize) ;
+        LHeaderV4 := TWpcapIPHeader.HeaderIPv4(aData,aSize);
+        if not Assigned(LHeaderV4) then Exit;        
         if LHeaderV4.Protocol = IPPROTO_IPV6 then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,IPPROTO_IPV6,0,LNewPacketLen);
           Try
             Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
             Exit;
@@ -287,7 +290,20 @@ begin
       end;
    imtIpv6:
       begin
-        if TWpcapIPHeader.HeaderIPv6(aData,aSize).NextHeader <> IPPROTO_TCP then Exit;
+        LHeaderV6 := TWpcapIPHeader.HeaderIPv6(aData,aSize);
+
+        if LHeaderV6.NextHeader = IPPROTO_IP then
+        begin
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,IPPROTO_IP,0,LNewPacketLen);
+          Try
+            Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
+            Exit;
+          Finally
+            FreeMem(LNewPacketData);
+          End;
+        end;        
+        if LHeaderV6.NextHeader <> IPPROTO_TCP then Exit;      
+
         // Parse the TCP header
         aPTCPHdr := PTCPHdr(aData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize));
         Result   := True;

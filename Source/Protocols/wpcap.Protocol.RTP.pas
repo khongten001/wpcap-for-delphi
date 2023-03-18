@@ -232,8 +232,11 @@ begin
       begin
 
         aSize  := UDPPayLoadLength(LPUDPHdr)- HeaderLength(0) - (LInternalHeader.CountCSRC*SizeOf(cardinal))-8;
-        Result := AllocMem(aSize);
-        Move(LUDPPayLoad[HeaderLength(0) + (LInternalHeader.CountCSRC * SizeOf(Cardinal))], Result^, ASize);
+        if aSize > 0 then
+        begin
+          Result := AllocMem(aSize);
+          Move(LUDPPayLoad[HeaderLength(0) + (LInternalHeader.CountCSRC * SizeOf(Cardinal))], Result^, ASize);
+        end;
 
       end
       else

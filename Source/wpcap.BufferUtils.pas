@@ -57,8 +57,8 @@ function IntToBin(Value: integer; Digits: integer): string;
 /// <param name="aPacketLen">Length of the packet data buffer in bytes.</param>
 /// <returns>The actual length of the packet in bytes.</returns>
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
-
-
+function BinToInt(BinStr : string) : Int64;
+ function BinToDec(Str: string): Integer;
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
 function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
@@ -66,6 +66,37 @@ function HexToBytes(const hex: string): TBytes;
 
 
 implementation
+
+function BinToDec(Str: string): Integer;
+function Pow(i, k: Integer): Integer;
+var
+  j, Count: Integer;
+begin
+  if k>0 then j:=2
+    else j:=1;
+  for Count:=1 to k-1 do
+    j:=j*2;
+  Result:=j;
+end;
+var
+  Len, Res, i: Integer;
+  Error: Boolean;
+begin
+  Error:=False;
+  Len:=Length(Str);
+  Res:=0;
+  for i:=1 to Len do
+    if (Str[i]='0')or(Str[i]='1') then
+      Res:=Res+Pow(2, Len-i)*StrToInt(Str[i])
+    else
+    begin
+    //  MessageDlg('It is not a binary number', mtInformation, [mbOK], 0);
+      Error:=True;
+      Break;
+    end;
+  if Error=True then Result:=0
+    else Result:=Res;
+end;
 
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
 var LIdx            : Integer;
@@ -142,6 +173,24 @@ begin
     raise Exception.CreateFmt('GetBitValue out of range [%d]',[aIndexBit]);
 
   result := (AByteValue shr (8 - AIndexBit) ) and $01;     
+end;
+
+function BinToInt(BinStr : string) : Int64;
+var i : byte;
+    RetVar : Int64;
+begin
+   BinStr := UpperCase(BinStr);
+   if BinStr[length(BinStr)] = 'B' then Delete(BinStr,length(BinStr),1);
+   RetVar := 0;
+   for i := 1 to length(BinStr) do begin
+     if not (BinStr[i] in ['0','1']) then begin
+        RetVar := 0;
+        Break;
+     end;
+     RetVar := (RetVar shl 1) + (byte(BinStr[i]) and 1) ;
+   end;
+   
+   Result := RetVar;
 end;
 
 function IntToBin(Value: integer; Digits: integer): string;

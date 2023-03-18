@@ -61,6 +61,19 @@ type
   /// </summary>
   TWPcapProtocolL2TP = Class(TWPcapProtocolBaseUDP)
   private
+    CONST
+    {L2TP FLAG}
+    L2TP_HDR_FLAG_OFFSET_SIZE_INCLUDED = $1000; // Indicates whether the Offset Size field is present in the L2TP header
+    L2TP_HDR_FLAG_SEQUENCE             = $2000; // Indicates whether the Sequence Number field is present in the L2TP header
+    L2TP_HDR_FLAG_PRIORITY             = $4000; // Indicates whether the Priority field is present in the L2TP header
+    L2TP_HDR_FLAG_LENGTH_INCLUDED      = $8000; // Indicates whether the Length field is present in the L2TP header
+    L2TP_HDR_FLAG_D_BIT                = $0800; // Delivery Notification Request bit
+    L2TP_HDR_FLAG_S_BIT                = $0400; // Strict-Source bit
+    L2TP_HDR_FLAG_L_BIT                = $0200; // Length-Change bit
+    L2TP_HDR_FLAG_T_BIT                = $0100; // TTL-Present bit
+    L2TP_HDR_FLAG_F_BIT                = $0080; // Firmware-Version bit
+    L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
+      
     class function GetL2TPFlag(aFlags: Word;AListDetail: TListHeaderString): string; static;
     class function ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aVendorID: TListVendorId): string; static;
     class function L2TPAVPTypeToString(AVPType: Word): string; static;

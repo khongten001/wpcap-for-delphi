@@ -2,8 +2,8 @@ object FormMain: TFormMain
   Left = 0
   Top = 0
   Caption = 'PCAP Analisys'
-  ClientHeight = 774
-  ClientWidth = 1397
+  ClientHeight = 788
+  ClientWidth = 1460
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,12 +19,14 @@ object FormMain: TFormMain
   object GridPcap: TcxGrid
     Left = 0
     Top = 65
-    Width = 852
-    Height = 672
+    Width = 915
+    Height = 686
     Align = alClient
     TabOrder = 0
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
+    ExplicitWidth = 852
+    ExplicitHeight = 672
     object GridPcapDBTableView1: TcxGridDBTableView
       PopupMenu = PopupGrid
       Navigator.Buttons.CustomButtons = <>
@@ -182,12 +184,14 @@ object FormMain: TFormMain
     end
   end
   object cxSplitter1: TcxSplitter
-    Left = 852
+    Left = 915
     Top = 65
     Width = 10
-    Height = 672
+    Height = 686
     AlignSplitter = salRight
     Control = PHexMemo
+    ExplicitLeft = 852
+    ExplicitHeight = 672
   end
   object cxGroupBox1: TcxGroupBox
     Left = 0
@@ -195,8 +199,9 @@ object FormMain: TFormMain
     Align = alTop
     PanelStyle.Active = True
     TabOrder = 2
+    ExplicitWidth = 1397
     Height = 43
-    Width = 1397
+    Width = 1460
     object cxLabel1: TcxLabel
       AlignWithMargins = True
       Left = 7
@@ -218,20 +223,23 @@ object FormMain: TFormMain
       ShowHint = True
       TabOrder = 1
       OnKeyPress = EFilterKeyPress
-      Width = 1263
+      ExplicitWidth = 1263
+      Width = 1326
     end
   end
   object PHexMemo: TcxGroupBox
-    Left = 862
+    Left = 925
     Top = 65
     Align = alRight
     PanelStyle.Active = True
-    TabOrder = 4
-    Height = 672
+    TabOrder = 3
+    ExplicitLeft = 862
+    ExplicitHeight = 672
+    Height = 686
     Width = 535
     object MemoHex: TcxMemo
       Left = 4
-      Top = 418
+      Top = 432
       Align = alBottom
       Lines.Strings = (
         '')
@@ -240,6 +248,7 @@ object FormMain: TFormMain
       Properties.ScrollBars = ssBoth
       ShowHint = True
       TabOrder = 0
+      ExplicitTop = 418
       Height = 250
       Width = 527
     end
@@ -253,17 +262,18 @@ object FormMain: TFormMain
     end
     object cxSplitter2: TcxSplitter
       Left = 4
-      Top = 408
+      Top = 422
       Width = 527
       Height = 10
       AlignSplitter = salBottom
       Control = MemoHex
+      ExplicitTop = 408
     end
     object ListPacketDetail: TcxTreeList
       Left = 4
       Top = 26
       Width = 527
-      Height = 382
+      Height = 396
       Align = alClient
       Bands = <
         item
@@ -282,6 +292,7 @@ object FormMain: TFormMain
       OptionsView.Indicator = True
       ScrollbarAnnotations.CustomAnnotations = <>
       TabOrder = 3
+      ExplicitHeight = 382
       object ListPacketDetailColumn1: TcxTreeListColumn
         Width = 290
         Position.ColIndex = 0
@@ -310,23 +321,26 @@ object FormMain: TFormMain
   end
   object pProgressImport: TcxGroupBox
     Left = 0
-    Top = 737
+    Top = 751
     Align = alBottom
     PanelStyle.Active = True
     TabOrder = 8
     Visible = False
+    ExplicitTop = 737
+    ExplicitWidth = 1397
     Height = 37
-    Width = 1397
+    Width = 1460
     object cxProgressBar1: TcxProgressBar
       AlignWithMargins = True
       Left = 7
       Top = 7
       Align = alClient
       TabOrder = 0
-      Width = 1308
+      ExplicitWidth = 1308
+      Width = 1371
     end
     object cxButton1: TcxButton
-      Left = 1318
+      Left = 1381
       Top = 4
       Width = 75
       Height = 29
@@ -334,6 +348,7 @@ object FormMain: TFormMain
       Caption = 'Cancel'
       TabOrder = 1
       OnClick = cxButton1Click
+      ExplicitLeft = 1318
     end
   end
   object OpenDialog1: TOpenDialog

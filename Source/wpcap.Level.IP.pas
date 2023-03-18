@@ -243,7 +243,7 @@ type
     ///   Returns the size of the IP header in bytes based on whether the provided packet data represents an IPv4 or IPv6 packet.
     /// </summary>
     /// <returns>The size of the IP header in bytes.</returns>
-    class function HeaderIPSize(const aPacketData: PByte; aPacketSize: Integer;SwitchIpV6:Boolean): Word; static;
+    class function HeaderIPSize(const aPacketData: PByte; aPacketSize: Integer): Word; static;
 
     /// <summary>
     ///   Returns the size of the IP header and Eth Header in bytes based on whether the provided packet data represents an IPv4 or IPv6 packet.
@@ -268,7 +268,7 @@ type
     ///  <param name="aIANADictionary">A dictionary containing IANA protocol information</param>
     ///  <param name="aInternalIP">A pointer to the InternalIP record to be filled with the analysis result</param>
     ///  <returns>True if the IP header analysis is successful, False otherwise</returns>
-    class function InternalIP(const aPacketData: PByte; aPacketSize: Integer; aIANADictionary: TDictionary<String, TIANARow>; aInternalIP: PTInternalIP;Ipv6Switch:Boolean=True): Boolean;static;
+    class function InternalIP(const aPacketData: PByte; aPacketSize: Integer; aIANADictionary: TDictionary<String, TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel:Boolean=True): Boolean;static;
 
     /// <summary>
     /// This function takes a 16-bit IPv6 protocol number and returns its name as a string. 
@@ -287,7 +287,7 @@ type
     /// The well-known protocols include ICMP, TCP, UDP, and more.
     /// </summary>
     class function GetIPv4ProtocolName(aProtocol: Word): string;static;
-    class function GetNextBufferHeader(const aPacketData: PByte; aPacketSize,aHeaderPrevLen: Integer; var aNewPacketLen: Integer): PByte; static;    
+    class function GetNextBufferHeader(const aPacketData: PByte; aPacketSize,aHeaderPrevLen,aNewIpProto: Integer; var aNewPacketLen: Integer): PByte; static;    
   end;
 
 implementation
@@ -386,7 +386,7 @@ begin
   Result := PIPv6Header(aPacketData + HeaderEthSize);
 end;
 
-class function TWpcapIPHeader.HeaderIPSize(const aPacketData: PByte;aPacketSize: Integer;SwitchIpV6:Boolean): Word;
+class function TWpcapIPHeader.HeaderIPSize(const aPacketData: PByte;aPacketSize: Integer): Word;
 var LCurrentPos      : Integer;
     LHeaderV6        : PIpv6Header;  
     LIpProto         : word; 
@@ -394,6 +394,7 @@ var LCurrentPos      : Integer;
     LNewPacketLen    : Integer;
     LNewPacketData   : PByte;
 begin
+  Result := 0;
   if IpClassType(aPacketData,aPacketSize) = imtIpv6 then
   begin
 
@@ -402,42 +403,51 @@ begin
     LHeaderV6   := HeaderIPv6(aPacketData,aPacketSize);
     LIpProto    := LHeaderV6.NextHeader;
     ExtentionHeader(aPacketData,LCurrentPos,LIpProto,nil);
+
+    if (LIpProto = IPPROTO_IP)  then
+    begin
+      LNewPacketData  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IP,Result,LNewPacketLen);
+      Try
+        Inc(Result,HeaderIPSize(LNewPacketData, LNewPacketLen));
+      Finally
+        FreeMem(LNewPacketData);
+      End;              
+      Exit;
+    end;
     if LCurrentPos > HeaderEthSize + SizeOf(TIPv6Header) then
       Result:= LCurrentPos - HeaderEthSize;
   end
   else
   begin
     LHeaderV4 := HeaderIPv4(aPacketData,aPacketSize);
-    Result    := HeaderLenConvert(LHeaderV4.VerLen);
-
-    if SwitchIpV6 then
-    begin
-      if LHeaderV4.Protocol = IPPROTO_IPV6 then
-      begin
-        LNewPacketData := GetNextBufferHeader(aPacketData,aPacketSize,Result,LNewPacketLen);
-        Try
-          Inc(Result,HeaderIPSize(LNewPacketData, LNewPacketLen,False));
-        Finally
-          FreeMem(LNewPacketData);
-        End;
-      end;
-    end;
+    if not Assigned(LHeaderV4) then Exit;
     
+    Result  := HeaderLenConvert(LHeaderV4.VerLen);
+
+    if LHeaderV4.Protocol = IPPROTO_IPV6 then
+    begin
+      LNewPacketData := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IPV6,Result,LNewPacketLen);
+      Try
+        Inc(Result,HeaderIPSize(LNewPacketData, LNewPacketLen));
+      Finally
+        FreeMem(LNewPacketData);
+      End;
+    end;    
   end;
 end;
 
 
-class Function TWpcapIPHeader.GetNextBufferHeader(const aPacketData: PByte;aPacketSize,aHeaderPrevLen: Integer;var aNewPacketLen: Integer):PByte;
+class Function TWpcapIPHeader.GetNextBufferHeader(const aPacketData: PByte;aPacketSize,aHeaderPrevLen,aNewIpProto: Integer;var aNewPacketLen: Integer):PByte;
 var lHeaderEthLen    : Integer;
 begin
   if aHeaderPrevLen = 0 then
-      aHeaderPrevLen := HeaderIPSize(aPacketData,aPacketSize,False);
+      aHeaderPrevLen := HeaderIPSize(aPacketData,aPacketSize);
       
   lHeaderEthLen  := HeaderEthSize;
   aNewPacketLen  := aPacketSize -aHeaderPrevLen; 
   GetMem(Result,aNewPacketLen);
   Move(aPacketData^,Result^,lHeaderEthLen);
-  PETHHdr(Result)^.EtherType := ntohs(ETH_P_IPV6);
+  PETHHdr(Result)^.EtherType := ntohs(aNewIpProto);
   Move(PByte(aPacketData + lHeaderEthLen + aHeaderPrevLen)^,Pbyte(Result + lHeaderEthLen)^, aNewPacketLen- lHeaderEthLen);
 end;
 
@@ -472,16 +482,16 @@ begin
       AListDetail := TListHeaderString.Create;
 
     LHeaderV4 := HeaderIPv4(aPacketData,aPacketSize);
-    
+    if not Assigned(LHeaderV4) then Exit;    
     if LInternalIP.IsIpv6 then
     begin
      
       Result                 := True;
       LHeaderV6              := HeaderIPv6(aPacketData,aPacketSize);
 
-      AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 6, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize,False))); 
+      AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 6, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize))); 
 
-      AListDetail.Add(AddHeaderInfo(2,'Header length:',HeaderIPSize(aPacketData,aPacketSize,False),nil,0));  
+      AListDetail.Add(AddHeaderInfo(2,'Header length:',HeaderIPSize(aPacketData,aPacketSize),nil,0));  
       AListDetail.Add(AddHeaderInfo(1,'Version:',(LHeaderV6.Version shr 4) and $0F,PByte(@LHeaderV6.Version),SizeOf(LHeaderV6.Version))); 
 
 
@@ -519,7 +529,7 @@ begin
     else                                                                                
     begin
       Result  := True;
-      AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 4, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize,False)));       
+      AListDetail.Add(AddHeaderInfo(0,Format('Internet protocol version 4, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize)));       
       AListDetail.Add(AddHeaderInfo(1,'Version:',(LHeaderV4.VerLen shr 4) and $0F,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
       AListDetail.Add(AddHeaderInfo(1,'Header length:',HeaderLenConvert(LHeaderV4.VerLen),PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
       AListDetail.Add(AddHeaderInfo(1,'Differetiated services field:',LHeaderV4.TOS,PByte(@LHeaderV4.TOS),SizeOf(LHeaderV4.TOS)));       
@@ -546,17 +556,26 @@ begin
     if Result then
     begin
       case LInternalIP.IpProto of
-        IPPROTO_HOPOPTS, 
+ 
         IPPROTO_ICMP,
-     //   IPPROTO_ICMPV62,
         IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,AListDetail);
         IPPROTO_TCP     : TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,AListDetail);
         IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,AListDetail);
         IPPROTO_IGMP    :;
-        IPPROTO_GGP     :;    
+        IPPROTO_GGP     :;  
+        IPPROTO_IP      :
+          begin  
+            LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IP,0,LNewPacketSize);
+            Try
+              Result := HeaderToString(LNewPacket, LNewPacketSize,AListDetail);
+            Finally
+              FreeMem(LNewPacket);
+            End;           
+          end;
+          
         IPPROTO_IPV6    :
         begin
-          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,LNewPacketSize);
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IPV6,0,LNewPacketSize);
           Try
             Result := HeaderToString(LNewPacket, LNewPacketSize,AListDetail);
           Finally
@@ -693,7 +712,7 @@ begin
     TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
 end;
 
-class function TWpcapIPHeader.InternalIP(const aPacketData: PByte;aPacketSize: Integer;aIANADictionary:TDictionary<String,TIANARow>; aInternalIP: PTInternalIP;Ipv6Switch:Boolean=True): Boolean;
+class function TWpcapIPHeader.InternalIP(const aPacketData: PByte;aPacketSize: Integer;aIANADictionary:TDictionary<String,TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel:Boolean=True): Boolean;
 var LheaderIpV4    : PTIPHeader;
     LheaderIpV6    : PIpv6Header;
     LUdpPhdr       : PUDPHdr;
@@ -713,14 +732,16 @@ begin
   aInternalIP.DetectedIPProto:= 0;  
   aInternalIP.IANAProtoStr   := String.Empty;  
   LheaderIpV4                := HeaderIPv4(aPacketData,aPacketSize);
+
   case IpClassType(aPacketData,aPacketSize) of
     imtIpv4 : 
       begin
+        if not Assigned(LheaderIpV4) then Exit;        
         aInternalIP.IpProto  := LheaderIpV4.Protocol;
 
-        if (aInternalIP.IpProto = IPPROTO_IPV6) and Ipv6Switch then
+        if (aInternalIP.IpProto = IPPROTO_IPV6) and aFallowIpLevel then
         begin
-          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,LNewPacketSize);
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IPV6,0,LNewPacketSize);
           Try
             Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP);
           Finally
@@ -742,7 +763,20 @@ begin
         LheaderIpV6                 := HeaderIPv6(aPacketData,aPacketSize);
         aInternalIP.IpProto         := LheaderIpV6.NextHeader;
         LCurrentPos                 := HeaderEthSize + SizeOf(TIPv6Header);
-        ExtentionHeader(aPacketData,LCurrentPos, aInternalIP.IpProto,nil);            
+        ExtentionHeader(aPacketData,LCurrentPos, aInternalIP.IpProto,nil); 
+
+        if (aInternalIP.IpProto = IPPROTO_IP) and aFallowIpLevel then
+        begin
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IP,0,LNewPacketSize);
+          Try
+            Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP);
+          Finally
+            FreeMem(LNewPacket);
+          End;              
+          Exit;
+        end;
+
+                   
         aInternalIP.ProtoAcronym    := GetIPv6ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.IpPrototr       := GetIPv6ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.Src             := IPv6AddressToString(LheaderIpV6.SourceAddress);
@@ -754,10 +788,10 @@ begin
   end;
 
   case aInternalIP.IpProto of
-    IPPROTO_HOPOPTS, 
+
     IPPROTO_ICMP,
-//    IPPROTO_ICMPV62,
     IPPROTO_ICMPV6  : TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
+    
     IPPROTO_TCP     : 
       begin
         if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
@@ -885,7 +919,7 @@ end;
 
 class function TWpcapIPHeader.EthAndIPHeaderSize(const aPacketData: PByte; aPacketSize: Integer): Word;
 begin
-  Result := HeaderEthSize+HeaderIPSize(aPacketData,aPacketSize,False);
+  Result := HeaderEthSize+HeaderIPSize(aPacketData,aPacketSize);
 end;
 
 
