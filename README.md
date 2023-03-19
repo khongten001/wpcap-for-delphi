@@ -19,7 +19,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | DNS      | OK    | TODO   |
 | FTP      | TODO    | TODO   |
 | HTTP     | TODO | TODO|
-| ICMP     | PARTIAL | TODO |
+| ICMP     | OK | TODO |
 | L2TP     | PARTIAL | TODO |
 | LLMNR     | OK | TODO |
 | MDNS     | OK | TODO |
