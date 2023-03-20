@@ -26,6 +26,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | NBNS     | OK | TODO |
 | NTP     | OK | TODO |
 | POP3     | TODO | TODO |
+| QUIC     | PARTIAL | TODO |
 | RTP     | OK | TODO |
 | SIP     | TODO | TODO |
 | TELNET   | OK    | TODO   |
