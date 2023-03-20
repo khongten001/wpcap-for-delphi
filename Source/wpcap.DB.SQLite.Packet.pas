@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math,
+  wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math, wpcap.Conts,
   FireDAC.Comp.Client, System.Generics.Collections, wpcap.StrUtils,Vcl.Graphics,
   wpcap.Level.IP, wpcap.Types, FireDac.Stan.Param, wpcap.Level.Eth, wpcap.Packet,
   System.Classes, System.SysUtils, Data.Db,System.StrUtils,winApi.Winsock2,Wpcap.Protocol.RTP;
@@ -50,7 +50,7 @@ uses
     /// </summary>
     /// <param name="aNPacket">The number of packet to display (starting from 0)</param>
     /// <returns>A list of string containing the hexadecimal dump of the packet data</returns>
-    function GetListHexPacket(aNPacket: Integer;var aListDetail:TListHeaderString): TArray<String>;    
+    function GetListHexPacket(aNPacket,aStartLevel: Integer;var aListDetail:TListHeaderString): TArray<String>;    
 
     Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
     function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
@@ -208,8 +208,8 @@ begin
   {EThernet}
   FFDQueryTmp.ParamByName('pEthType').AsInteger     := aInternalPacket.Eth.EtherType;
   FFDQueryTmp.ParamByName('pEthAcr').AsString       := aInternalPacket.Eth.Acronym.Trim;
-  FFDQueryTmp.ParamByName('pMacSrc').AsString       := aInternalPacket.Eth.SrcAddr;
-  FFDQueryTmp.ParamByName('pMacDst').AsString       := aInternalPacket.Eth.DestAddr;
+  FFDQueryTmp.ParamByName('pMacSrc').AsString       := ifthen(aInternalPacket.Eth.SrcAddr=SRC_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.SrcAddr);
+  FFDQueryTmp.ParamByName('pMacDst').AsString       := ifthen(aInternalPacket.Eth.DestAddr=DST_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.DestAddr);
   FFDQueryTmp.ParamByName('pIsIPV6').AsInteger      := ifthen(aInternalPacket.IP.IsIPv6,1,0);  
   {IP Protocol} 
   FFDQueryTmp.ParamByName('pProtoDetect').AsInteger := aInternalPacket.IP.DetectedIPProto;  
@@ -279,7 +279,7 @@ begin
   Result      := nil;
   aPacketSize := 0;
   FFDGetDataByID.Close;
-  FFDGetDataByID.ParamByName('pNPACKET').AsInteger :=aNPacket; 
+  FFDGetDataByID.ParamByName('pNPACKET').AsInteger := aNPacket; 
   FFDGetDataByID.Open;
 
   if not FFDGetDataByID.IsEmpty then
@@ -291,6 +291,8 @@ begin
       GetMem(Result, aPacketSize);
       LStream.Seek(0, soBeginning);
       LStream.ReadBuffer(Result^, aPacketSize);
+
+      
     finally
       LStream.Free;
     end;    
@@ -298,12 +300,9 @@ begin
   FFDGetDataByID.Close;  
 end;
 
-Function TWPcapDBSqLitePacket.GetListHexPacket(aNPacket:Integer;var aListDetail:TListHeaderString):TArray<String>;
+Function TWPcapDBSqLitePacket.GetListHexPacket(aNPacket,aStartLevel:Integer;var aListDetail:TListHeaderString):TArray<String>;
 var LPacket           : PByte;
     LPacketSize       : Integer;
-    LInternalPacket   : PTInternalPacket;
-    aUDPProtoDetected : TWPcapProtocolBaseUDP;	
-    aTCPProtoDetected : TWPcapProtocolBaseTCP;	    
 begin
   SetLength(Result,0);
 
@@ -312,26 +311,8 @@ begin
     if Assigned(LPacket) then
     begin
       Result := DisplayHexData(LPacket,LPacketSize);
-      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aListDetail);
-      if TWpcapIPHeader.HeaderToString(LPacket,LPacketSize,aListDetail) then
-      begin
-        New(LInternalPacket);
-        Try
-          TWpcapEthHeader.InternalPacket(LPacket,LPacketSize,nil,LInternalPacket);
+      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aStartLevel,aListDetail);
 
-          aUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
-          if Assigned(aUDPProtoDetected) then
-            aUDPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
-          else 
-          begin
-            aTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
-            if Assigned(aTCPProtoDetected) then
-              aTCPProtoDetected.HeaderToString(LPacket,LPacketSize,AListDetail)
-          end;
-        Finally
-          Dispose(LInternalPacket);
-        End;
-      end;
     end;
   Finally
      FreeMem(LPacket);

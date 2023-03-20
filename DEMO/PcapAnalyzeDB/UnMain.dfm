@@ -25,8 +25,6 @@ object FormMain: TFormMain
     TabOrder = 0
     LockedStateImageOptions.Effect = lsieDark
     LockedStateImageOptions.ShowText = True
-    ExplicitWidth = 852
-    ExplicitHeight = 672
     object GridPcapDBTableView1: TcxGridDBTableView
       PopupMenu = PopupGrid
       Navigator.Buttons.CustomButtons = <>
@@ -190,8 +188,6 @@ object FormMain: TFormMain
     Height = 686
     AlignSplitter = salRight
     Control = PHexMemo
-    ExplicitLeft = 852
-    ExplicitHeight = 672
   end
   object cxGroupBox1: TcxGroupBox
     Left = 0
@@ -199,7 +195,6 @@ object FormMain: TFormMain
     Align = alTop
     PanelStyle.Active = True
     TabOrder = 2
-    ExplicitWidth = 1397
     Height = 43
     Width = 1460
     object cxLabel1: TcxLabel
@@ -223,7 +218,6 @@ object FormMain: TFormMain
       ShowHint = True
       TabOrder = 1
       OnKeyPress = EFilterKeyPress
-      ExplicitWidth = 1263
       Width = 1326
     end
   end
@@ -233,8 +227,6 @@ object FormMain: TFormMain
     Align = alRight
     PanelStyle.Active = True
     TabOrder = 3
-    ExplicitLeft = 862
-    ExplicitHeight = 672
     Height = 686
     Width = 535
     object MemoHex: TcxMemo
@@ -248,7 +240,6 @@ object FormMain: TFormMain
       Properties.ScrollBars = ssBoth
       ShowHint = True
       TabOrder = 0
-      ExplicitTop = 418
       Height = 250
       Width = 527
     end
@@ -267,7 +258,6 @@ object FormMain: TFormMain
       Height = 10
       AlignSplitter = salBottom
       Control = MemoHex
-      ExplicitTop = 408
     end
     object ListPacketDetail: TcxTreeList
       Left = 4
@@ -292,7 +282,6 @@ object FormMain: TFormMain
       OptionsView.Indicator = True
       ScrollbarAnnotations.CustomAnnotations = <>
       TabOrder = 3
-      ExplicitHeight = 382
       object ListPacketDetailColumn1: TcxTreeListColumn
         Width = 290
         Position.ColIndex = 0
@@ -326,8 +315,6 @@ object FormMain: TFormMain
     PanelStyle.Active = True
     TabOrder = 8
     Visible = False
-    ExplicitTop = 737
-    ExplicitWidth = 1397
     Height = 37
     Width = 1460
     object cxProgressBar1: TcxProgressBar
@@ -336,7 +323,6 @@ object FormMain: TFormMain
       Top = 7
       Align = alClient
       TabOrder = 0
-      ExplicitWidth = 1308
       Width = 1371
     end
     object cxButton1: TcxButton
@@ -348,7 +334,6 @@ object FormMain: TFormMain
       Caption = 'Cancel'
       TabOrder = 1
       OnClick = cxButton1Click
-      ExplicitLeft = 1318
     end
   end
   object OpenDialog1: TOpenDialog

@@ -253,7 +253,7 @@ type
   // The constant TIPv6AddrBytes indicates an array of 16 bytes representing an IPv6 address,
   // where each pair of bytes is represented in hexadecimal format, separated by a colon.
   TIPv6AddrBytes = array [0..15] of Byte;
-
+  PTIPv6AddrBytes = ^TIPv6AddrBytes;
   TIPAddrBytes = array [0 .. 3] of Byte;
   TIPAddress = record
       case Integer of

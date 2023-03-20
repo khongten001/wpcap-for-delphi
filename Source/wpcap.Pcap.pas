@@ -194,6 +194,7 @@ type
 implementation
 
 function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE) : PTInternalPacket;
+var LLen : Integer;
 begin
   Result := nil;
   if not Assigned(aPacketData) then Exit;
@@ -201,7 +202,11 @@ begin
   New(Result); 
 
   Result.PacketDate := UnixToDateTime(aHeader.ts.tv_sec,false);    
-  TWpcapEthHeader.InternalPacket(aPacketData,aHeader.len,FIANADictionary,Result);  
+  LLen              := aHeader.len;
+  TWpcapEthHeader.InternalPacket(aPacketData,LLen,FIANADictionary,Result);  
+  Result.PacketData := aPacketData;
+  Result.PacketSize := LLen;
+  
 
   Result.IP.SrcGeoIP.ASNumber        := String.Empty;
   Result.IP.SrcGeoIP.ASOrganization  := String.Empty;

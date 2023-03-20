@@ -16,8 +16,8 @@ type
     class function IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
 
   protected
-    class procedure ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);override;
-    class procedure ParserDNSTTL(const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString); override;
+    class procedure ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);override;
+    class procedure ParserDNSTTL(const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); override;
   public
 
     /// <summary>
@@ -114,7 +114,7 @@ begin
   end;    
 end;
 
-class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);
+class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
 var Lz         : Word;
     LWordValue : Word;
 begin
@@ -124,21 +124,21 @@ begin
     rtAuthority  : inherited;
     rtAdditional : 
       begin
-        AListDetail.Add(AddHeaderInfo(3, 'Higher bits in extended RCODE:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 2));              
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Higher bits in extended RCODE:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 2));              
         inc(aInternalOffset,1);
-        AListDetail.Add(AddHeaderInfo(3, 'EDNS0 version:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 1));              
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'EDNS0 version:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 1));              
         inc(aInternalOffset,1);
         Lz         := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
         LWordValue  := ( ( Lz  and $7FFF));
       
-        AListDetail.Add(AddHeaderInfo(3, 'Z:',Lz, PByte(@aDataRss[aInternalOffset]), 2));
-        AListDetail.Add(AddHeaderInfo(4, 'Reserved:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));
-        AListDetail.Add(AddHeaderInfo(4, 'Do bit:',GetBitValue(aDataRss[aInternalOffset],1), PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Z:',Lz, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Reserved:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Do bit:',GetBitValue(aDataRss[aInternalOffset],1), PByte(@aDataRss[aInternalOffset]), 2));
       end;
   end;
 end;
 
-class procedure TWPcapProtocolMDNS.ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset: Integer;AListDetail: TListHeaderString);
+class procedure TWPcapProtocolMDNS.ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
 var   LQClass : Word;
 begin
   case aRRsType of
@@ -148,8 +148,8 @@ begin
       begin
         LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
         LQClass  := ( LQClass  and $7FFF);      
-        AListDetail.Add(AddHeaderInfo(3, 'UDP payload size:',LQClass, PByte(@aDataRss[aInternalOffset]), 2));    
-        AListDetail.Add(AddHeaderInfo(3, 'Cache flush:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'UDP payload size:',LQClass, PByte(@aDataRss[aInternalOffset]), 2));    
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Cache flush:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));   
       end;
     rtQuestion   : 
       begin
@@ -170,8 +170,8 @@ begin
 
         LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
         LQClass  := ( LQClass  and $7FFF);      
-        AListDetail.Add(AddHeaderInfo(3, 'Class:',QClassToString(LQClass), PByte(@aDataRss[aInternalOffset]), 2));   
-        AListDetail.Add(AddHeaderInfo(3, 'QU:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Class:',QClassToString(LQClass), PByte(@aDataRss[aInternalOffset]), 2));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'QU:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));
       end;
   end;
 end;

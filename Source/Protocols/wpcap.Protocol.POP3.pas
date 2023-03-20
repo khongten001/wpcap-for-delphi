@@ -32,7 +32,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;            
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
   end;
 
 
@@ -73,7 +73,7 @@ begin
   
 end;
 
-class function TWPcapProtocolPOP3.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolPOP3.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
 var LTCPPayLoad        : PByte;
     LTCPPHdr           : PTCPHdr;
 begin
@@ -83,7 +83,7 @@ begin
 
   LTCPPayLoad := GetTCPPayLoad(aPacketData,aPacketSize);
 
-  AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
 
   Result := True;
 end;

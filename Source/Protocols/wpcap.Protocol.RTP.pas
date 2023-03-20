@@ -100,7 +100,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
     class function GetPayLoadRTP(const aPacketData: PByte;aPacketSize: Integer;var aSize:Integer): PByte; static;
     class function GetSoxCommandDecode(const aPacketData:PByte;aPacketSize:Integer): String; static;      
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
@@ -142,7 +142,7 @@ begin
   Result := PTRTPHeader(aUDPPayLoad);
 end;
 
-class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
 var LInternalHeader : PTRTPHeaderInternal;
     LHeaderRTP      : PTRTPHeader;
     LUDPPayLoad     : PByte;
@@ -163,20 +163,20 @@ begin
   Try
     LPayLoad := GetPayLoadRTP(aPacketData,aPacketSize,LSizePayLoad);
     Try
-      AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LHeaderRTP), SizeOf(TRTPHeader)));
-      AListDetail.Add(AddHeaderInfo(1, 'Version:',LInternalHeader.Version , @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(1, 'Padding:',LInternalHeader.Padding, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(1, 'Extension:', LInternalHeader.Extension, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(1, 'CSRC Count:',LInternalHeader.CountCSRC, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(1, 'Marker:',LInternalHeader.Marker , @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
-      AListDetail.Add(AddHeaderInfo(1, 'Payload Type:', GetRTPPayloadTypeString(LInternalHeader.PayloadType), @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
-      AListDetail.Add(AddHeaderInfo(1, 'Sequence Number:', LInternalHeader.SequenceNumber, @LHeaderRTP.SequenceNumber, SizeOf(LHeaderRTP.SequenceNumber)));
-      AListDetail.Add(AddHeaderInfo(1, 'Timestamp:',LInternalHeader.Timestamp , @LHeaderRTP.timestamp, SizeOf(LHeaderRTP.timestamp)));
-      AListDetail.Add(AddHeaderInfo(1, 'SSRC:', LInternalHeader.ssrc, @LHeaderRTP.ssrc, SizeOf(LHeaderRTP.ssrc)));
-      AListDetail.Add(AddHeaderInfo(1, 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad));
+      AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LHeaderRTP), SizeOf(TRTPHeader)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Version:',LInternalHeader.Version , @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Padding:',LInternalHeader.Padding, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Extension:', LInternalHeader.Extension, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'CSRC Count:',LInternalHeader.CountCSRC, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Marker:',LInternalHeader.Marker , @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Payload Type:', GetRTPPayloadTypeString(LInternalHeader.PayloadType), @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence Number:', LInternalHeader.SequenceNumber, @LHeaderRTP.SequenceNumber, SizeOf(LHeaderRTP.SequenceNumber)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Timestamp:',LInternalHeader.Timestamp , @LHeaderRTP.timestamp, SizeOf(LHeaderRTP.timestamp)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'SSRC:', LInternalHeader.ssrc, @LHeaderRTP.ssrc, SizeOf(LHeaderRTP.ssrc)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad));
 
       for I := Low(LInternalHeader.CSRC) to High(LInternalHeader.CSRC) do
-          AListDetail.Add(AddHeaderInfo(1, 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Cardinal)));
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Cardinal)));
       
       Result := True;
     Finally

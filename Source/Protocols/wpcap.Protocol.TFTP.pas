@@ -86,7 +86,7 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -164,7 +164,7 @@ begin
   Result := 'TFTP';
 end;
 
-class function TWPcapProtocolTFTP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolTFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
 var LUDPPayLoad        : PByte;
     LPUDPHdr           : PUDPHdr;
     LOpCode            : Word;
@@ -184,8 +184,8 @@ begin
   LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);
   LOpCode     := wpcapntohs(PWord(LUDPPayLoad)^);    
 
-  AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
-  AListDetail.Add(AddHeaderInfo(1, 'OpCode:',OpcodeToString(LOpCode) , @LOpCode, SizeOf(LOpCode)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'OpCode:',OpcodeToString(LOpCode) , @LOpCode, SizeOf(LOpCode)));
 
   case LOpCode of
     TFTP_RRQ, 
@@ -193,32 +193,32 @@ begin
       begin
         LTFTPHeaderRRQ_WRQ := PTTFTPHeaderRRQ_WRQ(LUDPPayLoad);  
         LFileLen  :=  StrLen(LTFTPHeaderRRQ_WRQ.Filename);    
-        AListDetail.Add(AddHeaderInfo(1, 'Source name:', StrPas(LTFTPHeaderRRQ_WRQ.Filename), @LTFTPHeaderRRQ_WRQ.Filename,LFileLen));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Source name:', StrPas(LTFTPHeaderRRQ_WRQ.Filename), @LTFTPHeaderRRQ_WRQ.Filename,LFileLen));
 
         Move(LUDPPayLoad[SizeOf(LOpCode)+LFileLen+1],LType,SizeOf(LType));
-        AListDetail.Add(AddHeaderInfo(1, 'Type:', StrPas(LType), @LType, StrLen(LType)));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Type:', StrPas(LType), @LType, StrLen(LType)));        
       end;
     TFTP_DATA : 
       begin
         LTFTPHeaderData := PTTFTPHeaderData(LUDPPayLoad);   
          
-        AListDetail.Add(AddHeaderInfo(1, 'BlockNumber:',wpcapntohs(LTFTPHeaderData.BlockNumber) , @LTFTPHeaderData.BlockNumber, SizeOf(LTFTPHeaderData.BlockNumber)));     
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'BlockNumber:',wpcapntohs(LTFTPHeaderData.BlockNumber) , @LTFTPHeaderData.BlockNumber, SizeOf(LTFTPHeaderData.BlockNumber)));     
         LUdpPayLoadLen := UDPPayLoadLength(LPUDPHdr)-SizeOf(LOpCode)-8;
         SetLength(LDataArray,LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber));
         Move(LTFTPHeaderData.Data, LDataArray[0],LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber));           
-        AListDetail.Add(AddHeaderInfo(1, 'Data:', SizeToStr(LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber)), @LDataArray,LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Data:', SizeToStr(LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber)), @LDataArray,LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber)));
               
       end;
     TFTP_ACK  :
       begin
         LTFTPHeaderAck := PTTFTPHeaderAck(LUDPPayLoad);
-        AListDetail.Add(AddHeaderInfo(1, 'BlockNumber:',wpcapntohs(LTFTPHeaderAck.BlockNumber) , @LTFTPHeaderAck.BlockNumber, SizeOf(LTFTPHeaderAck.BlockNumber)));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'BlockNumber:',wpcapntohs(LTFTPHeaderAck.BlockNumber) , @LTFTPHeaderAck.BlockNumber, SizeOf(LTFTPHeaderAck.BlockNumber)));        
       end;
     TFTP_ERROR :
       begin
         LTFTPHeaderError := PTTFTPHeaderError(LUDPPayLoad);
-        AListDetail.Add(AddHeaderInfo(1, 'ErrorCode:',ErrorCodeToString(wpcapntohs(LTFTPHeaderError.ErrorCode)) , @LTFTPHeaderError.ErrorCode, SizeOf(LTFTPHeaderError.ErrorCode)));                      
-        AListDetail.Add(AddHeaderInfo(1, 'ErrorMessage:', StrPas(LTFTPHeaderError.ErrorMessage), @LTFTPHeaderError.ErrorMessage, StrLen(LTFTPHeaderError.ErrorMessage)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'ErrorCode:',ErrorCodeToString(wpcapntohs(LTFTPHeaderError.ErrorCode)) , @LTFTPHeaderError.ErrorCode, SizeOf(LTFTPHeaderError.ErrorCode)));                      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'ErrorMessage:', StrPas(LTFTPHeaderError.ErrorMessage), @LTFTPHeaderError.ErrorMessage, StrLen(LTFTPHeaderError.ErrorMessage)));
       End
   end;
 

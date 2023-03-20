@@ -103,7 +103,7 @@ type
     /// This function returns a TListHeaderString of strings representing the fields in the UDP header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;override;            
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;override;            
   end;
 
 implementation
@@ -242,19 +242,19 @@ begin
     if FListProtolsUDPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then Exit;
 end;
 
-class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
 var LPUDPHdr : PUDPHdr;
 begin
   Result := False;
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then exit;
   
-  AListDetail.Add(AddHeaderInfo(0,Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]),null,Pbyte(LPUDPHdr),HeaderLength(0)));
-  AListDetail.Add(AddHeaderInfo(1,'Header length:',HeaderLength(0),nil,0));
-  AListDetail.Add(AddHeaderInfo(1,'Source port:',SrcPort(LPUDPHdr),@(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort)));
-  AListDetail.Add(AddHeaderInfo(1,'Destination port:',DstPort(LPUDPHdr),@(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort)));
-  AListDetail.Add(AddHeaderInfo(1,'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)),@(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length)));  
-  AListDetail.Add(AddHeaderInfo(1,'Checksum:',wpcapntohs(LPUDPHdr.CheckSum),@(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum)));    
-  AListDetail.Add(AddHeaderInfo(1,'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8),nil,0));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel,Format('User Datagram Protocol, Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]),null,Pbyte(LPUDPHdr),HeaderLength(0)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Header length:',HeaderLength(0),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Source port:',SrcPort(LPUDPHdr),@(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Destination port:',DstPort(LPUDPHdr),@(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)),@(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length)));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Checksum:',wpcapntohs(LPUDPHdr.CheckSum),@(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum)));    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8),nil,0));      
   Result := True;
 end;
 

@@ -281,7 +281,7 @@ begin
     
     LListDetail      := TListHeaderString.Create;
     Try
-     LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],LListDetail);
+     LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],0,LListDetail);
 
       if Assigned(LListDetail) then
       begin

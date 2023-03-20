@@ -14,7 +14,7 @@ type
   // SrcAddr  : 6 byte array that contains the source MAC address
   // EtherType: 16-bit field indicating the type of higher protocol (for example, IPv4 or ARP).
   PETHHdr = ^TETHHdr;
-  TETHHdr = packed record
+  TETHHdr =  record
     DestAddr : array [0..5] of Byte;  // The destination MAC address.
     SrcAddr  : array [0..5] of Byte;  // The source MAC address.
     EtherType: Word;                  // The Ethernet type.
@@ -48,7 +48,7 @@ type
     /// This function returns a dictionary of strings representing the fields in the Ethernet header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;virtual;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;virtual;
 
     /// <summary>
     /// This function returns a Boolean value indicating whether the packet is a valid Ethernet packet and fills out an internal Ethernet record. 
@@ -73,7 +73,7 @@ type
 
 implementation
 
-uses wpcap.Level.Ip,wpcap.Protocol.ARP;
+uses wpcap.Level.Ip,wpcap.Protocol.ARP,wpcap.Protocol.UDP,wpcap.Protocol.TCp,wpcap.protocol;
 
 { TEthHeader }
 
@@ -141,41 +141,67 @@ begin
   Result := SizeOf(TETHHdr);
 end;
 
-class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;
-var LInternalPacket: PTInternalPacket;
-    LHeader        : PETHHdr;
+class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;
+var LInternalPacket   : PTInternalPacket;
+    LHeader           : PETHHdr;
+    aUDPProtoDetected : TWPcapProtocolBaseUDP;	
+    aTCPProtoDetected : TWPcapProtocolBaseTCP;	        
 begin
   Result := False;
   new(LInternalPacket);
   Try
-    if not InternalPacket(aPacketData,aPacketSize,nil,LInternalPacket) then exit;
-    LHeader := HeaderEth(aPacketData,aPacketSize);
 
+    if not InternalPacket(aPacketData,aPacketSize,nil,LInternalPacket) then exit;
+
+    LHeader := HeaderEth(aPacketData,aPacketSize);
+    
     if not Assigned(AListDetail) then
       AListDetail := TListHeaderString.Create;
 
-    AListDetail.Add(AddHeaderInfo(0,Format('Frame packet size: %s',[SizeToStr(aPacketSize)]),NUlL,nil,0));      
-    AListDetail.Add(AddHeaderInfo(0, Format('Ethernet II, Src: %s, Dst %s ',[LInternalPacket.Eth.SrcAddr,LInternalPacket.Eth.DestAddr]),NUlL,PByte(LHeader),HeaderEthSize));      
-    AListDetail.Add(AddHeaderInfo(1,'Header length:',HeaderEthSize,nil,0));   
-    AListDetail.Add(AddHeaderInfo(1,'Destination:',LInternalPacket.Eth.DestAddr,@(LHeader.DestAddr),5));      
-    AListDetail.Add(AddHeaderInfo(1,'Source:',LInternalPacket.Eth.SrcAddr,@(LHeader.SrcAddr),5));      
-    AListDetail.Add(AddHeaderInfo(1,'Type:',Format('%s [%d]',[LInternalPacket.Eth.Acronym,LInternalPacket.Eth.EtherType]),@(LHeader.EtherType),2));   
+    AListDetail.Add(AddHeaderInfo(aStartLevel,Format('Frame packet size: %s',[SizeToStr(aPacketSize)]),NUlL,nil,0));       
+    
+    if (LInternalPacket.Eth.SrcAddr = SRC_MAC_RAW_DATA) and ( LInternalPacket.Eth.DestAddr = DST_MAC_RAW_DATA) then    
+    begin
+      AListDetail.Add(AddHeaderInfo(aStartLevel,'Raw data',NUlL,nil,0));
+                
+    end
+    else
+    begin       
+      AListDetail.Add(AddHeaderInfo(aStartLevel, Format('Ethernet II, Src: %s, Dst %s ',[LInternalPacket.Eth.SrcAddr,LInternalPacket.Eth.DestAddr]),NUlL,PByte(LHeader),HeaderEthSize));      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Header length:',HeaderEthSize,nil,0));   
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Destination:',LInternalPacket.Eth.DestAddr,@(LHeader.DestAddr),5));      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Source:',LInternalPacket.Eth.SrcAddr,@(LHeader.SrcAddr),5));      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Type:',Format('%s [%d]',[LInternalPacket.Eth.Acronym,LInternalPacket.Eth.EtherType]),@(LHeader.EtherType),2));   
+    end;
     
     case LInternalPacket.Eth.EtherType of
 
       ETH_P_IP,  
-      ETH_P_IPV6:;
-    
+      ETH_P_IPV6:
+        begin
+          if TWpcapIPHeader.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,aListDetail) then
+          begin
+            aUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+            if Assigned(aUDPProtoDetected) then
+              aUDPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail)
+            else
+            begin
+              aTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+              if Assigned(aTCPProtoDetected) then
+                aTCPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail)
+            end;
+          end;        
+        end;
+ 
       ETH_P_LOOP,
       ETH_P_PUP,      
       ETH_P_PUPAT,             
       ETH_P_X25:;      
       
-      ETH_P_ARP: TWPcapProtocolARP.HeaderToString(aPacketData,aPacketSize,AListDetail);     
+      ETH_P_ARP: TWPcapProtocolARP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);     
 
       ETH_P_BPQ,
       ETH_P_IEEEPUP,  
-      ETH_P_IEEEPUPAT,
       ETH_P_DEC,      
       ETH_P_DNA_DL,   
       ETH_P_DNA_RC,   
@@ -214,10 +240,16 @@ begin
   finally               
     Dispose(LInternalPacket)
   end;
+
 end;
 
 class function TWpcapEthHeader.InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const aInternalPacket: PTInternalPacket): Boolean;
-var aPETHHdr : PETHHdr;
+var LPETHHdr      : PETHHdr;
+    I             : Integer;    
+    LNewSize      : Integer;
+    LNewData      : Pbyte;
+    LIpFlagVersion: Byte;
+    LEthType      : Word;
 begin
   Result                                      := False;
   aInternalPacket.PacketData                  := aPacketData;
@@ -242,15 +274,13 @@ begin
   aInternalPacket.IP.DestGeoIP.Location       := String.Empty;  
   aInternalPacket.IP.DestGeoIP.Latitude       := 0;
   aInternalPacket.IP.DestGeoIP.Longitude      := 0;
-  aPETHHdr                                    := HeaderEth(aPacketData,aPacketSize);
-
+  LPETHHdr                                    := HeaderEth(aPacketData,aPacketSize);
   
-  if not Assigned(aPETHHdr) then exit;
+  if not Assigned(LPETHHdr) then exit;
 
-
-  aInternalPacket.Eth.EtherType := wpcapntohs(aPETHHdr.EtherType);
-  aInternalPacket.Eth.SrcAddr   := MACAddrToStr(aPETHHdr.SrcAddr);
-  aInternalPacket.Eth.DestAddr  := MACAddrToStr(aPETHHdr.DestAddr);  
+  aInternalPacket.Eth.EtherType := wpcapntohs(LPETHHdr.EtherType);
+  aInternalPacket.Eth.SrcAddr   := MACAddrToStr(LPETHHdr.SrcAddr);
+  aInternalPacket.Eth.DestAddr  := MACAddrToStr(LPETHHdr.DestAddr);  
   aInternalPacket.Eth.Acronym   := GetEthAcronymName(aInternalPacket.Eth.EtherType);
 
   case aInternalPacket.Eth.EtherType of
@@ -265,7 +295,6 @@ begin
     ETH_P_ARP,      
     ETH_P_BPQ,
     ETH_P_IEEEPUP,  
-    ETH_P_IEEEPUPAT,
     ETH_P_DEC,      
     ETH_P_DNA_DL,   
     ETH_P_DNA_RC,   
@@ -299,6 +328,42 @@ begin
     ETH_P_802_3,    
     ETH_P_AX25,     
     ETH_P_ALL:  ;
+  else           
+    begin
+      {raw data}
+      LIpFlagVersion  := Pbyte(aPacketData)^ shr 4;   
+      LEthType        := 0; 
+      case LIpFlagVersion of
+        4  : LEthType  := ntohs(ETH_P_IP);
+        6  : LEthType  := ntohs(ETH_P_IPV6);
+      end;
+
+      if LEthType <> 0 then
+      begin
+        New(LPETHHdr);
+//        Try
+          for i := 0 to 5 do
+            LPETHHdr.SrcAddr[i] := ord('A');   
+          for i := 0 to 5 do
+            LPETHHdr.DestAddr[i] := ord('M');
+          
+          LNewSize            := aPacketSize + HeaderEthSize;
+          LPETHHdr.EtherType  := LEthType;
+        
+          GetMem(LNewData,LNewSize); 
+//          Try
+            Move(aPacketData^, (LNewData + HeaderEthSize)^, aPacketSize);
+            Move(LPETHHdr^, LNewData^, HeaderEthSize);
+            Result := InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket);
+//          Finally
+//             FreeMem(LNewData);
+//          End;
+//        Finally
+//          Dispose(LPETHHdr);
+ //       End;
+      end;
+          
+    end;
   end;
   
   Result := True;
@@ -328,7 +393,7 @@ begin
   Result.Description := aDescription;
   Result.Value       := aValue;
   Result.Level       := aLevel;
-  if aPacketInfo = nil then      
+  if aPacketInfo = nil then
     Result.Hex := String.Empty
   else
     Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False));

@@ -48,7 +48,7 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override;    
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;    
   end;
 
 
@@ -77,7 +77,7 @@ begin
   Result := 'FTP';
 end;
 
-class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
 var LTCPPayLoad : PByte;
     LTCPPHdr    : PTCPHdr;
 begin
@@ -87,7 +87,7 @@ begin
 
   LTCPPayLoad := GetTCPPayLoad(aPacketData,aPacketSize);
 
-  AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
 
   Result := True;
 end;

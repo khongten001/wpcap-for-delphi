@@ -58,45 +58,14 @@ function IntToBin(Value: integer; Digits: integer): string;
 /// <returns>The actual length of the packet in bytes.</returns>
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
 function BinToInt(BinStr : string) : Int64;
- function BinToDec(Str: string): Integer;
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
 function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
 function HexToBytes(const hex: string): TBytes;
-
+function GetWordFromCardinal(aCValue: Cardinal; aByteIndex: Integer): word;
 
 implementation
 
-function BinToDec(Str: string): Integer;
-function Pow(i, k: Integer): Integer;
-var
-  j, Count: Integer;
-begin
-  if k>0 then j:=2
-    else j:=1;
-  for Count:=1 to k-1 do
-    j:=j*2;
-  Result:=j;
-end;
-var
-  Len, Res, i: Integer;
-  Error: Boolean;
-begin
-  Error:=False;
-  Len:=Length(Str);
-  Res:=0;
-  for i:=1 to Len do
-    if (Str[i]='0')or(Str[i]='1') then
-      Res:=Res+Pow(2, Len-i)*StrToInt(Str[i])
-    else
-    begin
-    //  MessageDlg('It is not a binary number', mtInformation, [mbOK], 0);
-      Error:=True;
-      Break;
-    end;
-  if Error=True then Result:=0
-    else Result:=Res;
-end;
 
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
 var LIdx            : Integer;
@@ -165,6 +134,14 @@ begin
    raise Exception.CreateFmt('GetByteFromWord out of range [%d]',[aByteIndex]);
 
   Result := (aWordValue shr (aByteIndex * 8)) and $FF
+end;
+
+function GetWordFromCardinal(aCValue: Cardinal; aByteIndex: Integer): word;
+begin
+  if (aByteIndex < 0) or (aByteIndex > 1) then
+   raise Exception.CreateFmt('GetByteFromWord out of range [%d]',[aByteIndex]);
+
+  Result := (aCValue shr (aByteIndex * 16)) and $FFFF
 end;
 
 Function GetBitValue(const AByteValue: Byte; const AIndexBit: Byte): Byte;

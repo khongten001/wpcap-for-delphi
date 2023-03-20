@@ -74,8 +74,8 @@ type
     L2TP_HDR_FLAG_F_BIT                = $0080; // Firmware-Version bit
     L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
       
-    class function GetL2TPFlag(aFlags: Word;AListDetail: TListHeaderString): string; static;
-    class function ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aVendorID: TListVendorId): string; static;
+    class function GetL2TPFlag(aFlags: Word;aStartLevel:Integer;AListDetail: TListHeaderString): string; static;
+    class function ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aStartLevel:Integer;aVendorID: TListVendorId): string; static;
     class function L2TPAVPTypeToString(AVPType: Word): string; static;
     class function LenghtIsPresent(aFlags: Word): Boolean; static;
     class function SequencePresent(aFlags: Word): Boolean; static;
@@ -133,7 +133,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override; 
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override; 
   end;  
 
 
@@ -542,7 +542,7 @@ begin
   Result := GetBitValue(aFlags,7) =1;
 end;
 
-class function TWPcapProtocolL2TP.GetL2TPFlag(aFlags: Word;AListDetail:TListHeaderString): string;
+class function TWPcapProtocolL2TP.GetL2TPFlag(aFlags: Word;aStartLevel:Integer;AListDetail:TListHeaderString): string;
 begin
 {
    |T|L|x|x|S|x|O|P|x|x|x|x|  Ver  |          Length (opt)         |
@@ -551,28 +551,28 @@ begin
    data message and 1 for a control message.}
 
   Result := Format('Message type [%d]',[GetBitValue(aFlags,1)]);
-  AListDetail.Add(AddHeaderInfo(2, 'Message type:',ifthen(GetBitValue(aFlags,1)=1,'control message','data message'),nil,0));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Message type:',ifthen(GetBitValue(aFlags,1)=1,'control message','data message'),nil,0));  
   
   {
    If the Length (L) bit is 1, the Length field is present. This bit
    MUST be set to 1 for control messages.
   }  
   Result :=  Format('%s LengthIncluded %s ',[Result,BoolToStr(LenghtIsPresent(aFlags),True)]);
-  AListDetail.Add(AddHeaderInfo(2, 'Length is present:',LenghtIsPresent(aFlags),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Length is present:',LenghtIsPresent(aFlags),nil,0));
 
   {
     If the Sequence (S) bit is set to 1 the Ns and Nr fields are present.
     The S bit MUST be set to 1 for control messages.
   }
   Result :=  Format('%s SequenceIncluded %s ',[Result,BoolToStr(SequencePresent(aFlags),True)]);
-  AListDetail.Add(AddHeaderInfo(2, 'Sequence is present:',SequencePresent(aFlags),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Sequence is present:',SequencePresent(aFlags),nil,0));
 
   {
    If the Offset (O) bit is 1, the Offset Size field is present. The O
    bit MUST be set to 0 (zero) for control messages.
   }
   Result :=  Format('%s OffsetIncluded %s ',[Result,BoolToStr(OffSetIsPresent(aFlags),True)]);
-  AListDetail.Add(AddHeaderInfo(2, 'Offset is present:',OffSetIsPresent(aFlags),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Offset is present:',OffSetIsPresent(aFlags),nil,0));
 
   { If the Priority (P) bit is 1, this data message should receive
    preferential treatment in its local queuing and transmission.  LCP
@@ -583,10 +583,10 @@ begin
    only for use with data messages. The P bit MUST be set to 0 for all
    control messages.                                       }
   Result :=  Format('%s Priority %s ',[Result,BoolToStr(GetBitValue(aFlags,8)=1,True)]);
-  AListDetail.Add(AddHeaderInfo(2, 'Priority:',GetBitValue(aFlags,8)=1,nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Priority:',GetBitValue(aFlags,8)=1,nil,0));
 end;
 
-class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; 
+class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; 
 var LHeaderL2TP: PTL2TPHdrInternal;
     LPUDPHdr   : PUDPHdr;
     LUDPPayLoad: PByte;
@@ -603,9 +603,9 @@ begin
     Try
       if not Assigned(LHeaderL2TP) then exit;
   
-      AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LHeaderL2TP), HeaderLength(LHeaderL2TP.Flags)));
-      AListDetail.Add(AddHeaderInfo(1, 'Flags',ByteToBinaryString(LHeaderL2TP.Flags), @LHeaderL2TP.flags, SizeOf(LHeaderL2TP.flags)));
-      GetL2TPFlag(LHeaderL2TP.Flags,AListDetail);
+      AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LHeaderL2TP), HeaderLength(LHeaderL2TP.Flags)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Flags',ByteToBinaryString(LHeaderL2TP.Flags), @LHeaderL2TP.flags, SizeOf(LHeaderL2TP.flags)));
+      GetL2TPFlag(LHeaderL2TP.Flags,aStartLevel,AListDetail);
     
       {
        Ver MUST be 2, indicating the version of the L2TP data message header
@@ -614,13 +614,13 @@ begin
        L2TP packets. Packets received with an unknown Ver field MUST be
        discarded.
       }    
-      AListDetail.Add(AddHeaderInfo(1, 'Version', LHeaderL2TP.Version, @LHeaderL2TP.Version, SizeOf(LHeaderL2TP.Version)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Version', LHeaderL2TP.Version, @LHeaderL2TP.Version, SizeOf(LHeaderL2TP.Version)));
     
       {The Length field indicates the total length of the message in octets.}
       if LenghtIsPresent(LHeaderL2TP.Flags) then    
-        AListDetail.Add(AddHeaderInfo(1, 'Length', wpcapntohs(LHeaderL2TP.Length), @LHeaderL2TP.Length, SizeOf(LHeaderL2TP.Length)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Length', wpcapntohs(LHeaderL2TP.Length), @LHeaderL2TP.Length, SizeOf(LHeaderL2TP.Length)));
 
-      AListDetail.Add(AddHeaderInfo(1, 'Header length', HeaderLength(LHeaderL2TP.Flags),nil,0));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Header length', HeaderLength(LHeaderL2TP.Flags),nil,0));
     
       {  Tunnel ID indicates the identifier for the control connection. L2TP
          tunnels are named by identifiers that have local significance only.
@@ -628,7 +628,7 @@ begin
          end of the tunnel. Tunnel ID in each message is that of the intended
          recipient, not the sender. Tunnel IDs are selected and exchanged as
          Assigned Tunnel ID AVPs during the creation of a tunnel.}
-      AListDetail.Add(AddHeaderInfo(1, 'Tunnel ID', wpcapntohs(LHeaderL2TP.tunnelID), @LHeaderL2TP.tunnelID, SizeOf(LHeaderL2TP.tunnelID)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Tunnel ID', wpcapntohs(LHeaderL2TP.tunnelID), @LHeaderL2TP.tunnelID, SizeOf(LHeaderL2TP.tunnelID)));
 
        {
          Session ID indicates the identifier for a session within a tunnel.
@@ -639,7 +639,7 @@ begin
          exchanged as Assigned Session ID AVPs during the creation of a
          session.
        }
-      AListDetail.Add(AddHeaderInfo(1, 'Session ID', wpcapntohs(LHeaderL2TP.SessionId), @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Session ID', wpcapntohs(LHeaderL2TP.SessionId), @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
       if SequencePresent(LHeaderL2TP.Flags) then    
       begin
         {
@@ -648,7 +648,7 @@ begin
          message sent. See Section 5.8 and 5.4 for more information on using
          this field.      
         }
-        AListDetail.Add(AddHeaderInfo(1, 'Next sequence', wpcapntohs(LHeaderL2TP.Ns), @LHeaderL2TP.Ns, SizeOf(LHeaderL2TP.Ns)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Next sequence', wpcapntohs(LHeaderL2TP.Ns), @LHeaderL2TP.Ns, SizeOf(LHeaderL2TP.Ns)));
         {
          Nr indicates the sequence number expected in the next control message
          to be received.  Thus, Nr is set to the Ns of the last in-order
@@ -657,7 +657,7 @@ begin
          upon receipt. See section 5.8 for more information on using this
          field in control messages.
         }
-        AListDetail.Add(AddHeaderInfo(1, 'Next received', wpcapntohs(LHeaderL2TP.Nr), @LHeaderL2TP.Nr, SizeOf(LHeaderL2TP.Nr)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Next received', wpcapntohs(LHeaderL2TP.Nr), @LHeaderL2TP.Nr, SizeOf(LHeaderL2TP.Nr)));
       end;
     
       Loffset :=0; 
@@ -670,7 +670,7 @@ begin
          field is present, the L2TP header ends after the last octet of the
          offset padding.    }
         Loffset := wpcapntohs(LHeaderL2TP.OffsetSize);
-        AListDetail.Add(AddHeaderInfo(1, 'Offset size',Loffset, @LHeaderL2TP.OffsetSize, SizeOf(LHeaderL2TP.OffsetSize))); 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Offset size',Loffset, @LHeaderL2TP.OffsetSize, SizeOf(LHeaderL2TP.OffsetSize))); 
       end;
        
       if UDPPayLoadLength(LPUDPHdr) > HeaderLength(LHeaderL2TP.Flags)+Loffset then
@@ -678,7 +678,7 @@ begin
         // Parse L2TP payload for control message AVP
         if LHeaderL2TP.Version = 2 then    
         begin
-          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),LVendorID);
+          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID);
           {TODO MESSAGE CONTROL}
         end;
         {TODO version 3}
@@ -1266,7 +1266,7 @@ begin
   end;
 end;	     
 
-class function TWPcapProtocolL2TP.ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aVendorID: TListVendorId): string;
+class function TWPcapProtocolL2TP.ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aStartLevel:Integer;aVendorID: TListVendorId): string;
 CONST AVP_LENGHT_WITHOUT_VALUE = 6;
 var LAvpHeader      : TAVPHeader;
     LAvpType        : Word;
@@ -1301,7 +1301,7 @@ begin
     LAvpFlag   := wpcapntohs(LAvpHeader.AvtFlag);
     LAvpType   := wpcapntohs(LAvpHeader.AttrType);
     LAvpLength := GetLastNBit(LAvpFlag,10);    
-    AListDetail.Add(AddHeaderInfo(1, Format('AVP %s [%d]', [L2TPAVPTypeToString(LAvpType),LAvpType]),null,@LAvpHeader,SizeOF(LAvpHeader))); 
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('AVP %s [%d]', [L2TPAVPTypeToString(LAvpType),LAvpType]),null,@LAvpHeader,SizeOF(LAvpHeader))); 
 
     {
        The first six bits are a bit mask, describing the general attributes
@@ -1334,12 +1334,12 @@ begin
        length is 6, then the Attribute Value field is absent.
     }
     
-    AListDetail.Add(AddHeaderInfo(2,'Flag:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LAvpFlag,0)),
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Flag:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LAvpFlag,0)),
                                                             ByteToBinaryString(GetByteFromWord(LAvpFlag,1))]),@LAvpFlag,sizeOf(LAvpFlag)));       
                                                             
-    AListDetail.Add(AddHeaderInfo(3,'Mandatory:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,1)=1,nil,0));
-    AListDetail.Add(AddHeaderInfo(3,'Hidden:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,2)=1,nil,0)); 
-    AListDetail.Add(AddHeaderInfo(3,'Length:',LAvpLength,@LAvpLength,10)); 
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Mandatory:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,1)=1,nil,0));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Hidden:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,2)=1,nil,0)); 
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Length:',LAvpLength,@LAvpLength,10)); 
     
     {
       Vendor ID: The IANA assigned "SMI Network Management Private
@@ -1353,11 +1353,11 @@ begin
       are 16 bits allocated for the Vendor ID, thus limiting this feature
       to the first 65,535 enterprises.
     }    
-    AListDetail.Add(AddHeaderInfo(2,'Vendor:',wpcapntohs(LAvpHeader.VendorID),@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID)));       
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Vendor:',wpcapntohs(LAvpHeader.VendorID),@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID)));       
 
     {Attribute Type: A 2 octet value with a unique interpretation across
      all AVPs defined under a given Vendor ID.}    
-    AListDetail.Add(AddHeaderInfo(2,'Type:',Format('%s [%d]', [L2TPAVPTypeToString(LAvpType),LAvpType]),@LAvpHeader.AttrType,sizeOf(LAvpHeader.AttrType)));       
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type:',Format('%s [%d]', [L2TPAVPTypeToString(LAvpType),LAvpType]),@LAvpHeader.AttrType,sizeOf(LAvpHeader.AttrType)));       
 
 
     // Add AVP type and length to the result string
@@ -1377,7 +1377,7 @@ begin
       
       LAvpValue := wpcapntohs(Pcardinal(PayloadData + LCurrentPos)^);
       LAvpValue := ReadAVPValueFromPacket(PayloadData,LCurrentPos,LAvpLength,LAvpType,aVendorID);
-      AListDetail.Add(AddHeaderInfo(2,'Type value:',LAvpValue.ToString,nil,0));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type value:',LAvpValue.ToString,nil,0));
       LResultStr :=Format('%s %s',[LResultStr,LAvpValue.ToString])  + #13#10;
 
       {TODO message by AVP Type}
@@ -1388,7 +1388,7 @@ begin
     begin
       // AVP has no value
       if LAvpType = 0 then
-        AListDetail.Add(AddHeaderInfo(2,'Type value:','not present',nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type value:','not present',nil,0));
       Inc(LCurrentPos, SizeOf(TAVPHeader));
     end;
   end;

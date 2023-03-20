@@ -215,7 +215,7 @@ type
     /// Checks whether the packet is valid for the TLS protocol.
     /// </summary>
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override; 
-    class function HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;override;       
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;override;       
 End;
 
 
@@ -304,7 +304,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolTLS.HeaderToString(const aPacketData: PByte; aPacketSize: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolTLS.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
 var LOffset                 : Integer;
     LRecord                 : PTTLSRecordHeader;
     LHandshake              : PTLSHandshake;
@@ -342,7 +342,7 @@ begin
 
   if aPacketSize < TCPPayLoadLength(LTCPHdr,aPacketData,aPacketSize)-1+SizeOf(TTLSRecordHeader) then exit;
   
-  AListDetail.Add(AddHeaderInfo(0, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LRecord), SizeOf(TTLSRecordHeader)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LRecord), SizeOf(TTLSRecordHeader)));
 
   while True do
   begin
@@ -351,9 +351,9 @@ begin
     LRecord := PTTLSRecordHeader(LTCPPayLoad + LOffset);
     Inc(LOffset, SizeOf(TTLSRecordHeader));
 
-    AListDetail.Add(AddHeaderInfo(1, 'Content type', ContentTypeToString(LRecord.ContentType), @LRecord.ContentType, SizeOf(LRecord.ContentType)));
-    AListDetail.Add(AddHeaderInfo(1, 'Protocol version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion)));
-    AListDetail.Add(AddHeaderInfo(1, 'Content length', wpcapntohs(LRecord.Length), @LRecord.Length, SizeOf(LRecord.Length) ));    
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Content type', ContentTypeToString(LRecord.ContentType), @LRecord.ContentType, SizeOf(LRecord.ContentType)));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Protocol version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion)));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Content length', wpcapntohs(LRecord.Length), @LRecord.Length, SizeOf(LRecord.Length) ));    
 
     if aPacketSize >= LOffset + SizeOf(TLSHandshake) then
 
@@ -374,16 +374,16 @@ begin
           begin
             LHandshake := PTLSHandshake(PByte(aPacketData) + LOffset);                  
             Inc(LOffset, SizeOf(TLSHandshake));
-            AListDetail.Add(AddHeaderInfo(1,'Handshake',null,PByte(LHandshake),SizeOf(TLSHandshake)));
-            AListDetail.Add(AddHeaderInfo(2, 'Handshake type', ContentTypeToString(LHandshake.HandshakeType), @LHandshake.HandshakeType, SizeOf(LHandshake.HandshakeType)));
-            AListDetail.Add(AddHeaderInfo(2, 'Length', wpcapntohs(LHandshake.Length), @LHandshake.Length, SizeOf(LHandshake.Length)));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Handshake',null,PByte(LHandshake),SizeOf(TLSHandshake)));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Handshake type', ContentTypeToString(LHandshake.HandshakeType), @LHandshake.HandshakeType, SizeOf(LHandshake.HandshakeType)));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Length', wpcapntohs(LHandshake.Length), @LHandshake.Length, SizeOf(LHandshake.Length)));
             case LHandshake.HandshakeType of
               TLS_HANDSHAKE_TYPE_CLIENT_HELLO :
               begin
                 LClientHello := PTTLSHandshakeClientHello(PByte(aPacketData) + LOffset);
                 Inc(LOffset, SizeOf(TTLSHandshakeClientHello));
 
-                AListDetail.Add(AddHeaderInfo(3, 'Protocol version', TLSVersionToString(LClientHello.Version), @LClientHello.Version, SizeOf(LClientHello.Version)));
+                AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Protocol version', TLSVersionToString(LClientHello.Version), @LClientHello.Version, SizeOf(LClientHello.Version)));
                 LRandom := PTLSRandom(@LClientHello.Random);              
               end;
             end;

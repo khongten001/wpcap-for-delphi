@@ -3,8 +3,8 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,
-  System.Variants, wpcap.BufferUtils,WinSock,WinSock2;
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.Classes,
+  System.Variants, wpcap.BufferUtils,WinSock,WinSock2,wpcap.IpUtils;
 
 type
 
@@ -32,7 +32,46 @@ type
   /// </summary>
   TWPcapProtocolICMP = Class(TWPcapProtocolBase)
   private
+    CONST
+    
+    ICMP_ECHO_REPLY                           = 0;
+    ICMP_DEST_UNREACHABLE_IPv6                = 1;
+    ICMP_DEST_UNREACHABLE                     = 3;
+    ICMP_SOURCE_QUENCH                        = 4;
+    ICMP_REDIRECT_MESSAGE                     = 5;
+    ICMP_ALTERNATE_HOST_ADDRESS               = 6;
+    ICMP_ECHO_REQUEST                         = 8;
+    ICMP_ROUTER_ADVERTISEMENT                 = 9;
+    ICMP_ROUTER_SELECTION                     = 10;
+    ICMP_TIME_EXCEEDED                        = 11;
+    ICMP_PARAMETER_PROBLEM                    = 12;
+    ICMP_TIMESTAMP_REQUEST                    = 13;
+    ICMP_TIMESTAMP_REPLY                      = 14;
+    ICMP_INFORMATION_REQUEST                  = 15;
+    ICMP_INFORMATION_REPLY                    = 16;
+    ICMP_ADDRESS_MASK_REQUEST                 = 17;
+    ICMP_ADDRESS_MASK_REPLY                   = 18;
+    ICMP_TRACEROUTE                           = 30;
+    ICMP_CONVERSION_ERROR                     = 31;
+    ICMP_MOBILE_REDIRECT                      = 32;
+    ICMP_IPV6_WHERE_ARE_YOU                   = 33;
+    ICMP_IPV6_I_AM_HERE                       = 34;
+    ICMP_MOBILE_REG_REQUEST                   = 35;
+    ICMP_MOBILE_REG_REPLY                     = 36;
+    ICMP_DOMAIN_NAME_REQUEST                  = 37;
+    ICMP_DOMAIN_NAME_REPLY                    = 38;
+    ICMP_MULTICAST_LISTENER_REPORT            = 131;
+    ICMP_ROUTER_SOLICITATION                  = 133;
+    ICMP_NEIGHBOR_SOLICITATION                = 135;
+    ICMP_NEIGHBOR_ADVERTISEMENT               = 136;
+    ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2 = 143;    
+
+  
     class function CodeToString(const aType, Code: Byte): String; static;
+    class function GetNextIpHeader(const aPacketData: PByte; aPacketSize,
+      aHeaderPrevLen: Integer; var aNewPacketLen: Integer): PByte; static;
+    class function ConvertOptionsToString(aOptions: Integer): string; static;
+    class function ConvertRecordTypeToString(aRecordType: Byte): string; static;
   public
     /// <summary>
     /// Returns the default ICMP 0 - No port.
@@ -61,7 +100,7 @@ type
     class function AcronymName: String; override;
     class Function TypeToString(const aType:Byte):String;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize: Integer; AListDetail: TListHeaderString): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;      
   end;
 
 
@@ -105,53 +144,206 @@ begin
       end;      
   end;
 end;
+
+class Function TWPcapProtocolICMP.GetNextIpHeader(const aPacketData: PByte;aPacketSize,aHeaderPrevLen: Integer;var aNewPacketLen: Integer):PByte;
+var lHeaderEthLen    : Integer;
+begin
+  if aHeaderPrevLen = 0 then
+      aHeaderPrevLen := TWpcapIPHeader.HeaderIPSize(aPacketData,aPacketSize)+HeaderLength(0);
+      
+  lHeaderEthLen  := HeaderEthSize;
+  aNewPacketLen  := aPacketSize -aHeaderPrevLen; 
+  GetMem(Result,aNewPacketLen);
+  Move(aPacketData^,Result^,lHeaderEthLen);
+  Move(PByte(aPacketData + lHeaderEthLen + aHeaderPrevLen)^,Pbyte(Result + lHeaderEthLen)^, aNewPacketLen- lHeaderEthLen);
+end;
+
   
-class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize: Integer;AListDetail: TListHeaderString): Boolean;
-var LHeader : PTICMPHeader;
+class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;
+var LHeader         : PTICMPHeader;
+    LNewPacketData  : Pbyte;
+    LNewPacketLen   : Integer;
+    SourceAddress   : TIPv6AddrBytes; 
+    LAllHeaderSize  : Integer;
+    LOptions        : Byte;
+    LOptionsW       : Word;
+    LCount          : Word;
+    LLink           : TArray<Byte>;
+    LCurrentPos     : Integer;
+    I               : Integer;
 begin
   Result := False;
 
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
 
-  AListDetail.Add(AddHeaderInfo(0,Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeader),HeaderLength(0)));            
-  AListDetail.Add(AddHeaderInfo(1,'Type:',TypeToString(LHeader.TypeICMP),@LHeader.TypeICMP,sizeOf(LHeader.TypeICMP)));
-  AListDetail.Add(AddHeaderInfo(1,'Code:',CodeToString(LHeader.TypeICMP,LHeader.Code),@LHeader.Code,sizeOf(LHeader.Code)));            
-  AListDetail.Add(AddHeaderInfo(1,'Checksum:',wpcapntohs(LHeader.CheckSum),@LHeader.CheckSum,sizeOf(LHeader.CheckSum))); 
-  AListDetail.Add(AddHeaderInfo(1, 'Unused:', LHeader.ICMP_Unused, @LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused)));
-  case LHeader.TypeICMP of
-    0,8 : 
+  AListDetail.Add(AddHeaderInfo(aStartLevel,Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeader),HeaderLength(0)));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Type:',TypeToString(LHeader.TypeICMP),@LHeader.TypeICMP,sizeOf(LHeader.TypeICMP)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Code:',CodeToString(LHeader.TypeICMP,LHeader.Code),@LHeader.Code,sizeOf(LHeader.Code)));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Checksum:',wpcapntohs(LHeader.CheckSum),@LHeader.CheckSum,sizeOf(LHeader.CheckSum))); 
+  case LHeader.TypeICMP  of
+    ICMP_NEIGHBOR_ADVERTISEMENT :
       begin
-        AListDetail.Add(AddHeaderInfo(1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(1, 'Sequence number (BE):', wpcapntohs(LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));
-        
+        LOptions := GetByteFromWord(GetWordFromCardinal(LHeader.ICMP_Unused,0),0);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Flags ICMPV6:',Format('%s %s',[ByteToBinaryString(LOptions),
+                                                                ByteToBinaryString(GetByteFromWord(LHeader.ICMP_Unused,1))]),@LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Router:',GetBitValue(LOptions,1)=1,@LOptions,SizeOf(LOptions)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Solecited:',GetBitValue(LOptions,2)=1,@LOptions,SizeOf(LOptions)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Override:',GetBitValue(LOptions,3)=1,@LOptions,SizeOf(LOptions)));
       end;
-    3, 4, 5, 11, 12:
+    ICMP_MULTICAST_LISTENER_REPORT,
+    ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2:
+      begin    
+        LOptionsW := GetWordFromCardinal(LHeader.ICMP_Unused,0);  
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unused:', LOptionsW, @LOptionsW, SizeOf(LOptionsW)));
+      end
+  else
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unused:', LHeader.ICMP_Unused, @LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused)));
+  end;
+  
+  LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0);   
+  
+  case LHeader.TypeICMP of
+  
+    ICMP_ECHO_REPLY, 
+    ICMP_ECHO_REQUEST:  
+      begin
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (BE):', wpcapntohs(LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));         
+      end;
+
+    ICMP_DEST_UNREACHABLE, 
+    ICMP_DEST_UNREACHABLE_IPv6,
+    ICMP_SOURCE_QUENCH, 
+    ICMP_REDIRECT_MESSAGE, 
+    ICMP_TIME_EXCEEDED, 
+    ICMP_PARAMETER_PROBLEM:    
       begin
 
+        LNewPacketData := GetNextIpHeader(aPacketData,aPacketSize,0,LNewPacketLen);
+        Try
+          Result := TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail);
+        Finally
+          FreeMem(LNewPacketData);
+        End;      
+        
       end;
-    13, 14:
-      begin
-        AListDetail.Add(AddHeaderInfo(1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(1, 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16), nil,0));
-      end;
-    15:
-      begin
-        AListDetail.Add(AddHeaderInfo(1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(1, 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16),nil,0));
-     //   AListDetail.Add(AddHeaderInfo(1, 'Original Datetime (BE):', ntohl(PDWord(aPacketData + SizeOf(TICMPHeader))^), aPacketData + SizeOf(TICMPHeader), SizeOf(Cardinal)));
-     //   AListDetail.Add(AddHeaderInfo(1, 'Receive Datetime (BE):', ntohl(PDWord(aPacketData + SizeOf(TICMPHeader) + SizeOf(Cardinal))^), aPacketData + SizeOf(TICMPHeader) + SizeOf(Cardinal), SizeOf(Cardinal)));
       
+    ICMP_TIMESTAMP_REQUEST, 
+    ICMP_TIMESTAMP_REPLY:      
+      begin
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16), nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));                 
       end;
+      
+    ICMP_INFORMATION_REQUEST:
+      begin
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));               
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));                 
+      end;
+      
+    ICMP_NEIGHBOR_ADVERTISEMENT,
+    ICMP_NEIGHBOR_SOLICITATION:
+      begin
+        SourceAddress  := PTIPv6AddrBytes(aPacketData + LAllHeaderSize)^;
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Target address:', IPv6AddressToString(SourceAddress), @SourceAddress, SizeOf(SourceAddress)));          
+
+        LOptions := PByte(aPacketData + LAllHeaderSize + SizeOf(SourceAddress))^;
+
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Options ICMPV6:',null,nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));
+        LOptions := PByte(aPacketData + LAllHeaderSize + SizeOf(SourceAddress)+1)^;     
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Lenght',LOptions,@LOptions,sizeOf(LOptions)));  
+        SetLength(LLink,(LOptions*8));
+        Move(aPacketData[LAllHeaderSize+SizeOf(SourceAddress)+2],LLink[0],(LOptions*8));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink)));                               
+      end;
+      
+    ICMP_MULTICAST_LISTENER_REPORT,
+    ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2:
+      begin      
+        LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0); 
+        LOptionsW      := PWord(aPacketData + LAllHeaderSize-2)^;
+        LCount         := wpcapntohs(LOptionsW);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Number of Multicast Address Records:',LCount,@LOptionsW,sizeOf(LOptionsW)));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Multicast Address Record Changed to include:',null,nil,0));  
+        LCurrentPos := 0;
+        for I := 0 to LCount -1 do
+        begin
+          LOptions  := PByte(aPacketData + LAllHeaderSize+LCurrentPos)^;     
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Record type',ConvertRecordTypeToString(LOptions),@LOptions,sizeOf(LOptions)));     
+          inc(LCurrentPos);
+          
+          LOptions       := PByte(aPacketData + LAllHeaderSize+LCurrentPos)^;
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Aux Data Len',LOptions,@LOptions,sizeOf(LOptions)));    
+          inc(LCurrentPos);
+                       
+          LOptionsW       := Pword(aPacketData + LAllHeaderSize+LCurrentPos)^;                          
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Number of Sources',wpcapntohs(LOptionsW),@LOptionsW,sizeOf(LOptionsW)));   
+          inc(LCurrentPos,2);
+                  
+          SourceAddress  := PTIPv6AddrBytes(aPacketData + LAllHeaderSize+LCurrentPos)^;
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Multicast address:', IPv6AddressToString(SourceAddress),@SourceAddress, SizeOf(SourceAddress)));  
+          inc(LCurrentPos,SizeOf(SourceAddress));                
+        end;
+      end;
+      
+    ICMP_ROUTER_SOLICITATION:
+      begin
+        LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0); 
+        LOptions       := PByte(aPacketData + LAllHeaderSize)^;
+
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Options ICMPV6:',null,nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));
+        LOptions := PByte(aPacketData + LAllHeaderSize +1)^;     
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Lenght',LOptions,@LOptions,sizeOf(LOptions)));   
+                
+        SetLength(LLink,LOptions*8);
+        Move(aPacketData[LAllHeaderSize+2],LLink[0],LOptions*8);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink)));        
+      end;
+
   end;
   
   Result := True;
 end;
 
+class function TWPcapProtocolICMP.ConvertOptionsToString(aOptions: Integer): string;
+const
+  optionStrings: array[0..14] of string = (
+    'Reserved', 'Source Link-Layer Address', 'Target Link-Layer Address',
+    'Prefix Information', 'Redirected Header', 'MTU', 'Checksum',
+    'Hop-by-Hop Options', 'Destination Options','Unknown','Unknown','Unknown','Unknown','Unknown','Nonce'
+  );
+begin
+  if aOptions > High(optionStrings) then
+    Result := 'Unknown'
+  else
+    Result := optionStrings[aOptions];
+  
+  Result :=Format('%s [%d]',[Result,aOptions]);
+end;
+
+class function TWPcapProtocolICMP.ConvertRecordTypeToString(aRecordType: Byte): string;
+begin
+  case aRecordType of
+    3: Result := 'Changed to Include';
+    4: Result := 'Changed to Exclude';
+    else Result := 'Unknown';
+  end;
+  Result :=Format('%s [%d]',[Result,aRecordType]);
+end;
+
 class function TWPcapProtocolICMP.CodeToString(const aType, Code: Byte): String;
 begin
   case aType of
-    0: case Code of
+    ICMP_ECHO_REPLY: 
+      case Code of
          0: Result := 'Echo Reply';
          1: Result := 'Reserved';
          2: Result := 'Reserved';
@@ -172,8 +364,33 @@ begin
         17: Result := 'Address Mask Request (Deprecated)';
         18: Result := 'Address Mask Reply (Deprecated)';
         else Result := Format('Unknown code: %d', [Code]);
-       end;
-    3: case Code of
+      end;
+      
+    ICMP_DEST_UNREACHABLE_IPv6 :
+      begin     
+        case Code of
+           1: Result := 'Net Unreachable';
+           2: Result := 'Host Unreachable';
+           3: Result := 'Protocol Unreachable';
+           4: Result := 'Port Unreachable';
+           5: Result := 'Fragmentation Needed and DF Set';
+           6: Result := 'Source Route Failed';
+           7: Result := 'Destination Network Unknown';
+           8: Result := 'Destination Host Unknown';
+           9: Result := 'Source Host Isolated';
+          10: Result := 'Communication with Destination Network is Administratively Prohibited';
+          11: Result := 'Communication with Destination Host is Administratively Prohibited';
+          12: Result := 'Destination Network Unreachable for Type of Service';
+          13: Result := 'Destination Host Unreachable for Type of Service';
+          14: Result := 'Communication Administratively Prohibited';
+          15: Result := 'Host Precedence Violation';
+          16: Result := 'Precedence cutoff in effect';
+        else Result := Format('Unknown code: %d', [Code]);
+        end;      
+      end;
+      
+    ICMP_DEST_UNREACHABLE: 
+      case Code of
          0: Result := 'Net Unreachable';
          1: Result := 'Host Unreachable';
          2: Result := 'Protocol Unreachable';
@@ -190,69 +407,85 @@ begin
         13: Result := 'Communication Administratively Prohibited';
         14: Result := 'Host Precedence Violation';
         15: Result := 'Precedence cutoff in effect';
-        else Result := Format('Unknown code: %d', [Code]);
-       end;
-    5: case Code of
-         0: Result := 'Redirect Datagram for the Network';
-         1: Result := 'Redirect Datagram for the Host';
-         2: Result := 'Redirect Datagram for the Type of Service and Network';
-         3: Result := 'Redirect Datagram for the Type of Service and Host';
-         else Result := Format('Unknown code: %d', [Code]);
-       end;
-    11: case Code of
-          0: Result := 'TTL expired in transit';
-          1: Result := 'Fragment reassembly time exceeded';
-          else Result := Format('Unknown code: %d', [Code]);
-        end;
-    12: case Code of
-          0: Result := 'Pointer indicates the error';
-          1: Result := 'Missing a required option';
-          2: Result := 'Bad length';
-          else Result := Format('Unknown code: %d', [Code]);
-        end;
-    else Result := Format('Unknown type: %d, code: %d', [aType, Code]);
+      else Result := Format('Unknown code: %d', [Code]);
+      end;
+      
+    ICMP_REDIRECT_MESSAGE: 
+      case Code of
+        0: Result := 'Redirect Datagram for the Network';
+        1: Result := 'Redirect Datagram for the Host';
+        2: Result := 'Redirect Datagram for the Type of Service and Network';
+        3: Result := 'Redirect Datagram for the Type of Service and Host';
+      else Result := Format('Unknown code: %d', [Code]);
+      end;
+      
+    ICMP_TIME_EXCEEDED: 
+      case Code of
+        0: Result := 'TTL expired in transit';
+        1: Result := 'Fragment reassembly time exceeded';
+      else Result := Format('Unknown code: %d', [Code]);
+      end;
+
+      
+    ICMP_PARAMETER_PROBLEM: 
+      case Code of
+        0: Result := 'Pointer indicates the error';
+        1: Result := 'Missing a required option';
+        2: Result := 'Bad length';
+      else Result := Format('Unknown code: %d', [Code]);
+      end;
+      
+  else 
+     if Code = 0 then
+        Result := '0'
+     else
+       Result := Format('Unknown type: %d, code: %d', [aType, Code]);
   end;
 end;
 
 class function TWPcapProtocolICMP.TypeToString(const aType: Byte): String;
 begin
+
   case aType of
-    0       : Result := 'Echo reply';
-    1       : Result := 'Reserved (for testing)';
-    2       : Result := 'Reserved (for testing)';
-    3       : Result := 'Destination unreachable';
-    4       : Result := 'Source quench';
-    5       : Result := 'Redirect';
-    6       : Result := 'Alternate host address';
-    7       : Result := 'Reserved (for testing)';
-    8       : Result := 'Echo request';
-    9       : Result := 'Router advertisement';
-    10      : Result := 'Router selection';
-    11      : Result := 'Time exceeded';
-    12      : Result := 'Parameter problem';
-    13      : Result := 'Timestamp request';
-    14      : Result := 'Timestamp reply';
-    15      : Result := 'Information request';
-    16      : Result := 'Information reply';
-    17      : Result := 'Address mask request';
-    18      : Result := 'Address mask reply';
-    19      : Result := 'Reserved (for security)';
-    20..29  : Result := 'Reserved (for testing)';
-    30      : Result := 'Traceroute';
-    31      : Result := 'Conversion error';
-    32      : Result := 'Mobile host redirect';
-    33      : Result := 'IPv6 Where-Are-You';
-    34      : Result := 'IPv6 I-Am-Here';
-    35      : Result := 'Mobile Registration Request';
-    36      : Result := 'Mobile Registration Reply';
-    37      : Result := 'Domain Name request';
-    38      : Result := 'Domain Name reply';
-    39..132 : Result := 'Unassigned';
-    133     : Result := 'Router Solicitation';
-    135     : Result := 'Neighbor Solicitation';    
-    136..142: Result := 'unassigned';
-    143     : Result := 'Multicast Listener Report Message v2';
-    144..255: Result := 'Unassigned';
+    ICMP_ECHO_REPLY                            : Result := 'Echo reply';
+    ICMP_DEST_UNREACHABLE_IPv6                 : Result := 'Destination unreachable';
+    2                                          : Result := 'Reserved (for testing)';
+    ICMP_DEST_UNREACHABLE                      : Result := 'Destination unreachable';
+    ICMP_SOURCE_QUENCH                         : Result := 'Source quench';
+    ICMP_REDIRECT_MESSAGE                      : Result := 'Redirect';
+    ICMP_ALTERNATE_HOST_ADDRESS                : Result := 'Alternate host address';
+    7                                          : Result := 'Reserved (for testing)';
+    ICMP_ECHO_REQUEST                          : Result := 'Echo request';
+    ICMP_ROUTER_ADVERTISEMENT                  : Result := 'Router advertisement';
+    ICMP_ROUTER_SELECTION                      : Result := 'Router selection';
+    ICMP_TIME_EXCEEDED                         : Result := 'Time exceeded';
+    ICMP_PARAMETER_PROBLEM                     : Result := 'Parameter problem';
+    ICMP_TIMESTAMP_REQUEST                     : Result := 'Timestamp request';
+    ICMP_TIMESTAMP_REPLY                       : Result := 'Timestamp reply';
+    ICMP_INFORMATION_REQUEST                   : Result := 'Information request';
+    ICMP_INFORMATION_REPLY                     : Result := 'Information reply';
+    ICMP_ADDRESS_MASK_REQUEST                  : Result := 'Address mask request';
+    ICMP_ADDRESS_MASK_REPLY                    : Result := 'Address mask reply';
+    19                                         : Result := 'Reserved (for security)';
+    20..29                                     : Result := 'Reserved (for testing)';
+    ICMP_TRACEROUTE                            : Result := 'Traceroute';
+    ICMP_CONVERSION_ERROR                      : Result := 'Conversion error';
+    ICMP_MOBILE_REDIRECT                       : Result := 'Mobile host redirect';
+    ICMP_IPV6_WHERE_ARE_YOU                    : Result := 'IPv6 Where-Are-You';
+    ICMP_IPV6_I_AM_HERE                        : Result := 'IPv6 I-Am-Here';
+    ICMP_MOBILE_REG_REQUEST                    : Result := 'Mobile Registration Request';
+    ICMP_MOBILE_REG_REPLY                      : Result := 'Mobile Registration Reply';
+    ICMP_DOMAIN_NAME_REQUEST                   : Result := 'Domain Name request';
+    ICMP_DOMAIN_NAME_REPLY                     : Result := 'Domain Name reply';
+    39..130                                    : Result := 'Unassigned';
+    ICMP_MULTICAST_LISTENER_REPORT             : Result := 'Multicast Listener Report';
+    132                                        : Result := 'Unassigned';    
+    ICMP_ROUTER_SOLICITATION                   : Result := 'Router Solicitation';
+    ICMP_NEIGHBOR_SOLICITATION                 : Result := 'Neighbor Solicitation';  
+    ICMP_NEIGHBOR_ADVERTISEMENT                : Result := 'Neighbor Advertisement';
+    137..142                                   : Result := 'unassigned';
+    ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2  : Result := 'Multicast Listener Report Message v2';
+    144..255                                   : Result := 'Unassigned';
   end;
 
   Result := Format('%s [%d]',[Result, aType]).Trim;
