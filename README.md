@@ -23,6 +23,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | L2TP     | PARTIAL | TODO |
 | LLMNR     | OK | TODO |
 | MDNS     | OK | TODO |
+| MQTT     | OK | TODO |
 | NBNS     | OK | TODO |
 | NTP     | OK | TODO |
 | POP3     | TODO | TODO |
