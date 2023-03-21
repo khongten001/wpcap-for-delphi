@@ -16,6 +16,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | Protocol | Packet Detail | Info on Grid |
 |----------|--------------|--------------|
 | ARP      | OK    | TODO   |
+| DHCP      | OK    | TODO   |
 | DNS      | OK    | TODO   |
 | FTP      | TODO    | TODO   |
 | HTTP     | TODO | TODO|
