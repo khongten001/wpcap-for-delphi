@@ -269,6 +269,7 @@ type
     Description : String;  // Descriptive text for the header information
     Hex         : String;  // Hexadecimal representation of the header information
     Value       : Variant;
+    Size        : Integer;
   End;  
 
   TIpClaseType = (imtNone,imtIpv4,imtIpv6);  

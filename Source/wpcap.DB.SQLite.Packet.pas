@@ -290,9 +290,7 @@ begin
       aPacketSize := LStream.Size;
       GetMem(Result, aPacketSize);
       LStream.Seek(0, soBeginning);
-      LStream.ReadBuffer(Result^, aPacketSize);
-
-      
+      LStream.ReadBuffer(Result^, aPacketSize);      
     finally
       LStream.Free;
     end;    
@@ -312,7 +310,6 @@ begin
     begin
       Result := DisplayHexData(LPacket,LPacketSize);
       TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aStartLevel,aListDetail);
-
     end;
   Finally
      FreeMem(LPacket);

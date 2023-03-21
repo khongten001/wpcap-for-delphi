@@ -40,7 +40,19 @@ procedure MyProcessMessages;
 function MyProcessMessage(var Msg: TMsg): Boolean;
 function HexStrToBytes(const AHexStr: string): TBytes;
 function BufferToASCII(aPByteData: PByte; aDataSize: Integer):String;
+function LongWordToString(const aValue: LongWord): string;
+
 implementation
+
+
+function LongWordToString(const aValue: LongWord): string;
+var LBytes: TidBytes;
+begin
+  SetLength(LBytes, SizeOf(aValue));
+  Move(aValue, LBytes[0], SizeOf(aValue)); // Copy the LongWord value to a byte array
+  Result := BytesToStringRaw(LBytes); // Convert the byte array to a string
+end;
+
 
 procedure MyProcessMessages;
 var

@@ -102,7 +102,8 @@ begin
   if aPacketInfo = nil then      
     Result.Hex := String.Empty
   else
-    Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False));
+    Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False)).Trim;
+  Result.Size := aPacketInfoSize;
 end;   
 
 class function TWPcapProtocolBase.IsValidByPort(aTestPort,aSrcPort,aDstPort: Integer;
