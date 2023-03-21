@@ -52,7 +52,9 @@ uses
   wpcap.Protocol.Telnet in '..\..\Source\Protocols\wpcap.Protocol.Telnet.pas',
   wpcap.Protocol.QUIC in '..\..\Source\Protocols\wpcap.Protocol.QUIC.pas',
   wpcap.Protocol.MQTT in '..\..\Source\Protocols\wpcap.Protocol.MQTT.pas',
-  wpcap.Protocol.DCHP in '..\..\Source\Protocols\wpcap.Protocol.DCHP.pas';
+  wpcap.Protocol.IGMP in '..\..\Source\Protocols\wpcap.Protocol.IGMP.pas',
+  wpcap.Protocol.GTP in '..\..\Source\Protocols\wpcap.Protocol.GTP.pas',
+  wpcap.Protocol.DHCP in '..\..\Source\Protocols\wpcap.Protocol.DHCP.pas';
 
 {$R *.res}
 

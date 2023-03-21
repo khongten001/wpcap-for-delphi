@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,wpcap.Protocol.ICMP,
+  System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,wpcap.Protocol.ICMP,wpcap.Protocol.IGMP,
   wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,wpcap.IpUtils,
   wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2;
 
@@ -561,7 +561,7 @@ begin
         IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
         IPPROTO_TCP     : TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
         IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
-        IPPROTO_IGMP    :;
+        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
         IPPROTO_GGP     :;  
         IPPROTO_IP      :
           begin  
@@ -821,7 +821,7 @@ begin
            aInternalIP.IANAProtoStr := LIANARow.ProtocolName
         end     
       end;
-    IPPROTO_IGMP    :;
+    IPPROTO_IGMP    : TWPcapProtocolIGMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
     IPPROTO_GGP     :;    
     IPPROTO_IPV6    :
       begin

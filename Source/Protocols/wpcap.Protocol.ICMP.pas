@@ -521,7 +521,7 @@ begin
    imtIpv6:
       begin
 
-        if Not (TWpcapIPHeader.HeaderIPv6(aData,aSize).NextHeader in [IPPROTO_ICMPV6,IPPROTO_HOPOPTS]) then Exit;
+        if Not (TWpcapIPHeader.HeaderIPv6(aData,aSize).NextHeader in [IPPROTO_ICMP]) then Exit;
         // Parse the UDP header
         aICMPHeader := PTICMPHeader(aData + aSizeEthIP);
         Result      := True;

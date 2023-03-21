@@ -7,8 +7,8 @@ uses
   wpcap.Protocol.Base, wpcap.Protocol.TCP, wpcap.Protocol.POP3, vcl.Graphics,wpcap.Protocol.MQTT,
   wpcap.Graphics, wpcap.Protocol.DNS, wpcap.Protocol.UDP,wpcap.Protocol.FTP,wpcap.Protocol.QUIC,
   System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP, wpcap.Protocol.SIP,
-  wpcap.Protocol.NTP, wpcap.Protocol.MDNS, wpcap.Protocol.LLMNR,wpcap.Protocol.TFTP,
-  wpcap.Protocol.TLS, wpcap.Protocol.NBNS,wpcap.Protocol.RTP,wpcap.Protocol.DCHP;
+  wpcap.Protocol.NTP, wpcap.Protocol.MDNS, wpcap.Protocol.LLMNR,wpcap.Protocol.TFTP,wpcap.Protocol.GTP,
+  wpcap.Protocol.TLS, wpcap.Protocol.NBNS,wpcap.Protocol.RTP,wpcap.Protocol.DHCP;
 
 
 
@@ -78,6 +78,7 @@ CONST TCP_COLOR     = 16704998;
       AH_COLOR      = $FFB6C1; // LightPink
       ESP_COLOR     = $D8BFD8; // Thistle;
       ARP_COLOR     = 14151930;
+      IGMP_COLOR    = $00FFFF;
 var LDetectProtoFound : Boolean;      
 begin
   Result            := True;
@@ -98,6 +99,7 @@ begin
        DETECT_PROTO_HTTP     : aBackGroundColor := $008FBC8F;
        DETECT_PROTO_NBNS     : aBackGroundColor := $00D0FFFE;//Yellow
        DETECT_PROTO_DHCP     : aBackGroundColor := $00FFDAAF;//blue 
+       DETECT_PROTO_IGMP     : aBackGroundColor := IGMP_COLOR;
     else
       LDetectProtoFound := False;
     end;
@@ -111,7 +113,7 @@ begin
         case aProtocol of
           IPPROTO_HOPOPTS,        
           IPPROTO_ICMP   : aBackGroundColor := ICMP_COLOR;
-          IPPROTO_IGMP   : aBackGroundColor := $00FFFF; // Cyan
+          IPPROTO_IGMP   : aBackGroundColor := IGMP_COLOR;
           IPPROTO_GGP    : aBackGroundColor := $FFD700; // Gold
           IPPROTO_TCP    : aBackGroundColor := TCP_COLOR; 
           IPPROTO_UDP    : aBackGroundColor := UDP_COLOR; 
@@ -190,6 +192,7 @@ begin
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolSIP>);      
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolQUIC>);      
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolDHCP>);        
+  FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolGTP>);        
   {TCP}  
   FListProtolsTCPDetected := TListProtolsTCPDetected.Create;  
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolTLS>);
