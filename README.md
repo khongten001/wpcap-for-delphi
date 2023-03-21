@@ -20,6 +20,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | DNS      | OK    | TODO   |
 | FTP      | TODO    | TODO   |
 | HTTP     | TODO | TODO|
+| GTP     | PARTIAL | TODO |
 | ICMP     | OK | TODO |
 | IGMP     | OK | TODO |
 | L2TP     | PARTIAL | TODO |
