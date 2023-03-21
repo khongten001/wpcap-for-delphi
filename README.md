@@ -21,6 +21,7 @@ For protocols that are recognized directly by my library, I provide additional p
 | FTP      | TODO    | TODO   |
 | HTTP     | TODO | TODO|
 | ICMP     | OK | TODO |
+| IGMP     | OK | TODO |
 | L2TP     | PARTIAL | TODO |
 | LLMNR     | OK | TODO |
 | MDNS     | OK | TODO |
