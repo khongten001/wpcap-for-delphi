@@ -13,31 +13,9 @@ However, I also have an internal protocol recognition engine that allows me to i
 
 For protocols that are recognized directly by my library, I provide additional packet details and information directly in the grid (as listed in the INFO column). This helps to provide a more comprehensive and detailed understanding of the protocols being used.
 
-| Protocol | Packet Detail | Info on Grid |
-|----------|--------------|--------------|
-| ARP      | OK    | TODO   |
-| DHCP      | OK    | TODO   |
-| DNS      | OK    | TODO   |
-| FTP      | TODO    | TODO   |
-| HTTP     | TODO | TODO|
-| GTP     | PARTIAL | TODO |
-| ICMP     | OK | TODO |
-| IGMP     | OK | TODO |
-| L2TP     | PARTIAL | TODO |
-| LLMNR     | OK | TODO |
-| MDNS     | OK | TODO |
-| MQTT     | OK | TODO |
-| NBNS     | OK | TODO |
-| NTP     | OK | TODO |
-| POP3     | TODO | TODO |
-| QUIC     | PARTIAL | TODO |
-| RTP     | OK | TODO |
-| SIP     | TODO | TODO |
-| TELNET   | OK    | TODO   |
-| TCP      | OK    | TODO   |
-| TFTP      | OK    | TODO   |
-| TLS     | PARTIAL | TODO |
-| UDP      | OK   | TODO|
+[Info protocol supported](https://github.com/amancini/wpcap-for-delphi/wiki/Table-protocol-supported)
+
+
 
 # Service Name and Transport Protocol Port Number Registry by IANA 
 
@@ -53,7 +31,8 @@ By using this registry, I can ensure that my software is compatible with the pro
 
 Ability to export RTP session payloads and play them back as audio files using SOX(https://sox.sourceforge.net/Main/HomePage).
 
-Currently, thee library only supports the G711 a-law codec, but we are working to expand our codec compatibility in the near future. 
+[Info codec supported](https://github.com/amancini/wpcap-for-delphi/wiki/RTP-table-codec-supported)
+
 With this new feature, you can now easily export your RTP session payloads and play them back as audio files, making it easier to analyze and debug your audio streams.
 
 # GeoLite2 by MaxMind
@@ -81,35 +60,6 @@ UDP, on the other hand, is a connectionless protocol, which means that data can 
 In my library, I provide information on TCP and UDP flow streams as part of the network analysis features. This allows users to gain a better understanding of the flow of data between devices on their network, and to identify any potential issues or areas for optimization.
 
 ![image](https://user-images.githubusercontent.com/11525545/223887025-799aa3c9-8dc3-463c-9364-8cc118554e76.png)
-
-
-# Package unit detail
-
-The package contains several units including: 
-
-+ **wpcap.Wrapper.pas:**  which wraps the functions of the wpcap DLL.
-+ **wpcap.Conts.pas:**   which contains constants used in the library. 
-+ **wpcap.Types.pas:**    which contains structures used by the library. 
-+ **wpcap.Protocol.pas:** which contains functions for managing protocols.
-+ **wpcap.BufferUtils.pas:** which contains functions for managing buffer data.
-+ **wpcap.StrUtils.pas:** which contains string manipulation functions.
-+ **wpcap.IOUtils.pas:**  which contains functions for filesystem.
-+ **wpcap.Pcap.pas:**  which contains abstract function for load and save PCAP.
-+ **wpcap.PCAP.SQLite.pas:**  which contains abstract function for create SQLiteDB.
-+ **wpcap.PCAP.SQLite.Packet.pas:**  which contains abstract function for create SQLiteDB with packet of PCAP.
-+ **wpcap.DB.Base:**  which contains base class for managing database.
-+ **wpcap.DB.SQLite.pas:**  which contains function SQLiteDB.
-+ **wpcap.Filter.pas:**  which contains function for filter PCAP.
-+ **wpcap.NetDevice:**  which contains function for managing network inteface.
-+ **wpcap.Protocol.Base:**  which contains base class engine for protocol detection
-+ **wpcap.Graphics:**  which contains function for colors
-+ **wpcap.Level.Eth:**  which contains class for Ethernet level
-+ **wpcap.Level.IP:**  which contains class for IP level
-+ **wpcap.IANA.DBPort:**  which contains databse of IANA Db Port to Protocol name
-+ **wpcap.Packet.pas:** witch contains internal structure for packet analisys
-+ **wpcap.GEOLite2:** Import Database GeoLite2 by MaxMind and IP enrichment
-+ **wpcap.Geometry:** GrantCircle implementation for Delphi
-+ **wpcap.IPUtils:** which contains class for IP conversion
 
 
 # DEMO
