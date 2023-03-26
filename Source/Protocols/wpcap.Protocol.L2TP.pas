@@ -133,7 +133,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override; 
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override; 
   end;  
 
 
@@ -290,7 +290,7 @@ begin
     19:  Result := 'Framing Type';
     20:  Result := 'Called Number';
     21:  Result := 'Calling Number';
-    22:  Result := 'Sub-Address';
+    22:  Result := 'Sub Address';
     23:  Result := 'Tx Connect Speed';
     24:  Result := 'Physical Channel ID';
     25:  Result := 'Initial Receive Conf';
@@ -315,20 +315,20 @@ begin
     44:  Result := 'Bearer Information';
     45:  Result := 'Framing Information';
     46:  Result := 'Connect Speed';
-    47:  Result := 'Calling Sub-Address';
-    48:  Result := 'Called Sub-Address';
+    47:  Result := 'Calling Sub Address';
+    48:  Result := 'Called Sub Address';
     49:  Result := 'Tx Connect Time';
     50:  Result := 'Proxy Authen Window';
     51:  Result := 'Status Info';
     52:  Result := 'Acct Session ID';
-    53:  Result := 'Acct Multi-Session ID';
+    53:  Result := 'Acct Multi Session ID';
     54:  Result := 'Acct Link Count';
     55:  Result := 'Acct Input Octets';
     56:  Result := 'Acct Output Octets';
     57:  Result := 'Acct Input Packets';
     58:  Result := 'Acct Output Packets';
     59:  Result := 'Acct Terminate Cause';
-    60:  Result := 'Acct Multi-Session ID Valid';
+    60:  Result := 'Acct Multi Session ID Valid';
     61:  Result := 'Acct Primary Session ID';
     62:  Result := 'Acct Secondary Session ID';
     63:  Result := 'Acct Orig Session ID';
@@ -390,13 +390,13 @@ begin
     119: Result := 'Outer VLAN ID';
     120: Result := 'Inner VLAN ID';
     121: Result := 'Originating Line Info';
-    122: Result := 'NAS-Port-Type';
+    122: Result := 'NAS Port Type';
     123: Result := 'Source Port';
     124: Result := 'Destination Port';
     125: Result := 'Message Authenticator';
     126: Result := 'Proxy State';
     127: Result := 'Proxy Information';
-    128: Result := 'NAS-Identifier';
+    128: Result := 'NAS Identifier';
     129: Result := 'Proxy Action';
     130: Result := 'Location ID';
     131: Result := 'Location Name';
@@ -430,7 +430,7 @@ begin
     159: Result := 'Prompt';
     160: Result := 'Connect Info';
     161: Result := 'Configuration Token';
-    162: Result := 'EAP-Message';
+    162: Result := 'EAP Message';
     163: Result := 'Signature';
     164: Result := 'ARAP Challenge Response';
     165: Result := 'Acct Interim Interval Valid';
@@ -451,7 +451,7 @@ begin
     180: Result := 'Access Point Name';
     181: Result := 'Event Sub Type';
     182: Result := 'Circuit ID';
-    183: Result := 'Vendor-Specific';
+    183: Result := 'Vendor Specific';
     184: Result := 'Dialout Allowed';
     185: Result := 'Filter ID';
     186: Result := 'Prompt Time';
@@ -460,70 +460,70 @@ begin
     189: Result := 'Disconnect Cause';
     190: Result := 'Calling Station ID';
     191: Result := 'Called Station ID';
-    192: Result := 'NAS-Port-Id';
-    193: Result := 'Framed-IP-Address';
-    194: Result := 'Framed-IP-Netmask';
-    195: Result := 'Framed-IP-Route';
-    196: Result := 'Filter-Id';
-    197: Result := 'Framed-AppleTalk-Link';
-    198: Result := 'Framed-AppleTalk-Network';
-    199: Result := 'Framed-AppleTalk-Zone';
-    200: Result := 'Acct-Input-Packets';
-    201: Result := 'Acct-Output-Packets';
-    202: Result := 'Acct-Session-Id';
-    203: Result := 'Acct-Authentic';
-    204: Result := 'Acct-Session-Time';
-    205: Result := 'Acct-Input-Gigawords';
-    206: Result := 'Acct-Output-Gigawords';
+    192: Result := 'NAS Port Id';
+    193: Result := 'Framed IP Address';
+    194: Result := 'Framed IP Netmask';
+    195: Result := 'Framed IP Route';
+    196: Result := 'Filter Id';
+    197: Result := 'Framed AppleTalk Link';
+    198: Result := 'Framed AppleTalk Network';
+    199: Result := 'Framed AppleTalk Zone';
+    200: Result := 'Acct Input Packets';
+    201: Result := 'Acct Output Packets';
+    202: Result := 'Acct Session Id';
+    203: Result := 'Acct Authentic';
+    204: Result := 'Acct Session Time';
+    205: Result := 'Acct Input Gigawords';
+    206: Result := 'Acct Output Gigawords';
     207: Result := 'Unassigned';
-    208: Result := 'Event-Timestamp';
-    209: Result := 'Egress-VLANID';
-    210: Result := 'Ingress-Filters';
-    211: Result := 'Egress-VLAN-Name';
-    212: Result := 'User-Name';
-    213: Result := 'VLAN-Name';
-    214: Result := 'Filter-Name';
-    215: Result := 'IPv6-Interface-ID';
-    216: Result := 'IPv6-Client-IP-Address';
-    217: Result := 'IPv6-Server-IP-Address';
-    218: Result := 'RADIUS-IPv6-Prefix';
-    219: Result := 'Framed-IPv6-Prefix';
-    220: Result := 'Login-IPv6-Host';
-    221: Result := 'Framed-IPv6-Route';
-    222: Result := 'Framed-IPv6-Pool';
-    223: Result := 'Error-Cause';
-    224: Result := 'EAP-Key-Name';
-    225: Result := 'Digest-Response';
-    226: Result := 'Digest-Realm';
-    227: Result := 'Digest-Nonce';
-    228: Result := 'Digest-Response-Auth';
-    229: Result := 'Digest-Nextnonce';
-    230: Result := 'Digest-Method';
-    231: Result := 'Digest-URI';
-    232: Result := 'Digest-Qop';
-    233: Result := 'Digest-Algorithm';
-    234: Result := 'Digest-Entity-Body-Hash';
-    235: Result := 'Digest-CNonce';
-    236: Result := 'Digest-Nonce-Count';
-    237: Result := 'Digest-Username';
-    238: Result := 'Digest-Opaque';
-    239: Result := 'Digest-Auth-Param';
-    240: Result := 'Digest-AKA-Auts';
-    241: Result := 'Digest-Domain';
-    242: Result := 'Digest-Stale';
-    243: Result := 'Digest-HA1';
-    244: Result := 'SIP-AOR';
-    245: Result := 'Delegated-IPv6-Prefix';
-    246: Result := 'MIP6-Feature-Vector';
-    247: Result := 'MIP6-Home-Link-Prefix';
-    248: Result := 'Operator-Name';
-    249: Result := 'Location-Information';
+    208: Result := 'Event Timestamp';
+    209: Result := 'Egress VLANID';
+    210: Result := 'Ingress Filters';
+    211: Result := 'Egress VLAN Name';
+    212: Result := 'UserName';
+    213: Result := 'VLAN Name';
+    214: Result := 'Filter Name';
+    215: Result := 'IPv6 Interface ID';
+    216: Result := 'IPv6 Client IP Address';
+    217: Result := 'IPv6 Server IP Address';
+    218: Result := 'RADIUS IPv6 Prefix';
+    219: Result := 'Framed IPv6 Prefix';
+    220: Result := 'Login IPv6 Host';
+    221: Result := 'Framed IPv6 Route';
+    222: Result := 'Framed IPv6 Pool';
+    223: Result := 'Error Cause';
+    224: Result := 'EAP Key Name';
+    225: Result := 'Digest Response';
+    226: Result := 'Digest Realm';
+    227: Result := 'Digest Nonce';
+    228: Result := 'Digest Response Auth';
+    229: Result := 'Digest Nextnonce';
+    230: Result := 'Digest Method';
+    231: Result := 'Digest URI';
+    232: Result := 'Digest Qop';
+    233: Result := 'Digest Algorithm';
+    234: Result := 'Digest Entity Body Hash';
+    235: Result := 'Digest CNonce';
+    236: Result := 'Digest Nonce Count';
+    237: Result := 'Digest Username';
+    238: Result := 'Digest Opaque';
+    239: Result := 'Digest Auth Param';
+    240: Result := 'Digest AKA Auts';
+    241: Result := 'Digest Domain';
+    242: Result := 'Digest Stale';
+    243: Result := 'Digest HA1';
+    244: Result := 'SIP AOR';
+    245: Result := 'Delegated IPv6 Prefix';
+    246: Result := 'MIP6 Feature Vector';
+    247: Result := 'MIP6 Home Link Prefix';
+    248: Result := 'Operator Name';
+    249: Result := 'Location Information';
     250: Result := 'Location';
-    251: Result := 'Location-Data';
-    252: Result := 'Basic-Location-Policy-Rules';
-    253: Result := 'Extended-Location-Policy-Rules';
-    254: Result := 'Location-Capable';
-    255: Result := 'Requested-Location-Info';    
+    251: Result := 'Location Data';
+    252: Result := 'Basic Location Policy Rules';
+    253: Result := 'Extended Location Policy Rules';
+    254: Result := 'Location Capable';
+    255: Result := 'Requested Location Info';    
   end;
 end;
 
@@ -551,28 +551,28 @@ begin
    data message and 1 for a control message.}
 
   Result := Format('Message type [%d]',[GetBitValue(aFlags,1)]);
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Message type:',ifthen(GetBitValue(aFlags,1)=1,'control message','data message'),nil,0));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.MsgType',[AcronymName]), 'Message type:',ifthen(GetBitValue(aFlags,1)=1,'control message','data message'), @aFlags,SizeOf(aFlags), GetBitValue(aFlags,1) ));  
   
   {
    If the Length (L) bit is 1, the Length field is present. This bit
    MUST be set to 1 for control messages.
   }  
   Result :=  Format('%s LengthIncluded %s ',[Result,BoolToStr(LenghtIsPresent(aFlags),True)]);
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Length is present:',LenghtIsPresent(aFlags),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.LenIsPresent',[AcronymName]), 'Length is present:',LenghtIsPresent(aFlags),@aFlags,SizeOf(aFlags), GetBitValue(aFlags,2) ));  
 
   {
     If the Sequence (S) bit is set to 1 the Ns and Nr fields are present.
     The S bit MUST be set to 1 for control messages.
   }
   Result :=  Format('%s SequenceIncluded %s ',[Result,BoolToStr(SequencePresent(aFlags),True)]);
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Sequence is present:',SequencePresent(aFlags),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.SeqIsPresent',[AcronymName]), 'Sequence is present:',SequencePresent(aFlags),@aFlags,SizeOf(aFlags), GetBitValue(aFlags,5) ));  
 
   {
    If the Offset (O) bit is 1, the Offset Size field is present. The O
    bit MUST be set to 0 (zero) for control messages.
   }
   Result :=  Format('%s OffsetIncluded %s ',[Result,BoolToStr(OffSetIsPresent(aFlags),True)]);
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Offset is present:',OffSetIsPresent(aFlags),nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.OffSetIsPresent',[AcronymName]), 'Offset is present:',OffSetIsPresent(aFlags),@aFlags,SizeOf(aFlags), GetBitValue(aFlags,7) ));  
 
   { If the Priority (P) bit is 1, this data message should receive
    preferential treatment in its local queuing and transmission.  LCP
@@ -583,28 +583,34 @@ begin
    only for use with data messages. The P bit MUST be set to 0 for all
    control messages.                                       }
   Result :=  Format('%s Priority %s ',[Result,BoolToStr(GetBitValue(aFlags,8)=1,True)]);
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Priority:',GetBitValue(aFlags,8)=1,nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Priority',[AcronymName]), 'Priority:',GetBitValue(aFlags,8)=1, @aFlags,SizeOf(aFlags), GetBitValue(aFlags,8) ));  
 end;
 
-class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; 
-var LHeaderL2TP: PTL2TPHdrInternal;
-    LPUDPHdr   : PUDPHdr;
-    LUDPPayLoad: PByte;
-    Loffset    : Word;
-    LVendorID  : TListVendorId;
+class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; 
+var LHeaderL2TP   : PTL2TPHdrInternal;
+    LPUDPHdr      : PUDPHdr;
+    LUDPPayLoad   : PByte;
+    Loffset       : Word;
+    UDPPayLoadLen : Integer;
+    LVendorID     : TListVendorId;
 begin
 
   Result := False;
   if not HeaderUDP(aPacketData, aPacketSize, LPUDPHdr) then Exit;
-  LUDPPayLoad := GetUDPPayLoad(aPacketData, aPacketSize);
-  LHeaderL2TP := Header(LUDPPayLoad);
+  LUDPPayLoad   := GetUDPPayLoad(aPacketData, aPacketSize);
+  UDPPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
+  FIsFilterMode := aIsFilterMode;
+  LHeaderL2TP   := Header(LUDPPayLoad);
   Try
     LVendorID := InitVendorID;  
     Try
       if not Assigned(LHeaderL2TP) then exit;
   
-      AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LHeaderL2TP), HeaderLength(LHeaderL2TP.Flags)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Flags',ByteToBinaryString(LHeaderL2TP.Flags), @LHeaderL2TP.flags, SizeOf(LHeaderL2TP.flags)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad, UDPPayLoadLen ));
+      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Header length', HeaderLength(LHeaderL2TP.Flags),nil,0));      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags',ByteToBinaryString(LHeaderL2TP.Flags), @LHeaderL2TP.flags, SizeOf(LHeaderL2TP.flags), LHeaderL2TP.flags ));
+
       GetL2TPFlag(LHeaderL2TP.Flags,aStartLevel,AListDetail);
     
       {
@@ -614,13 +620,12 @@ begin
        L2TP packets. Packets received with an unknown Ver field MUST be
        discarded.
       }    
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Version', LHeaderL2TP.Version, @LHeaderL2TP.Version, SizeOf(LHeaderL2TP.Version)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Version',[AcronymName]), 'Version', LHeaderL2TP.Version, @LHeaderL2TP.Version, SizeOf(LHeaderL2TP.Version)));
     
       {The Length field indicates the total length of the message in octets.}
       if LenghtIsPresent(LHeaderL2TP.Flags) then    
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Length', wpcapntohs(LHeaderL2TP.Length), @LHeaderL2TP.Length, SizeOf(LHeaderL2TP.Length)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length', wpcapntohs(LHeaderL2TP.Length), @LHeaderL2TP.Length, SizeOf(LHeaderL2TP.Length)));
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Header length', HeaderLength(LHeaderL2TP.Flags),nil,0));
     
       {  Tunnel ID indicates the identifier for the control connection. L2TP
          tunnels are named by identifiers that have local significance only.
@@ -628,7 +633,7 @@ begin
          end of the tunnel. Tunnel ID in each message is that of the intended
          recipient, not the sender. Tunnel IDs are selected and exchanged as
          Assigned Tunnel ID AVPs during the creation of a tunnel.}
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Tunnel ID', wpcapntohs(LHeaderL2TP.tunnelID), @LHeaderL2TP.tunnelID, SizeOf(LHeaderL2TP.tunnelID)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TunnelId',[AcronymName]), 'Tunnel ID', wpcapntohs(LHeaderL2TP.tunnelID), @LHeaderL2TP.tunnelID, SizeOf(LHeaderL2TP.tunnelID)));
 
        {
          Session ID indicates the identifier for a session within a tunnel.
@@ -639,7 +644,7 @@ begin
          exchanged as Assigned Session ID AVPs during the creation of a
          session.
        }
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Session ID', wpcapntohs(LHeaderL2TP.SessionId), @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SessionId',[AcronymName]), 'Session ID', wpcapntohs(LHeaderL2TP.SessionId), @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
       if SequencePresent(LHeaderL2TP.Flags) then    
       begin
         {
@@ -648,7 +653,7 @@ begin
          message sent. See Section 5.8 and 5.4 for more information on using
          this field.      
         }
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Next sequence', wpcapntohs(LHeaderL2TP.Ns), @LHeaderL2TP.Ns, SizeOf(LHeaderL2TP.Ns)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NextSequence',[AcronymName]), 'Next sequence', wpcapntohs(LHeaderL2TP.Ns), @LHeaderL2TP.Ns, SizeOf(LHeaderL2TP.Ns)));
         {
          Nr indicates the sequence number expected in the next control message
          to be received.  Thus, Nr is set to the Ns of the last in-order
@@ -657,7 +662,7 @@ begin
          upon receipt. See section 5.8 for more information on using this
          field in control messages.
         }
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Next received', wpcapntohs(LHeaderL2TP.Nr), @LHeaderL2TP.Nr, SizeOf(LHeaderL2TP.Nr)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NextReceived',[AcronymName]), 'Next received', wpcapntohs(LHeaderL2TP.Nr), @LHeaderL2TP.Nr, SizeOf(LHeaderL2TP.Nr)));
       end;
     
       Loffset :=0; 
@@ -670,10 +675,10 @@ begin
          field is present, the L2TP header ends after the last octet of the
          offset padding.    }
         Loffset := wpcapntohs(LHeaderL2TP.OffsetSize);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Offset size',Loffset, @LHeaderL2TP.OffsetSize, SizeOf(LHeaderL2TP.OffsetSize))); 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OffsetSize',[AcronymName]), 'Offset size',Loffset, @LHeaderL2TP.OffsetSize, SizeOf(LHeaderL2TP.OffsetSize))); 
       end;
        
-      if UDPPayLoadLength(LPUDPHdr) > HeaderLength(LHeaderL2TP.Flags)+Loffset then
+      if UDPPayLoadLen > HeaderLength(LHeaderL2TP.Flags)+Loffset then
       begin
         // Parse L2TP payload for control message AVP
         if LHeaderL2TP.Version = 2 then    
@@ -1274,7 +1279,11 @@ var LAvpHeader      : TAVPHeader;
     LAvpLength      : Word;
     LAvpValue       : TValue;
     LCurrentPos     : Integer;
-    LResultStr      : string;    
+    LByte0          : Byte;
+    LByte1          : Byte;    
+    LResultStr      : string;   
+    LTypeStr        : string; 
+    LLabel          : String;
 begin
 
 
@@ -1300,8 +1309,11 @@ begin
     LAvpHeader := PAVPHeader(PayloadData + LCurrentPos)^;
     LAvpFlag   := wpcapntohs(LAvpHeader.AvtFlag);
     LAvpType   := wpcapntohs(LAvpHeader.AttrType);
-    LAvpLength := GetLastNBit(LAvpFlag,10);    
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('AVP %s [%d]', [L2TPAVPTypeToString(LAvpType),LAvpType]),null,@LAvpHeader,SizeOF(LAvpHeader))); 
+    LAvpLength := GetLastNBit(LAvpFlag,10);  
+    LTypeStr   := L2TPAVPTypeToString(LAvpType);
+    LLabel     := Format('%s.AVP.%s',[AcronymName,LTypeStr]);  
+    
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, LLabel , Format('AVP %s ', [LTypeStr]),null,@LAvpHeader,SizeOF(LAvpHeader), LAvpType )); 
 
     {
        The first six bits are a bit mask, describing the general attributes
@@ -1333,13 +1345,15 @@ begin
        data in a single AVP. The minimum Length of an AVP is 6. If the
        length is 6, then the Attribute Value field is absent.
     }
-    
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Flag:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LAvpFlag,0)),
-                                                            ByteToBinaryString(GetByteFromWord(LAvpFlag,1))]),@LAvpFlag,sizeOf(LAvpFlag)));       
+    LByte0 := GetByteFromWord(LAvpFlag,0);
+    LByte1 := GetByteFromWord(LAvpFlag,1);
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags',[LLabel]), 'Flags:',Format('%s %s',[ByteToBinaryString(LByte0),
+                                                                                                       ByteToBinaryString(LByte1)]),
+                                 @LAvpFlag,sizeOf(LAvpFlag),GetByteFromWord(LAvpFlag,0)));       
                                                             
-    AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Mandatory:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,1)=1,nil,0));
-    AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Hidden:',GetBitValue( GetByteFromWord(LAvpFlag,1) ,2)=1,nil,0)); 
-    AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Length:',LAvpLength,@LAvpLength,10)); 
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Flags.Mandatory',[LLabel]), 'Mandatory:',GetBitValue(LByte1,1)=1, @LByte1,SizeOf(LByte1), GetBitValue(LByte1,1) ));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Flags.Hidden',[LLabel]), 'Hidden:',GetBitValue(LByte1,2)=1, @LByte1,SizeOf(LByte1), GetBitValue(LByte1,2) ));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Flags.Length',[LLabel]), 'Length:',LAvpLength,@LAvpLength,10)); 
     
     {
       Vendor ID: The IANA assigned "SMI Network Management Private
@@ -1353,11 +1367,11 @@ begin
       are 16 bits allocated for the Vendor ID, thus limiting this feature
       to the first 65,535 enterprises.
     }    
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Vendor:',wpcapntohs(LAvpHeader.VendorID),@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID)));       
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Vendor',[LLabel]), 'Vendor:',wpcapntohs(LAvpHeader.VendorID),@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID)));       
 
     {Attribute Type: A 2 octet value with a unique interpretation across
      all AVPs defined under a given Vendor ID.}    
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type:',Format('%s [%d]', [L2TPAVPTypeToString(LAvpType),LAvpType]),@LAvpHeader.AttrType,sizeOf(LAvpHeader.AttrType)));       
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Type',[LLabel]), 'Type:',L2TPAVPTypeToString(LAvpType),@LAvpHeader.AttrType,sizeOf(LAvpHeader.AttrType), LAvpType ));       
 
 
     // Add AVP type and length to the result string
@@ -1377,7 +1391,7 @@ begin
       
       LAvpValue := wpcapntohs(Pcardinal(PayloadData + LCurrentPos)^);
       LAvpValue := ReadAVPValueFromPacket(PayloadData,LCurrentPos,LAvpLength,LAvpType,aVendorID);
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type value:',LAvpValue.ToString,nil,0));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:',LAvpValue.ToString, @LAvpValue,SizeOF(LAvpValue) ));
       LResultStr :=Format('%s %s',[LResultStr,LAvpValue.ToString])  + #13#10;
 
       {TODO message by AVP Type}
@@ -1388,7 +1402,7 @@ begin
     begin
       // AVP has no value
       if LAvpType = 0 then
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type value:','not present',nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:','not present',nil,0, LAvpType));
       Inc(LCurrentPos, SizeOf(TAVPHeader));
     end;
   end;

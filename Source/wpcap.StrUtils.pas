@@ -2,11 +2,12 @@
 
 interface
 
-uses WinApi.Windows,WinSock,System.SysUtils,DateUtils,System.Classes,idGlobal;
-
+uses
+  WinApi.Windows, WinSock, System.SysUtils, DateUtils, System.Classes, idGlobal,
+  wpcap.Types, System.Variants;
 
 /// <summary>
-/// The function MACAddrToStr takes an array of bytes representing a MAC address and converts it into a string representation in the format of "XX:XX:XX:XX:XX:XX", 
+/// The function MACAddrToStr takes an array of bytes representing a MAC address and converts it into a string representation in the format of "XX:XX:XX:XX:XX:XX",
 /// where each "XX" represents a two-digit hexadecimal number corresponding to each byte in the array. The resulting string is returned by the function.
 /// </summary>
 function MACAddrToStr(const MACAddr: array of Byte): string;
@@ -36,13 +37,92 @@ function SizeToStr(aSize: int64) : String;
 /// <param name="aDataSize">Size of the data to be displayed in bytes</param>
 /// <returns>An array of strings containing the hexadecimal representation of the data</returns>
 function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
-procedure MyProcessMessages;
-function MyProcessMessage(var Msg: TMsg): Boolean;
-function HexStrToBytes(const AHexStr: string): TBytes;
-function BufferToASCII(aPByteData: PByte; aDataSize: Integer):String;
+
+
+function BufferToASCII(aPByteData: PByte; aDataSize: Integer):AnsiString;
 function LongWordToString(const aValue: LongWord): string;
+function HeaderStringListToXML(const aHeaderStrings: TListHeaderString;out aListLabel:TListLabelByLevel): string;
 
 implementation
+
+
+function HeaderStringListToXML(const aHeaderStrings: TListHeaderString; out aListLabel: TListLabelByLevel): string;
+var
+  I               : Integer;
+  LStringBuilder  : TStringBuilder;
+  LLevel          : Integer;
+  LLabelName      : string;
+  LDescription    : string;
+  LValue          : string;
+  LRawValue       : string;
+  LLabelByLevelID : String;
+  LLabelByLevel   : TLabelByLevel; 
+begin
+  if not Assigned(aListLabel) then
+    raise Exception.Create('List of label for database filter not assigned');
+
+  LStringBuilder := TStringBuilder.Create;
+  try
+    LStringBuilder.Append('<HeaderStrings>');
+    I := 0;
+    while I < aHeaderStrings.Count - 1 do
+    begin
+      LLevel       := aHeaderStrings[I].Level;
+      LLabelName   := aHeaderStrings[I].Labelname;
+      LDescription := aHeaderStrings[I].Description;
+      LValue       := VarToStrDef(aHeaderStrings[I].Value,'');
+      LRawValue    := VarToStrDef(aHeaderStrings[I].RawValue,'');
+
+      if not LLabelName.Trim.IsEmpty then
+      begin
+        LStringBuilder.Append(Format('<Item Level="%d" LabelName="%s" Description="%s" Value="%s" RawValue="%s">', 
+          [LLevel, LLabelName, LDescription, LValue, LRawValue]));
+
+
+        LLabelByLevelID           := Format('%s_%d',[LLabelName,LLevel]);
+        LLabelByLevel.Level       := LLevel;
+        LLabelByLevel.LabelName   := LLabelName;
+        LLabelByLevel.Description := LDescription;
+        aListLabel.TryAdd(LLabelByLevelID,LLabelByLevel);          
+        
+        Inc(I);
+        while I < aHeaderStrings.Count - 1 do
+        begin
+          if aHeaderStrings[I].Level = 0 then
+            Break;
+
+          if aHeaderStrings[I].Level <= LLevel then
+            Break;
+
+          LLevel       := aHeaderStrings[I].Level;
+          LLabelName   := aHeaderStrings[I].Labelname;
+          LDescription := aHeaderStrings[I].Description;
+          LValue       := VarToStrDef(aHeaderStrings[I].Value,'');
+          LRawValue    := VarToStrDef(aHeaderStrings[I].RawValue,'');
+
+          LStringBuilder.Append(Format('<Item Level="%d" LabelName="%s" Description="%s" Value="%s" RawValue="%s">', 
+            [LLevel, LLabelName, LDescription, LValue, LRawValue]));
+
+          LLabelByLevelID           := Format('%s_%d',[LLabelName,LLevel]);
+          LLabelByLevel.Level       := LLevel;
+          LLabelByLevel.LabelName   := LLabelName;
+          LLabelByLevel.Description := LDescription;
+          aListLabel.TryAdd(LLabelByLevelID,LLabelByLevel);   
+          Inc(I);
+        end;
+
+        LStringBuilder.Append('</Item>');
+      end
+      else
+        Inc(I);
+    end;
+
+    LStringBuilder.Append('</HeaderStrings>');
+    Result := LStringBuilder.ToString;
+  finally
+    LStringBuilder.Free;
+  end;
+end;
 
 
 function LongWordToString(const aValue: LongWord): string;
@@ -53,116 +133,94 @@ begin
   Result := BytesToStringRaw(LBytes); // Convert the byte array to a string
 end;
 
-
-procedure MyProcessMessages;
+function DisplayHexData(aPByteData: PByte; aDataSize: Integer; addInfo: Boolean = True): TArray<String>;
+const
+  HEXCHARS: array[0..15] of Char = '0123456789ABCDEF';
+  LENGTH_ROW = 48;
 var
-  Msg: TMsg;
-begin
-  while MyProcessMessage(Msg) do {loop};
-end;
-
-function MyProcessMessage(var Msg: TMsg): Boolean;
-var
-  Unicode: Boolean;
-  MsgExists: Boolean;
-begin
-  Result := False;
-  if PeekMessage(Msg, 0, 0, 0, PM_NOREMOVE) then
-  begin
-{$IFDEF UNICODE}
-    Unicode := (Msg.hwnd = 0) or IsWindowUnicode(Msg.hwnd);
-{$ELSE}
-    Unicode := (Msg.hwnd <> 0) and IsWindowUnicode(Msg.hwnd);
-{$ENDIF}
-    if Unicode then
-      MsgExists := PeekMessageW(Msg, 0, 0, 0, PM_REMOVE)
-    else
-      MsgExists := PeekMessageA(Msg, 0, 0, 0, PM_REMOVE);
-
-    if MsgExists then
-    begin
-      Result := True;
-      if Msg.Message <> {WM_QUIT}$0012 then
-      begin
-        TranslateMessage(Msg);
-        if Unicode then
-          DispatchMessageW(Msg)
-        else
-          DispatchMessageA(Msg);
-      end;
-    end;
-  end;
-end;
-
-function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=True): TArray<String>;
-const HEXCHARS: array[0..15] of Char = '0123456789ABCDEF';
-      LENGHT_ROW = 48;
-var I           : Integer;
-    J           : Integer;
-    çRowCount   : Integer;
-    LColumnCount: Integer;
-    LText       : String;
-    LLastLenght : Integer;
+  I, J       : Integer;
+  RowCount   : Integer;
+  ColumnCount: Integer;
+  LastLength : Integer;
+  Buffer     : TStringBuilder;
+  LText      : String;
 begin
   // Calculate the number of rows and columns needed to display the hexadecimal data
-  çRowCount := (aDataSize + 15) div 16;
-  LColumnCount := 16;
+  RowCount    := (aDataSize + 15) div 16;
+  ColumnCount := 16;
 
   // Initialize the array that will hold the hexadecimal data
-  SetLength(Result, çRowCount);
+  SetLength(Result, RowCount);
 
   // Convert each byte in the data to its hexadecimal representation
-  LText := String.Empty;
-  for I := 0 to çRowCount - 1 do
-  begin
-    if not LText.IsEmpty and addInfo then
-      Result[I-1] := Format('%s  %s',[Result[I-1],LText]);
-    Result[I] := '';
-    LText     := '';
-
-    for J := 0 to LColumnCount - 1 do
+  Buffer := TStringBuilder.Create;
+  Try
+    for I := 0 to RowCount - 1 do
     begin
-      if I * LColumnCount + J < aDataSize then
+      if not (Buffer.Length = 0) and addInfo then
       begin
-        Result[I] := Format('%s %s%s',[Result[I],
-                                        HEXCHARS[aPByteData[I * LColumnCount + J] shr 4] ,
-                                        HEXCHARS[aPByteData[I * LColumnCount + J] and $0F]]);
-        {The clear text part -  if it's displayable the do it}
-        if (aPByteData[I * LColumnCount + J]>=32) and 
-           (aPByteData[I * LColumnCount + J]<=127) 
-        then
-          LText := LText + char(aPByteData[I * LColumnCount + J])
+        Result[I-1] := Buffer.ToString;
+        Buffer.Clear;
+      end;
+      Result[I] := '';
+      LText     := '';
+
+      for J := 0 to ColumnCount - 1 do
+      begin
+        if I * ColumnCount + J < aDataSize then
+        begin
+          Result[I] := Format('%s %s%s', [Result[I] ,HEXCHARS[aPByteData[I * ColumnCount + J] shr 4], HEXCHARS[aPByteData[I * ColumnCount + J] and $0F]]);
+               
+          {The clear text part -  if it's displayable the do it}
+          if (aPByteData[I * ColumnCount + J] >= 32) and
+            (aPByteData[I * ColumnCount + J] <= 127) 
+          then
+            LText := LText + char(aPByteData[I * ColumnCount + J])
+          else
+            LText := LText + '.'; {otherwise display a block char}
+        end
         else
-          LText := LText + '.'; {otherwise display a block char}                                     
-      end
-      else
-        Result[I] := Result[I] + '  ';
-      if J = 7 then
-        Result[I] := Result[I] + ' ';
+          Result[I] := Result[I] + '  ';
+
+        if J = 7 then
+          Result[I] := Result[I] + ' ';
+      end;
+
+      if not LText.IsEmpty then
+      begin
+        if addInfo then
+          Buffer.AppendFormat('%s  %s', [Result[I], LText])
+        else
+          Buffer.Append(LText);
+      end;
     end;
-  end;
-  if not LText.IsEmpty and addInfo then
-  begin
-    LLastLenght := Length(Result[çRowCount - 1]);
-    for I := LLastLenght to LENGHT_ROW do
-      Result[çRowCount - 1] := Format('%s ',[Result[çRowCount - 1]]);    
-        
-    Result[çRowCount - 1] := Format('%s  %s',[Result[çRowCount - 1],LText]);      
-  end;  
+
+    if not (Buffer.Length=0) and addInfo then
+    begin
+      LastLength := Length(Result[RowCount - 1]);
+    
+      for I := LastLength to LENGTH_ROW do
+        Result[RowCount - 1] := Format('%s ', [Result[RowCount - 1]]);
+      Result[RowCount - 1] := Buffer.ToString;
+    end;
+  Finally
+    FreeAndNil(Buffer);
+  End;
 end;
 
-function BufferToASCII(aPByteData: PByte; aDataSize: Integer):String;
-var  J : Integer;
+
+function BufferToASCII(aPByteData: PByte; aDataSize: Integer):AnsiString;
+var J : Integer;
 begin
-  Result := String.Empty;
-  for J := 1 to aDataSize do
-  begin
+
+  SetLength(Result,aDataSize);
+  FillChar(Result[1],aDataSize,AnsiChar(46));
+  for J := 0 to aDataSize -1 do
+  begin    
     if (aPByteData[J]>=32) and 
        (aPByteData[J]<=127) 
     then
-      Result := Result + char(aPByteData[J])
-    else
-      Result := Result + '.'; {otherwise display a block char}                                     
+      Result[J+1] := AnsiChar(aPByteData[J]) 
   end;
 end;
 
@@ -178,17 +236,6 @@ begin
   end;
 end;
 
-function HexStrToBytes(const AHexStr: string): TBytes;
-var i       : Integer;
-    hexValue: Byte;
-begin
-  SetLength(Result, Length(AHexStr) div 2);
-  for i := 1 to Length(AHexStr) div 2 do
-  begin
-    hexValue      := StrToInt('$' + Copy(AHexStr, 2 * i - 1, 2));
-    Result[i - 1] := hexValue;
-  end;
-end;
 
 function MACAddrToStr(const MACAddr: array of Byte): string;
 begin
@@ -220,7 +267,6 @@ begin
   else 
     Result := Format('%.2f GB', [aSize / GigaByte])
 end;
-
 
 
 end.

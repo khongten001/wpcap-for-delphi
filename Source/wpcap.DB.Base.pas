@@ -16,12 +16,27 @@ Type
   strict private
 
   private
-    procedure DoOnErrorCreateDatabase(ASender, AInitiator: TObject;
-      var AException: Exception);
+    procedure DoOnErrorCreateDatabase(ASender, AInitiator: TObject;var AException: Exception);
+
+
+    ///<summary>
+    ///   Insert metadata import datetime
+    ///</summary>
+    procedure InsertDate;
+    
+    ///<summary>
+    ///   Insert filename PCAP
+    ///</summary>
+    procedure InsertFilename(const aFilename:String); 
+    
+    ///<summary>
+    ///   Insert metadata version
+    ///</summary>
+    procedure InsertVersion;     
   protected
     var FConnection       : TFDConnection; 
     var FFDQueryTmp       : TFdQuery; 
-    var FFDQueryGrid      : TFdQuery; 
+    var FFDQueryGrid      : TFdQuery;
     var FFDGetDataByID    : TFdQuery;  
     var FFilenameDB       : String;
     ///<summary>
@@ -91,10 +106,22 @@ Type
     ///<remarks>
     ///   This method will destroy the Firedac driver link, which can be created by calling the CreateFDDriverLink method.
     ///</remarks>
-    procedure DestroyFDDriverLink; virtual;    
+    procedure DestroyFDDriverLink; virtual;   
+
+    ///<summary>
+    ///   Return version of database schema
+    ///</summary>
+    function GetVersion: String; virtual;
+
+    ///<summary>
+    ///   Insert metadata name and value
+    ///</summary>
+    procedure InsertMetadata(const aName: String; aValue: String);virtual;    
    public
     constructor Create;reintroduce;      
     destructor Destroy;override;   
+    
+    
     ///<summary>
     /// Opens a connection to a SQLite database file.
     ///</summary>
@@ -242,6 +269,10 @@ begin
   Finally
     FreeAndNil(LTable);
   End;  
+
+  InsertVersion;
+  InsertDate;
+  InsertFilename(aFilename);
 end;
 
 procedure TWPcapDBBase.CreateDatabase(const aFilename: String);
@@ -263,6 +294,32 @@ begin
   FConnection.Connected := False;
   if FileExists(FFilenameDB) then
     DeleteFile(FFilenameDB);
+end;
+
+
+procedure TWPcapDBBase.InsertDate;
+begin
+  InsertMetadata('Import date:',DateTimeToStr(now));
+end;
+
+procedure TWPcapDBBase.InsertFilename(const aFilename: String);
+begin
+  InsertMetadata('Filename',aFilename);
+end;
+
+procedure TWPcapDBBase.InsertVersion;
+begin
+  InsertMetadata('Version',GetVersion);
+end;
+
+function TWPcapDBBase.GetVersion: String;
+begin
+   Result := '2';
+end;
+
+Procedure TWPcapDBBase.InsertMetadata(const aName:String;aValue:String);
+begin
+   raise Exception.Create('TWPcapDBBase.InsertMetadata - Non implemented in base class - please override this method');
 end;
 
 function TWPcapDBBase.GetSQLScriptDatabaseSchema: String;

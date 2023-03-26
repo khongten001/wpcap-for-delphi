@@ -22,7 +22,8 @@ uses
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
   cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
-  cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons;
+  cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons, dxStatusBar,
+  dxCalloutPopup;
 
 type
   TFormMain = class(TForm)
@@ -52,9 +53,6 @@ type
     cxImageList1: TcxImageList;
     SaveDialog1: TSaveDialog;
     dxSkinController1: TdxSkinController;
-    cxGroupBox1: TcxGroupBox;
-    cxLabel1: TcxLabel;
-    EFilter: TcxTextEdit;
     BStartRecording: TdxBarButton;
     PHexMemo: TcxGroupBox;
     MemoHex: TcxMemo;
@@ -65,9 +63,9 @@ type
     GridPcapDBTableView1IANA_PROTO: TcxGridDBColumn;
     cxSplitter2: TcxSplitter;
     ListPacketDetail: TcxTreeList;
-    ListPacketDetailColumn1: TcxTreeListColumn;
-    ListPacketDetailColumn2: TcxTreeListColumn;
-    ListPacketDetailColumn3: TcxTreeListColumn;
+    ListPacketDetailDescription: TcxTreeListColumn;
+    ListPacketDetailValue: TcxTreeListColumn;
+    ListPacketDetailRawValue: TcxTreeListColumn;
     BSaveListPacket: TdxBarButton;
     BSaevGrid: TdxBarButton;
     cxGridPopupMenu1: TcxGridPopupMenu;
@@ -93,18 +91,28 @@ type
     cxButton1: TcxButton;
     BFlow: TdxBarButton;
     BRTPCall: TdxBarButton;
+    BQuickFilter: TdxBarSubItem;
+    BFilterCellValue: TdxBarButton;
+    BFilterFlowSelected: TdxBarButton;
+    GridPcapDBTableView1PACKET_RAW_TEXT: TcxGridDBColumn;
+    GridPcapDBTableView1XML_PACKET_DETAIL: TcxGridDBColumn;
+    dxStatusBar1: TdxStatusBar;
+    ListPacketDetailHex: TcxTreeListColumn;
+    ListPacketDetailLabel: TcxTreeListColumn;
+    ListPacketDetailSize: TcxTreeListColumn;
+    dxCalloutPopup1: TdxCalloutPopup;
+    dxBarPopupMenu1: TdxBarPopupMenu;
+    BCopyTreeList: TdxBarButton;
+    BFilterByLabel: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
-    procedure EFilterPropertiesValidate(Sender: TObject;
-      var DisplayValue: Variant; var ErrorText: TCaption; var Error: Boolean);
     procedure GridPcapDBTableView1FocusedRecordChanged(
       Sender: TcxCustomGridTableView; APrevFocusedRecord,
       AFocusedRecord: TcxCustomGridRecord;
       ANewItemRecordFocusingChanged: Boolean);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure BLoadPCAPClick(Sender: TObject);
     procedure BSavePCAPClick(Sender: TObject);
     procedure BStartRecordingClick(Sender: TObject);
     procedure GridPcapDBTableView1CustomDrawCell(Sender: TcxCustomGridTableView;
@@ -115,11 +123,19 @@ type
     procedure BSaveListPacketClick(Sender: TObject);
     procedure BCopyGridClick(Sender: TObject);
     procedure dxBarButton1Click(Sender: TObject);
-    procedure EFilterKeyPress(Sender: TObject; var Key: Char);
     procedure BMapClick(Sender: TObject);
     procedure cxButton1Click(Sender: TObject);
     procedure BFlowClick(Sender: TObject);
     procedure BRTPCallClick(Sender: TObject);
+    procedure BFilterFlowSelectedClick(Sender: TObject);
+    procedure BFilterCellValueClick(Sender: TObject);
+    procedure BLoadPCAPClick(Sender: TObject);
+    procedure ListPacketDetailFocusedNodeChanged(Sender: TcxCustomTreeList;
+      APrevFocusedNode, AFocusedNode: TcxTreeListNode);
+    procedure ListPacketDetailRawValueGetDisplayText(Sender: TcxTreeListColumn;
+      ANode: TcxTreeListNode; var Value: string);
+    procedure BCopyTreeListClick(Sender: TObject);
+    procedure BFilterByLabelClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -129,7 +145,7 @@ type
     FPcapImport    : TPCAP2SQLite;
     FLastPercProg  : Byte;
     FLastFileOpened: String;
-    procedure OpenPcap(const aFileName: String);
+    FInitialDir    : String;
     procedure SetPositionProgressBar(aNewPos: Int64);
     procedure DoPCAPOfflineCallBackEnd(const aFileName: String);
     procedure DoPCAPOfflineCallBackError(const aFileName, aError: String);
@@ -137,6 +153,7 @@ type
     function GetGeoLiteDatabaseName: String;
     procedure ExecuteAndWait(const aCommando: string);
     function GetTmpPath: String;
+    function GetPathUtils: String;
   public
     { Public declarations }
   end;
@@ -146,7 +163,7 @@ var
 
 implementation
 
-uses UnFormRecording,UnFormImportGeoLite,UnFormPlayerWave;
+uses UnFormRecording,UnFormImportGeoLite,UnFormPlayerWave,UnFunctionFilter,UnitCustomOpenDialog;
 
 {$R *.dfm}
 
@@ -188,43 +205,6 @@ begin
   pProgressImport.Visible := False;    
 end;
 
-procedure TFormMain.OpenPcap(const aFileName:String);
-
-begin
-  Caption           := Format('PCAP Analisys %s - %s',[ExtractFileName(aFileName),PacketGetVersion]);
-  BSavePCAP.Enabled := False;
-  BSaevGrid.Enabled := False;
-  FWPcapDBSqLite.Connection.Close;
-  FWPcapDBSqLite.FDQueryGrid.Close;
-  SetPositionProgressBar(0);
-  FLastFileOpened := aFileName;
-  {TODO 
-
-    Query bulder 
-    Packet detail [TreeView Like wireshark with syncronize with memo ???? HOW ?]
-    ChartStatistics by protocol
-      
-  }
-  // filter example dst host 192.0.2.1 but doesn't work  TODO check structure and function definition
-  DeleteFile(ChangeFileExt(aFileName,'.db'));
-  if Not Trim(EFilter.Text).IsEmpty then
-  begin
-    if not EFilter.ValidateEdit(False) then
-    begin
-      MessageDlg('Invalid filter',mtWarning,[mbOK],0);
-      Exit;
-    end;
-  end;
-  if Boolean(TActiveGEOIP.EditValue ) and FileExists(GetGeoLiteDatabaseName) then
-    FWpcapGeoLite.OpenDatabase(GetGeoLiteDatabaseName)
-  else
-    FWPcapDBSqLite.Connection.Connected := False;
-
-  if not Assigned(FPcapImport) then 
-    FPcapImport := TPCAP2SQLite.Create;
-  FPcapImport.PCAP2SQLite(aFileName,ChangeFileExt(aFileName,'.db'),EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
-
-end;
 
 procedure TFormMain.GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
   Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
@@ -233,18 +213,6 @@ begin
   if VarIsNull(AValue) then Exit;
   
   AText := SizeToStr(AValue)
-end;
-
-procedure TFormMain.EFilterPropertiesValidate(Sender: TObject;
-  var DisplayValue: Variant; var ErrorText: TCaption; var Error: Boolean);
-begin
-   if VarIsNull(DisplayValue) then Exit;
-
-   if not ValidateWinPCAPFilterExpression(DisplayValue) then
-   begin
-      ErrorText := 'Invalid filter';
-      Error     := True;
-   end;    
 end;
 
 procedure TFormMain.GridPcapDBTableView1FocusedRecordChanged(
@@ -273,13 +241,17 @@ var LHexList    : TArray<String>;
 begin
   MemoHex.Lines.Clear;
   ListPacketDetail.Clear;
-  LCurrentNode     := nil;
-  BRTPCall.Enabled := False;
+  LCurrentNode                   := nil;
+  BRTPCall.Enabled               := False;
+  BFlow.Enabled                  := Assigned(AFocusedRecord);  
+  BFilterCellValue.Enabled       := Assigned(AFocusedRecord);  
+  BFilterFlowSelected.Enabled    := Assigned(AFocusedRecord);  
+      
   if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
     BRTPCall.Enabled := AFocusedRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index] = DETECT_PROTO_RTP;
     
-    LListDetail      := TListHeaderString.Create;
+    LListDetail := TListHeaderString.Create;
     Try
      LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],0,LListDetail);
 
@@ -294,10 +266,14 @@ begin
             else
               LParentNode := nil;
             
-            LCurrentNode           := ListPacketDetail.AddChild(LParentNode);
-            LCurrentNode.Values[0] := LListDetail[I].Description;
-            LCurrentNode.Values[1] := LListDetail[I].Value;
-            LCurrentNode.Values[2] := LListDetail[I].Hex;         
+            LCurrentNode                                                       := ListPacketDetail.AddChild(LParentNode);
+            LCurrentNode.Values[ListPacketDetailDescription.Position.ColIndex] := LListDetail[I].Description;
+            LCurrentNode.Values[ListPacketDetailValue.Position.ColIndex]       := LListDetail[I].Value;
+            LCurrentNode.Values[ListPacketDetailRawValue.Position.ColIndex]    := LListDetail[I].RawValue;
+            LCurrentNode.Values[ListPacketDetailHex.Position.ColIndex]         := LListDetail[I].Hex;
+            LCurrentNode.Values[ListPacketDetailLabel.Position.ColIndex]       := LListDetail[I].Labelname;
+            LCurrentNode.Values[ListPacketDetailSize.Position.ColIndex]        := LListDetail[I].Size;
+
           end;
         finally
           ListPacketDetail.EndUpdate;
@@ -311,7 +287,7 @@ begin
     begin
       LParentNode := FindParentNode(0);
       if Assigned(LParentNode) then
-        LParentNode.Expand(True)        
+        LParentNode.Expand(False)        
     end;  
     
     MemoHex.Lines.BeginUpdate;
@@ -344,16 +320,6 @@ begin
   if Assigned(FPcapImport) then 
     FreeAndNil(FPcapImport);  
   
-end;
-
-procedure TFormMain.BLoadPCAPClick(Sender: TObject);
-begin
-  OpenDialog1.Filter := 'Pcap file|*.pcap;*.raw;*.pcapng;*.cap|All files|*.*';
-  if OpenDialog1.Execute then
-  begin
-    pProgressImport.Visible := True;
-    OpenPcap(OpenDialog1.FileName);
-  end;
 end;
 
 procedure TFormMain.BSavePCAPClick(Sender: TObject);
@@ -502,17 +468,6 @@ begin
   Result := Format('%s\GeoLite\GeoLite.db',[ExtractFilePath(Application.ExeName)])
 end;
 
-procedure TFormMain.EFilterKeyPress(Sender: TObject; var Key: Char);
-begin
-  if Ord(key) = VK_RETURN then
-  begin
-    if FLastFileOpened.IsEmpty then Exit;
-    
-    if Trim(EFilter.Text).isEmpty  or EFilter.ValidateEdit(False) then
-      OpenPcap(FLastFileOpened);    
-  end;
-end;
-
 procedure TFormMain.BMapClick(Sender: TObject);
 
   Procedure AddCoordinate(IndexLat,IndexLong:byte);
@@ -583,6 +538,11 @@ begin
   Result := Format('%sTMP\',[ExtractFilePath(Application.ExeName)]);
 end;
 
+function TFormMain.GetPathUtils:String;
+begin
+  Result := Format('%sUtils\',[ExtractFilePath(Application.ExeName)]);
+end;
+
 procedure TFormMain.ExecuteAndWait(const aCommando: string);
 var tmpStartupInfo       : TStartupInfo;
     tmpProcessInformation: TProcessInformation;
@@ -647,13 +607,13 @@ begin
           Exit;                                            
         end;
 
-        if not FileExists('sox.exe') then
+        if not FileExists( Format('%sSox\sox.exe',[GetPathUtils])) then
         begin
           MessageDlg('Sox.exe not present',mtError,[mbOK],0);
           Exit;                                            
         end;                
         
-        ExecuteAndWait(Format(LSoxCommand,[LFileRaw,LFileWave]));
+        ExecuteAndWait(Format(LSoxCommand,[GetPathUtils+'Sox\',LFileRaw,LFileWave]));
 
         if FileExists(LFileWave) then
         begin 
@@ -671,6 +631,95 @@ begin
     end;
   end;
 
+end;
+
+procedure TFormMain.BFilterFlowSelectedClick(Sender: TObject);
+begin
+  FilterFlowSelected(GridPcapDBTableView1);
+end;
+
+procedure TFormMain.BFilterCellValueClick(Sender: TObject);
+begin
+  FilterCellValueSelected(GridPcapDBTableView1);
+end;
+
+procedure TFormMain.BLoadPCAPClick(Sender: TObject);
+var LFormOpenDialog: TFormOpenDialog;
+
+begin
+  LFormOpenDialog := TFormOpenDialog.Create(nil);
+  Try
+    LFormOpenDialog.InitialDir := FInitialDir;
+    LFormOpenDialog.ShowModal;
+    if LFormOpenDialog.ModalResult = mrOK then
+    begin
+      pProgressImport.Visible := True;  
+
+      BSavePCAP.Enabled       := False;
+      BSaevGrid.Enabled       := False;
+      FWPcapDBSqLite.Connection.Close;
+      FWPcapDBSqLite.FDQueryGrid.Close;
+      SetPositionProgressBar(0);
+      FLastFileOpened := LFormOpenDialog.Filename;
+      FInitialDir     := ExtractFilePath(FLastFileOpened);
+      Caption         := Format('PCAP Analisys %s - %s',[ExtractFileName(FLastFileOpened),PacketGetVersion]);      
+      {TODO 
+
+        Query bulder 
+        Packet detail [TreeView Like wireshark with syncronize with memo ???? HOW ?]
+        ChartStatistics by protocol
+      
+      }
+
+      DeleteFile(ChangeFileExt(FLastFileOpened,'.db'));
+
+      if Boolean(TActiveGEOIP.EditValue ) and FileExists(GetGeoLiteDatabaseName) then
+        FWpcapGeoLite.OpenDatabase(GetGeoLiteDatabaseName)
+      else
+        FWPcapDBSqLite.Connection.Connected := False;
+
+
+      BMap.Enabled := FWPcapDBSqLite.Connection.Connected;    
+      if not Assigned(FPcapImport) then
+        FPcapImport := TPCAP2SQLite.Create;
+      FPcapImport.PCAP2SQLite(FLastFileOpened,ChangeFileExt(FLastFileOpened,'.db'),LFormOpenDialog.EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
+
+    end;
+  Finally
+    FreeAndNil(LFormOpenDialog);
+  End;
+end;
+
+procedure TFormMain.ListPacketDetailFocusedNodeChanged(
+  Sender: TcxCustomTreeList; APrevFocusedNode, AFocusedNode: TcxTreeListNode);
+begin
+  BFilterByLabel.Enabled             := Assigned(AFocusedNode);
+  BCopyTreeList.Enabled              := Assigned(AFocusedNode);
+  dxStatusBar1.SimplePanelStyle.Text := String.Empty;
+  if Assigned(AFocusedNode) then
+   dxStatusBar1.SimplePanelStyle.Text := Format('%s size: %s',[VarToStrDef(AFocusedNode.Values[ListPacketDetailLabel.Position.ColIndex],String.Empty),
+                                                               SizeToStr(VarToStrDef(AFocusedNode.Values[ListPacketDetailSize.Position.ColIndex],'0').ToInt64())
+                                                               ] ).Trim
+end;
+
+procedure TFormMain.ListPacketDetailRawValueGetDisplayText(
+  Sender: TcxTreeListColumn; ANode: TcxTreeListNode; var Value: string);
+begin
+  if Value = VarToStrDef(ANode.Values[ListPacketDetailValue.Position.ColIndex],String.Empty) then
+    Value := String.Empty;
+end;
+
+procedure TFormMain.BCopyTreeListClick(Sender: TObject);
+begin
+  ListPacketDetail.CopySelectedToClipboard(True);
+
+end;
+
+procedure TFormMain.BFilterByLabelClick(Sender: TObject);
+begin
+  if not Assigned(ListPacketDetail.FocusedNode) then Exit;
+  
+  FilterColumn(GridPcapDBTableView1XML_PACKET_DETAIL,GridPcapDBTableView1,foContains,ListPacketDetail.FocusedNode.Values[ListPacketDetailLabel.Position.ColIndex]);
 end;
 
 end.

@@ -100,7 +100,7 @@ type
     class function AcronymName: String; override;
     class Function TypeToString(const aType:Byte):String;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;      
   end;
 
 
@@ -159,7 +159,7 @@ begin
 end;
 
   
-class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LHeader         : PTICMPHeader;
     LNewPacketData  : Pbyte;
     LNewPacketLen   : Integer;
@@ -172,32 +172,35 @@ var LHeader         : PTICMPHeader;
     LCurrentPos     : Integer;
     I               : Integer;
 begin
-  Result := False;
-
+  Result        := False;
+  FisFilterMode := aIsFilterMode;
+  
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
 
-  AListDetail.Add(AddHeaderInfo(aStartLevel,Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeader),HeaderLength(0)));            
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Type:',TypeToString(LHeader.TypeICMP),@LHeader.TypeICMP,sizeOf(LHeader.TypeICMP)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Code:',CodeToString(LHeader.TypeICMP,LHeader.Code),@LHeader.Code,sizeOf(LHeader.Code)));            
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Checksum:',wpcapntohs(LHeader.CheckSum),@LHeader.CheckSum,sizeOf(LHeader.CheckSum))); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName ,Format('%s (%s)',[ProtoName,AcronymName]),NULL, PByte(LHeader),HeaderLength(0)));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',TypeToString(LHeader.TypeICMP), @LHeader.TypeICMP,sizeOf(LHeader.TypeICMP), LHeader.TypeICMP ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Code:',CodeToString(LHeader.TypeICMP,LHeader.Code), @LHeader.Code,sizeOf(LHeader.Code), LHeader.Code ));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Checksum:',wpcapntohs(LHeader.CheckSum) ,@LHeader.CheckSum,sizeOf(LHeader.CheckSum) )); 
   case LHeader.TypeICMP  of
     ICMP_NEIGHBOR_ADVERTISEMENT :
       begin
         LOptions := GetByteFromWord(GetWordFromCardinal(LHeader.ICMP_Unused,0),0);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Flags ICMPV6:',Format('%s %s',[ByteToBinaryString(LOptions),
-                                                                ByteToBinaryString(GetByteFromWord(LHeader.ICMP_Unused,1))]),@LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused)));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Router:',GetBitValue(LOptions,1)=1,@LOptions,SizeOf(LOptions)));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Solecited:',GetBitValue(LOptions,2)=1,@LOptions,SizeOf(LOptions)));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Override:',GetBitValue(LOptions,3)=1,@LOptions,SizeOf(LOptions)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.FlagsICMPV6',[AcronymName]), 'Flags ICMPV6:',Format('%s %s',[ByteToBinaryString(LOptions),
+                                                                                                                             ByteToBinaryString(GetByteFromWord(LHeader.ICMP_Unused,1))]),
+                                      @LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused) ));
+                                      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.FlagsICMPV6.Router',[AcronymName]), 'Router:',GetBitValue(LOptions,1)=1, @LOptions,SizeOf(LOptions), GetBitValue(LOptions,1) ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.FlagsICMPV6.Solecited',[AcronymName]), 'Solecited:',GetBitValue(LOptions,2)=1, @LOptions,SizeOf(LOptions), GetBitValue(LOptions,2) ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.FlagsICMPV6.Override',[AcronymName]), 'Override:',GetBitValue(LOptions,3)=1, @LOptions,SizeOf(LOptions), GetBitValue(LOptions,3) ));
       end;
     ICMP_MULTICAST_LISTENER_REPORT,
     ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2:
       begin    
         LOptionsW := GetWordFromCardinal(LHeader.ICMP_Unused,0);  
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unused:', LOptionsW, @LOptionsW, SizeOf(LOptionsW)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Unused',[AcronymName]), 'Unused:', LOptionsW, @LOptionsW, SizeOf(LOptionsW) ));
       end
   else
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unused:', LHeader.ICMP_Unused, @LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused)));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Unused',[AcronymName]), 'Unused:', LHeader.ICMP_Unused, @LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused) ));
   end;
   
   LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0);   
@@ -207,10 +210,10 @@ begin
     ICMP_ECHO_REPLY, 
     ICMP_ECHO_REQUEST:  
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (BE):', wpcapntohs(LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));        
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));         
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.IdentifierBE',[AcronymName]), 'Identifier (BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.IdentifierLE',[AcronymName]), 'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberBE',[AcronymName]), 'Sequence number (BE):', wpcapntohs(LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberLE',[AcronymName]), 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));         
       end;
 
     ICMP_DEST_UNREACHABLE, 
@@ -233,35 +236,37 @@ begin
     ICMP_TIMESTAMP_REQUEST, 
     ICMP_TIMESTAMP_REPLY:      
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));        
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16), nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));                 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.IdentifierBE',[AcronymName]), 'Identifier (BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ), nil,0) );
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.IdentifierLE',[AcronymName]), 'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ), nil,0));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberBE',[AcronymName]), 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16), nil,0 ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberLE',[AcronymName]), 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2 ));                 
       end;
       
     ICMP_INFORMATION_REQUEST:
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier:(BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0));               
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16),nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2));                 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.IdentifierBE',[AcronymName]), 'Identifier (BE):',wpcapntohs(GetFistNBit(LHeader.ICMP_Unused ,16) ),nil,0 ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.IdentifierLE',[AcronymName]), 'Identifier (LE):',(GetLastNBit(LHeader.ICMP_Unused ,16) ),nil,0 ));               
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberBE',[AcronymName]), 'Sequence number (BE):', ntohs(LHeader.ICMP_Unused shr 16),nil,0 ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberLE',[AcronymName]), 'Sequence number (LE):', (LHeader.ICMP_Unused shr 16), @LHeader.ICMP_Unused, 2 ));                 
       end;
       
     ICMP_NEIGHBOR_ADVERTISEMENT,
     ICMP_NEIGHBOR_SOLICITATION:
       begin
         SourceAddress  := PTIPv6AddrBytes(aPacketData + LAllHeaderSize)^;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Target address:', IPv6AddressToString(SourceAddress), @SourceAddress, SizeOf(SourceAddress)));          
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetAddr',[AcronymName]), 'Target address:', IPv6AddressToString(SourceAddress), @SourceAddress, SizeOf(SourceAddress) ));          
 
         LOptions := PByte(aPacketData + LAllHeaderSize + SizeOf(SourceAddress))^;
 
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Options ICMPV6:',null,nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OptionsICMPV6',[AcronymName]), 'Options ICMPV6:', ByteToBinaryString(LOptions), @LOptions,SizeOf(LOptions), LOptions ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Type',[AcronymName]), 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));
+
         LOptions := PByte(aPacketData + LAllHeaderSize + SizeOf(SourceAddress)+1)^;     
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Lenght',LOptions,@LOptions,sizeOf(LOptions)));  
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Len',[AcronymName]), 'Lenght',LOptions,@LOptions,sizeOf(LOptions)));  
+        
         SetLength(LLink,(LOptions*8));
         Move(aPacketData[LAllHeaderSize+SizeOf(SourceAddress)+2],LLink[0],(LOptions*8));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink)));                               
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink)));                               
       end;
       
     ICMP_MULTICAST_LISTENER_REPORT,
@@ -270,25 +275,25 @@ begin
         LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0); 
         LOptionsW      := PWord(aPacketData + LAllHeaderSize-2)^;
         LCount         := wpcapntohs(LOptionsW);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Number of Multicast Address Records:',LCount,@LOptionsW,sizeOf(LOptionsW)));   
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Multicast Address Record Changed to include:',null,nil,0));  
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NMulticastAddrRecords',[AcronymName]),  'Number of Multicast Address Records:',LCount,@LOptionsW,sizeOf(LOptionsW)));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NMulticastRecordChangedInclude',[AcronymName]),  'Multicast Address Record Changed to include:',null,nil,0));  
         LCurrentPos := 0;
         for I := 0 to LCount -1 do
         begin
           LOptions  := PByte(aPacketData + LAllHeaderSize+LCurrentPos)^;     
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Record type',ConvertRecordTypeToString(LOptions),@LOptions,sizeOf(LOptions)));     
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.NMulticastRecordChangedInclude.Type',[AcronymName]), 'Record type',ConvertRecordTypeToString(LOptions),@LOptions,sizeOf(LOptions)));     
           inc(LCurrentPos);
           
           LOptions       := PByte(aPacketData + LAllHeaderSize+LCurrentPos)^;
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Aux Data Len',LOptions,@LOptions,sizeOf(LOptions)));    
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.NMulticastRecordChangedInclude.AuxLen',[AcronymName]), 'Aux Data Len',LOptions,@LOptions,sizeOf(LOptions)));    
           inc(LCurrentPos);
                        
           LOptionsW       := Pword(aPacketData + LAllHeaderSize+LCurrentPos)^;                          
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Number of Sources',wpcapntohs(LOptionsW),@LOptionsW,sizeOf(LOptionsW)));   
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.NMulticastRecordChangedInclude.NSource',[AcronymName]), 'Number of Sources',wpcapntohs(LOptionsW),@LOptionsW,sizeOf(LOptionsW)));   
           inc(LCurrentPos,2);
                   
           SourceAddress  := PTIPv6AddrBytes(aPacketData + LAllHeaderSize+LCurrentPos)^;
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Multicast address:', IPv6AddressToString(SourceAddress),@SourceAddress, SizeOf(SourceAddress)));  
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.NMulticastRecordChangedInclude.Addr',[AcronymName]), 'Multicast address:', IPv6AddressToString(SourceAddress),@SourceAddress, SizeOf(SourceAddress)));  
           inc(LCurrentPos,SizeOf(SourceAddress));                
         end;
       end;
@@ -298,14 +303,14 @@ begin
         LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0); 
         LOptions       := PByte(aPacketData + LAllHeaderSize)^;
 
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Options ICMPV6:',null,nil,0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OptionsICMPV6',[AcronymName]),  'Options ICMPV6:', ByteToBinaryString(LOptions), @LOptions,SizeOf(LOptions), LOptions ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Type',[AcronymName]), 'Type',ConvertOptionsToString(LOptions), @LOptions,sizeOf(LOptions), LOptions ));
         LOptions := PByte(aPacketData + LAllHeaderSize +1)^;     
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Lenght',LOptions,@LOptions,sizeOf(LOptions)));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Len',[AcronymName]), 'Lenght',LOptions, @LOptions,sizeOf(LOptions) ));   
                 
         SetLength(LLink,LOptions*8);
         Move(aPacketData[LAllHeaderSize+2],LLink[0],LOptions*8);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink)));        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink) ));        
       end;
 
   end;
@@ -325,8 +330,6 @@ begin
     Result := 'Unknown'
   else
     Result := optionStrings[aOptions];
-  
-  Result :=Format('%s [%d]',[Result,aOptions]);
 end;
 
 class function TWPcapProtocolICMP.ConvertRecordTypeToString(aRecordType: Byte): string;
@@ -336,7 +339,6 @@ begin
     4: Result := 'Changed to Exclude';
     else Result := 'Unknown';
   end;
-  Result :=Format('%s [%d]',[Result,aRecordType]);
 end;
 
 class function TWPcapProtocolICMP.CodeToString(const aType, Code: Byte): String;
@@ -487,8 +489,6 @@ begin
     ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2  : Result := 'Multicast Listener Report Message v2';
     144..255                                   : Result := 'Unassigned';
   end;
-
-  Result := Format('%s [%d]',[Result, aType]).Trim;
 end;
 
 

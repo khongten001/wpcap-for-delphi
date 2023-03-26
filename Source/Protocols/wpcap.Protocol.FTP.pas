@@ -48,7 +48,7 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;    
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;    
   end;
 
 
@@ -77,17 +77,19 @@ begin
   Result := 'FTP';
 end;
 
-class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
-var LTCPPayLoad : PByte;
-    LTCPPHdr    : PTCPHdr;
+class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+var LTCPPayLoad    : PByte;
+    LTCPPayLoadLen : Integer;
+    LTCPPHdr       : PTCPHdr;
 begin
   Result := False;
 
   if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
 
-  LTCPPayLoad := GetTCPPayLoad(aPacketData,aPacketSize);
-
-  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  LTCPPayLoad     := GetTCPPayLoad(aPacketData,aPacketSize);
+  FIsFilterMode   := aIsFilterMode;
+  LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen));
 
   Result := True;
 end;

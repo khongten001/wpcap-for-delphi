@@ -32,7 +32,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;            
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
   end;
 
 
@@ -73,17 +73,18 @@ begin
   
 end;
 
-class function TWPcapProtocolPOP3.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolPOP3.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LTCPPayLoad        : PByte;
     LTCPPHdr           : PTCPHdr;
+    LDataSize          : Integer;
 begin
   Result := False;
 
   if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
-
-  LTCPPayLoad := GetTCPPayLoad(aPacketData,aPacketSize);
-
-  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+ FIsFilterMode := aIsFilterMode;
+  LTCPPayLoad  := GetTCPPayLoad(aPacketData,aPacketSize);
+  LDataSize    := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LDataSize ));
 
   Result := True;
 end;

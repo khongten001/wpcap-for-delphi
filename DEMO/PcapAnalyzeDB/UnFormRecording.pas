@@ -10,7 +10,7 @@ uses
   cxCheckListBox, cxLabel,wpcap.NetDevice, cxTextEdit,wpcap.DB.SQLite.Packet,wpcap.PCAP,
   cxCustomData, cxStyles, dxScrollbarAnnotations, cxTL, cxTLdxBarBuiltInMenu,System.DateUtils,
   cxInplaceContainer,wpcap.StrUtils, dxToggleSwitch, cxMaskEdit, cxButtonEdit,
-  System.ImageList, Vcl.ImgList, cxImageList, cxSpinEdit, Vcl.ExtCtrls,
+  System.ImageList, Vcl.ImgList, cxImageList, cxSpinEdit, Vcl.ExtCtrls,wpcap.types,
   dxNavBarCollns, cxClasses, dxNavBarBase, dxNavBar, cxTimeEdit;
 
 type
@@ -65,6 +65,7 @@ type
     procedure DoPCAPCallBackProgress(aTotalSize, aCurrentSize: Int64);
     procedure DoPCAPCallBackPacket(const aInternalPacket: PTInternalPacket);
     procedure DestroyDatabase;
+    procedure DoPCAPCallBeforeBackEnd(const aFileName: String;aListLabelByLevel: TListLabelByLevel);
     { Private declarations }
   public
     { Public declarations }
@@ -194,10 +195,11 @@ begin
       if not Assigned(FPCAPUtils) then
         FPCAPUtils := TPCAPUtils.Create;
         
-        FPCAPUtils.OnPCAPCallBackError    := DoPCAPCallBackError;
-        FPCAPUtils.OnPCAPCallBackProgress := DoPCAPCallBackProgress;
-        FPCAPUtils.OnPCAPCallBackPacket   := DoPCAPCallBackPacket;
-        FPCAPUtils.OnPCAPCallBackEnd      := nil;                
+        FPCAPUtils.OnPCAPCallBackError      := DoPCAPCallBackError;
+        FPCAPUtils.OnPCAPCallBackProgress   := DoPCAPCallBackProgress;
+        FPCAPUtils.OnPCAPCallBeforeBackEnd  := DoPCAPCallBeforeBackEnd;
+        FPCAPUtils.OnPCAPCallBackPacket     := DoPCAPCallBackPacket;
+        FPCAPUtils.OnPCAPCallBeforeBackEnd  := nil;                
         FPCAPUtils.AnalyzePCAPRealtime(FCurrentDBName,EFilter.Text,
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumGUID.Position.ColIndex],
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumIP.Position.ColIndex],                                     
@@ -209,6 +211,11 @@ begin
   except on E: Exception do
     DoPCAPCallBackError(CurrentDBName,Format('Exception create database %s',[E.Message]));
   end;    
+end;
+
+procedure TFormRecording.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
+begin
+  FWPcapDBSqLite.InsertLabelByLevel(aListLabelByLevel);
 end;
 
 procedure TFormRecording.DestroyDatabase;

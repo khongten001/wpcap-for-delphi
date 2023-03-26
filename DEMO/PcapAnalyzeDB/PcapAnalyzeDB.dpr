@@ -1,6 +1,7 @@
 ﻿program PcapAnalyzeDB;
 
 uses
+  FastMM5,
   Vcl.Forms,
   UnMain in 'UnMain.pas' {FormMain},
   wpcap.Pcap.SQLite in '..\..\Source\wpcap.Pcap.SQLite.pas',
@@ -54,7 +55,10 @@ uses
   wpcap.Protocol.MQTT in '..\..\Source\Protocols\wpcap.Protocol.MQTT.pas',
   wpcap.Protocol.IGMP in '..\..\Source\Protocols\wpcap.Protocol.IGMP.pas',
   wpcap.Protocol.GTP in '..\..\Source\Protocols\wpcap.Protocol.GTP.pas',
-  wpcap.Protocol.DHCP in '..\..\Source\Protocols\wpcap.Protocol.DHCP.pas';
+  wpcap.Protocol.DHCP in '..\..\Source\Protocols\wpcap.Protocol.DHCP.pas',
+  UnFunctionFilter in 'UnFunctionFilter.pas',
+  UnitCustomOpenDialog in 'UnitCustomOpenDialog.pas' {FormOpenDialog},
+  wpcap.MCC in '..\..\Source\wpcap.MCC.pas';
 
 {$R *.res}
 

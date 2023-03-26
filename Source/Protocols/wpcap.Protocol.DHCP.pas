@@ -250,6 +250,7 @@ type
     class function DecimalToDHCPState(aValue: Integer): string; static;
     class function DecimalToAuthenticationSuboption(avalue: Integer): string; static;
     class function DecToDhcpOptionStr(avalue: Integer): string; static;
+    class function GetLabelOptions(const aOptions:Byte): String; static;
   protected
   public
     /// <summary>
@@ -269,7 +270,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function HeaderLength(aFlag:Byte): word; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -315,7 +316,14 @@ begin
   Result := 'DHCP';
 end;
 
-class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
+
+class function TWPcapProtocolDHCP.GetLabelOptions(const aOptions:Byte):String;
+begin
+  Result := Format('%s.Options.%s',[AcronymName,OptionToString(aOptions).Replace(' ','')]);
+end;
+
+
+class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LUDPPayLoad         : PByte;
     LPUDPHdr            : PUDPHdr;
     LHeaderDHCP         : PTDHCPHeader;
@@ -330,44 +338,45 @@ var LUDPPayLoad         : PByte;
     I                   : Integer;
     LDHCPAuthentication : PTDHCPAuthentication;
 begin
-  Result := False;
+  Result        := False;
+  FIsFilterMode := aisFilterMode;
 
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
   LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);
-  LPayLoadLen := UDPPayLoadLength(LPUDPHdr);
-  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  LPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LPayLoadLen));
 
   LHeaderDHCP := PTDHCPHeader(LUDPPayLoad);
 
  {  op 1  Message op code / message type.
        1 = BOOTREQUEST, 2 = BOOTREPLY}  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Message type:', ifthen(LHeaderDHCP.OpCode=1,'Boot request','Boot reply'), @LHeaderDHCP.OpCode,SizeOf(LHeaderDHCP.OpCode)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.MessageType',[AcronymName]), 'Message type:', ifthen(LHeaderDHCP.OpCode=1,'Boot request','Boot reply'), @LHeaderDHCP.OpCode,SizeOf(LHeaderDHCP.OpCode),LHeaderDHCP.OpCode));
 
  {  htype  1  Hardware address type, see ARP section in "Assigned
               Numbers" RFC; e.g., '1' = 10mb ethernet.  }   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Hardware type:', LHeaderDHCP.HType, @LHeaderDHCP.HType,SizeOf(LHeaderDHCP.HType)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.HWType',[AcronymName]), 'Hardware type:', LHeaderDHCP.HType, @LHeaderDHCP.HType,SizeOf(LHeaderDHCP.HType)));
   
  {  hlen   1  Hardware address length (e.g.  '6' for 10mb
               ethernet).}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Hardware address length:', LHeaderDHCP.HLen, @LHeaderDHCP.HLen,SizeOf(LHeaderDHCP.HLen)));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.HWAddressLen',[AcronymName]), 'Hardware address length:', LHeaderDHCP.HLen, @LHeaderDHCP.HLen,SizeOf(LHeaderDHCP.HLen)));  
 
  {  hops   1  Client sets to zero, optionally used by relay agents
               when booting via a relay agent.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Hops:', LHeaderDHCP.Hops, @LHeaderDHCP.Hops,SizeOf(LHeaderDHCP.Hops)));    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.Hops',[AcronymName]), 'Hops:', LHeaderDHCP.Hops, @LHeaderDHCP.Hops,SizeOf(LHeaderDHCP.Hops)));    
 
  {  xid    4  Transaction ID, a random number chosen by the
               client, used by the client and server to associate
               messages and responses between a client and a
               server.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Transaction ID:', LongWordToString(LHeaderDHCP.TransactionID), @LHeaderDHCP.TransactionID,SizeOf(LHeaderDHCP.TransactionID)));    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.TransactionID',[AcronymName]), 'Transaction ID:', LongWordToString(LHeaderDHCP.TransactionID), @LHeaderDHCP.TransactionID,SizeOf(LHeaderDHCP.TransactionID),LHeaderDHCP.TransactionID));    
 
   { secs   2  Filled in by client, seconds elapsed since client
               began address acquisition or renewal process. }
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Seconds Elapsed:', wpcapntohs(LHeaderDHCP.SecondsElapsed), @LHeaderDHCP.SecondsElapsed,SizeOf(LHeaderDHCP.SecondsElapsed)));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.sElapsed',[AcronymName]), 'Seconds Elapsed:', wpcapntohs(LHeaderDHCP.SecondsElapsed), @LHeaderDHCP.SecondsElapsed,SizeOf(LHeaderDHCP.SecondsElapsed)));      
 
   { flags   2  Flags (see figure 2).}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Bootp flags:', ByteToBinaryString( LHeaderDHCP.Flags), @LHeaderDHCP.Flags,SizeOf(LHeaderDHCP.Flags)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.Bootpflags',[AcronymName]), 'Bootp flags:', ByteToBinaryString( LHeaderDHCP.Flags), @LHeaderDHCP.Flags,SizeOf(LHeaderDHCP.Flags),LHeaderDHCP.Flags));        
 
   {
                                     1 1 1 1 1 1
@@ -380,52 +389,54 @@ begin
 
                 MBZ:  MUST BE ZERO (reserved for future use)
   }
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Broadcast:', GetBitValue( LHeaderDHCP.Flags,1), @LHeaderDHCP.Flags,SizeOf(LHeaderDHCP.Flags)));    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.Bootpflags.Broadcast',[AcronymName]), 'Broadcast:', GetBitValue( LHeaderDHCP.Flags,1), @LHeaderDHCP.Flags,SizeOf(LHeaderDHCP.Flags)));    
 
   { ciaddr  4  Client IP address; only filled in if client is in
                BOUND, RENEW or REBINDING state and can respond
                to ARP requests.}  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Client IP address:', intToIPV4(LHeaderDHCP.ClientIP), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:', intToIPV4(LHeaderDHCP.ClientIP), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
 
   { yiaddr  4  'your' (client) IP address.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Your (client) IP address:', intToIPV4(LHeaderDHCP.YourIP), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', intToIPV4(LHeaderDHCP.YourIP), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
 
   { siaddr  4  IP address of next server to use in bootstrap;
                returned in DHCPOFFER, DHCPACK by server.      }
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Next server IP address:', intToIPV4(LHeaderDHCP.ServerIP), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:', intToIPV4(LHeaderDHCP.ServerIP), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
 
  { giaddr   4  Relay agent IP address, used in booting via a
                relay agent.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Relay Agent IP address:', intToIPV4(LHeaderDHCP.RelayAgentIP), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:', intToIPV4(LHeaderDHCP.RelayAgentIP), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
 
   {chaddr   16  Client hardware address.  }
   SetLength(LBytesTmp,LHeaderDHCP.HLen);
   Move(LHeaderDHCP.ClientMAC[0], LBytesTmp[0], LHeaderDHCP.HLen);   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Client MAC address:', MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientMAC',[AcronymName]), 'Client MAC address:', MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));          
+  
   SetLength(LBytesTmp,SizeOf(LHeaderDHCP.ClientMAC)- LHeaderDHCP.HLen);
   Move(LHeaderDHCP.ClientMAC[LHeaderDHCP.HLen], LBytesTmp[0], SizeOf(LHeaderDHCP.ClientMAC)- LHeaderDHCP.HLen);   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Client MAC address paddings:', MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));   
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientMAC.Padding',[AcronymName]), 'Client MAC address paddings:', MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));   
 
   { sname   64  Optional server host name, null terminated string.  }
   SetLength(LBytesTmp, SizeOf(LHeaderDHCP.ServerName));
   Move(LHeaderDHCP.ServerName[0], LBytesTmp[0], SizeOf(LHeaderDHCP.ServerName));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Server name:', BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerName',[AcronymName]), 'Server name:', BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));
 
  {  file    128  Boot file name, null terminated string; "generic"
                  name or null in DHCPDISCOVER, fully qualified
                  directory-path name in DHCPOFFER.  }
   SetLength(LBytesTmp, SizeOf(LHeaderDHCP.BootFileName));
   Move(LHeaderDHCP.BootFileName[0], LBytesTmp[0], SizeOf(LHeaderDHCP.BootFileName));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Boot FileName:', BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.BootFileName',[AcronymName]), 'Boot FileName:', BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));      
     
   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Magic Cookie:', wpcapntohl(LHeaderDHCP.MagicCookie), @LHeaderDHCP.MagicCookie,SizeOf(LHeaderDHCP.MagicCookie)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.MagicCookie',[AcronymName]), 'Magic Cookie:', wpcapntohl(LHeaderDHCP.MagicCookie), @LHeaderDHCP.MagicCookie,SizeOf(LHeaderDHCP.MagicCookie)));
   LCurrentPos := HeaderLength(0);
 
   while LCurrentPos < LPayLoadLen do
   begin
+    {TODO }
     LOption := PByte(LUDPPayLoad + LCurrentPos)^; 
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Options', OptionToString(LOption), @LOption,sizeOf(LOption)));       
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1,GetLabelOptions(LOption), 'Options', OptionToString(LOption), @LOption,sizeOf(LOption),LOption));       
 
     if LOption = OPTION_PAD then
     begin
@@ -439,7 +450,7 @@ begin
       
       Inc(LCurrentPos);
       LLen :=  PByte(LUDPPayLoad + LCurrentPos)^;
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Length', LLen, @LLen,sizeOf(LLen)));    
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.Len',[GetLabelOptions(LOption)]), 'Length', LLen, @LLen,sizeOf(LLen)));    
       inc(LCurrentPos);    
                       {90,82 KO}
       case LOption of
@@ -464,7 +475,7 @@ begin
             for I := 0 to (LLen div 4 ) -1 do
             begin
               LLongWordValue :=  PLongWord(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), IntToIPV4(LLongWordValue), @LLongWordValue,sizeOf(LLongWordValue)));              
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), IntToIPV4(LLongWordValue), @LLongWordValue,sizeOf(LLongWordValue)));              
               inc(LCurrentPos,4);
             end;
           end;
@@ -543,35 +554,35 @@ begin
           begin
             SetLength(LBytesTmp, LLen);
             Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s:',[OptionValueToCaption(LOption)]), BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));            
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));            
             inc(LCurrentPos,LLen);
           end;
 
         OPTION_CLIENT_ID:
           begin 
             LByteValue := PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Hardaware type:', LByteValue, @LByteValue,SizeOf(LByteValue)));            
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.HwType',[GetLabelOptions(LOption)]), 'Hardaware type:', LByteValue, @LByteValue,SizeOf(LByteValue) ));            
             inc(LCurrentPos);    
             SetLength(LBytesTmp, LLen-1);
             Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
             if LByteValue = 1 then
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s:',[OptionValueToCaption(LOption)]), MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)))
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ClientID',[GetLabelOptions(LOption)]), 'ClientID:' , MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
             else
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s:',[OptionValueToCaption(LOption)]), BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));                              
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ClientID',[GetLabelOptions(LOption)]), 'ClientID:' , BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
             inc(LCurrentPos,LLen-1);
           end;
 
         OPTION_SIP_SERVERS_DHCP_OPTION:
           begin 
             LByteValue := PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Sip server encoding:', ifthen(LByteValue=1,'Ipv4','Ipv6'), @LByteValue,SizeOf(LByteValue)));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Encoding',[GetLabelOptions(LOption)]) ,'Encoding:', ifthen(LByteValue=1,'Ipv4','Ipv6'), @LByteValue,SizeOf(LByteValue),LByteValue ));
             inc(LCurrentPos);    
             SetLength(LBytesTmp, LLen-1);
             Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
             if LByteValue = 1 then            
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s:',[OptionValueToCaption(LOption)]), BytesToIPv4Str(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)))
+               AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToIPv4Str(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
             else
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s:',[OptionValueToCaption(LOption)]), IPv6AddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));                              
+               AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), IPv6AddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
             inc(LCurrentPos,LLen-1);            
           end;
             
@@ -589,7 +600,7 @@ begin
         OPTION_SRCRTE_ON_OFF:
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), LByteValue=1, @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), LByteValue=1, @LByteValue,sizeOf(LByteValue),LByteValue));    
             inc(LCurrentPos);          
           end;
 
@@ -597,42 +608,42 @@ begin
         OPTION_NETBIOS_NODE_TYPE         :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), GetNetBIOSNodeTypeString(LByteValue), @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]) ,Format('%s:',[OptionValueToCaption(LOption)]), GetNetBIOSNodeTypeString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
             inc(LCurrentPos);          
           end;
           
         OPTION_OVERLOAD                  :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), GetOptionOverloadTypeString(LByteValue), @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetOptionOverloadTypeString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
             inc(LCurrentPos);          
           end;
           
         OPTION_DHCP_MSG_TYPE             :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), GetDHCPMessageTypeString(LByteValue), @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetDHCPMessageTypeString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
             inc(LCurrentPos);
           end;
           
         OPTION_FORCERENEW_NONCE_CAPABLE  :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), LByteValue, @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), LByteValue, @LByteValue,sizeOf(LByteValue)));    
             inc(LCurrentPos);          
           end;
           
         OPTION_DHCPSTATE                 :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), DecimalToDHCPState(LByteValue), @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), DecimalToDHCPState(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
             inc(LCurrentPos);          
           end;
           
         OPTION_DATASOURCE                :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), LByteValue, @LByteValue,sizeOf(LByteValue)));    
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), LByteValue, @LByteValue,sizeOf(LByteValue)));    
             inc(LCurrentPos);          
           end;
 
@@ -641,7 +652,7 @@ begin
             for I := 0 to (LLen ) -1 do
             begin
               LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), GetNetWareSubOptionString(LByteValue), @LByteValue,sizeOf(LByteValue)));              
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s.SubOption',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetNetWareSubOptionString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));              
               inc(LCurrentPos);
             end;          
           end;
@@ -651,7 +662,7 @@ begin
             for I := 0 to (LLen ) -1 do
             begin
               LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Parameter list:', OptionToString(LByteValue), @LByteValue,sizeOf(LByteValue)));              
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), 'Parameter list:', OptionToString(LByteValue), @LByteValue,sizeOf(LByteValue)));              
               inc(LCurrentPos);
             end;              
           end;
@@ -661,7 +672,7 @@ begin
             for I := 0 to (LLen ) -1 do
             begin
               LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), GetDHCPSubOptionDescription(LByteValue), @LByteValue,sizeOf(LByteValue)));              
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetDHCPSubOptionDescription(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));              
               inc(LCurrentPos);
             end;             
           end;
@@ -671,7 +682,7 @@ begin
             for I := 0 to (LLen ) -1 do
             begin
               LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]), DHCPStatusCodeToStr(LByteValue), @LByteValue,sizeOf(LByteValue)));              
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), DHCPStatusCodeToStr(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));              
               inc(LCurrentPos);
             end;            
           end;
@@ -679,14 +690,14 @@ begin
         OPTION_AUTHENTICATION:
           begin
             LDHCPAuthentication := PTDHCPAuthentication(LUDPPayLoad + LCurrentPos);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Protocol:', DecimalToAuthenticationSuboption(LDHCPAuthentication.Protocol), @LDHCPAuthentication.Protocol,sizeOf(LDHCPAuthentication.Protocol)));
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Algorithm:',ifthen(LDHCPAuthentication.Algorithm=1,'HMAC-SHA1 keyed hash','Reserved'), @LDHCPAuthentication.Algorithm,sizeOf(LDHCPAuthentication.Algorithm)));
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Replay Detection Method:',ifthen(LDHCPAuthentication.RDM=0,'use of a monotonically increasing counter value','Reserved'), @LDHCPAuthentication.RDM,sizeOf(LDHCPAuthentication.RDM)));
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Replay Detection value:', ntohl(LDHCPAuthentication.ReplayDetection), @LDHCPAuthentication.ReplayDetection,sizeOf(LDHCPAuthentication.ReplayDetection)));                                                                 
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Secret ID:', wpcapntohl(LDHCPAuthentication.SecretID), @LDHCPAuthentication.SecretID,sizeOf(LDHCPAuthentication.SecretID)));                 
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Protocol',[GetLabelOptions(LOption)]), 'Protocol:', DecimalToAuthenticationSuboption(LDHCPAuthentication.Protocol), @LDHCPAuthentication.Protocol,sizeOf(LDHCPAuthentication.Protocol),LDHCPAuthentication.Protocol));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Algorithm',[GetLabelOptions(LOption)]), 'Algorithm:',ifthen(LDHCPAuthentication.Algorithm=1,'HMAC-SHA1 keyed hash','Reserved'), @LDHCPAuthentication.Algorithm,sizeOf(LDHCPAuthentication.Algorithm),LDHCPAuthentication.Algorithm));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.RDM',[GetLabelOptions(LOption)]), 'Replay Detection Method:',ifthen(LDHCPAuthentication.RDM=0,'use of a monotonically increasing counter value','Reserved'), @LDHCPAuthentication.RDM,sizeOf(LDHCPAuthentication.RDM),LDHCPAuthentication.RDM));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ReplayDetection',[GetLabelOptions(LOption)]), 'Replay Detection value:', ntohl(LDHCPAuthentication.ReplayDetection), @LDHCPAuthentication.ReplayDetection,sizeOf(LDHCPAuthentication.ReplayDetection)));                                                                 
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SecretID',[GetLabelOptions(LOption)]), 'Secret ID:', wpcapntohl(LDHCPAuthentication.SecretID), @LDHCPAuthentication.SecretID,sizeOf(LDHCPAuthentication.SecretID)));                 
             SetLength(LBytesTmp, SizeOf(LDHCPAuthentication.AuthenticationInfo));
             Move(LDHCPAuthentication.AuthenticationInfo[0], LBytesTmp[0], SizeOf(LDHCPAuthentication.AuthenticationInfo));              
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'HMAC MD5 Hash:',ToHex(LBytesTmp), @LDHCPAuthentication.AuthenticationInfo,sizeOf(LDHCPAuthentication.AuthenticationInfo)));                 
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.HMACMD5Hash',[GetLabelOptions(LOption)]), 'HMAC MD5 Hash:',ToHex(LBytesTmp), @LDHCPAuthentication.AuthenticationInfo,sizeOf(LDHCPAuthentication.AuthenticationInfo)));                 
             inc(LCurrentPos,LLen);
           end;
           
@@ -708,7 +719,7 @@ begin
         OPTION_REBOOT_TIME:
           begin
             LLongWordValue := wpcapntohl(PLongWord(LUDPPayLoad + LCurrentPos)^);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]),Format('%d sec',[LLongWordValue]), @LLongWordValue,sizeOf(LLongWordValue)));
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),Format('%d sec',[LLongWordValue]), @LLongWordValue,sizeOf(LLongWordValue),LLongWordValue));
             inc(LCurrentPos,SizeOf(LLongWordValue));            
           end;
           
@@ -716,7 +727,7 @@ begin
           begin
              {magic string = F1:00:74:7E}
             LLongWordValue := wpcapntohl(PLongWord(LUDPPayLoad + LCurrentPos)^);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[LongWordToString(LOption)]),LLongWordValue, @LLongWordValue,sizeOf(LLongWordValue)));
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[LongWordToString(LOption)]),LLongWordValue, @LLongWordValue,sizeOf(LLongWordValue)));
             inc(LCurrentPos,SizeOf(LLongWordValue));                
           end;
 
@@ -727,7 +738,7 @@ begin
         OPTION_DHCP_MAX_MSG_SIZE :
           begin
             LWordValue := wpcapntohs(PWord(LUDPPayLoad + LCurrentPos)^);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s:',[OptionValueToCaption(LOption)]),SizeToStr(LWordValue), @LByteValue,sizeOf(LByteValue)));                    
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),SizeToStr(LWordValue), @LByteValue,sizeOf(LByteValue),LWordValue));                    
             inc(LCurrentPos,SizeOf(LWordValue));
           end;
 
@@ -804,16 +815,16 @@ begin
         OPTION_RELAY_AGENT_INFORMATION  :
           begin
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'SubOption', DecToDhcpOptionStr(LByteValue), @LByteValue,sizeOf(LByteValue)));
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SubOption',[GetLabelOptions(LOption)]), 'SubOption', DecToDhcpOptionStr(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));
             inc(LCurrentPos);
 
             LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Length', LByteValue, @LByteValue,sizeOf(LByteValue)));              
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Len',[GetLabelOptions(LOption)]), 'Length', LByteValue, @LByteValue,sizeOf(LByteValue)));              
             inc(LCurrentPos);
             
             SetLength(LBytesTmp, LByteValue);
             Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0], LByteValue);              
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Value:',ToHex(LBytesTmp), @LBytesTmp,sizeOf(LBytesTmp)));                 
+             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Value',[GetLabelOptions(LOption)]), 'Value:',ToHex(LBytesTmp), @LBytesTmp,sizeOf(LBytesTmp)));                 
             inc(LCurrentPos,LByteValue);
                             
           end
@@ -1022,11 +1033,6 @@ begin
     OPTION_END                                     	: Result := 'End';    
     else Result := 'Unknown';
   end;
-  if AddOptionNumber then  
-    Result :=Format('%s [%d]',[Result,aOption]);
-
-
-
 end;
 
 class function TWPcapProtocolDHCP.GetNetBIOSNodeTypeString(aNodeType: Byte): string;
@@ -1037,8 +1043,7 @@ begin
     4: Result := 'M-node';
     8: Result := 'H-node';
     else Result := 'Unknown';
-  end;
-  Result :=Format('%s [%d]',[Result,aNodeType]);                   
+  end;     
 end;
 
 class function TWPcapProtocolDHCP.GetOptionOverloadTypeString(aOverloadType: Byte): string;
@@ -1049,7 +1054,6 @@ begin
     3: Result := 'both';
     else Result := 'Unknown';
   end;
-  Result :=Format('%s [%d]',[Result,aOverloadType]);
 end;
 
 class function TWPcapProtocolDHCP.GetDHCPMessageTypeString(aMessageType: Byte): string;
@@ -1075,7 +1079,6 @@ begin
     18: Result := 'DHCPTLS';
     else Result := 'Unknown';
   end;
-  Result :=Format('%s [%d]',[Result,aMessageType]);
 end;
 
 class function TWPcapProtocolDHCP.GetNetWareSubOptionString(asubOption: Byte): string;
@@ -1094,7 +1097,6 @@ begin
     11: Result := 'PRIMARY_DSS';
     else Result := 'Unassigned';
   end;
-  Result :=Format('%s [%d]',[Result,asubOption]);    
 end;
 
 class function TWPcapProtocolDHCP.GetDHCPSubOptionDescription(asubOptionCode: Integer): string;
@@ -1112,7 +1114,6 @@ begin
     10: Result := 'KDC Server Address';
     else Result := 'Unassigned';
   end;
-  Result :=Format('%s [%d]',[Result,asubOptionCode]);    
 end;
 
 class function TWPcapProtocolDHCP.DHCPStatusCodeToStr(aCode: Integer): string;
@@ -1128,8 +1129,7 @@ begin
     7: Result := 'CatchUpComplete';
     8: Result := 'TLSConnectionRefused';
     else Result := 'Unassigned';
-  end;
-  Result :=Format('%s [%d]',[Result,aCode]);    
+  end;  
 end;
 
 class function TWPcapProtocolDHCP.DecimalToDHCPState(aValue: Integer): string;
@@ -1146,8 +1146,7 @@ begin
     StateIndex := 9; // Unassigned value
 
   Result := StateNames[StateIndex];
-
-  Result :=Format('%s [%d]',[Result,aValue]);      
+      
 end;
 
 class function TWPcapProtocolDHCP.DecimalToAuthenticationSuboption(avalue: Integer): string;
@@ -1160,8 +1159,7 @@ begin
     255: Result := 'Reserved';
     else
       Result := 'Unassigned';
-  end;
-  Result :=Format('%s [%d]',[Result,aValue]);       
+  end;     
 end;
 
 class function TWPcapProtocolDHCP.DecToDhcpOptionStr(avalue: Integer): string;
@@ -1190,12 +1188,8 @@ begin
     152: Result := 'DHCPv4 Virtual Subnet Selection Control Sub-Option [RFC6607]';
   else
       Result := 'Unassigned';
-  end;
-  Result :=Format('%s [%d]',[Result,aValue]);      
+  end;     
 end;
-
-
-
 
 class function TWPcapProtocolDHCP.HeaderLength(aFlag: Byte): word;
 begin

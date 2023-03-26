@@ -12,7 +12,7 @@ type
     FPCAPCallBackError: TPCAPCallBackError;
     FPcapUtils        : TPCAPUtils;
     procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
-    procedure DoPCAPCallBackEnd(const aFileName:String);
+    procedure DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
     procedure DoPCAPCallBackError(const aFileName, aError: String);
     procedure SetAbort(const Value: Boolean);
    public
@@ -67,8 +67,9 @@ begin
   FPCAPCallBackError(aFileName,aError)
 end;
 
-procedure TPCAP2SQLite.DoPCAPCallBackEnd(const aFileName:String);
+procedure TPCAP2SQLite.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
 begin
+  FWPcapDBSqLite.InsertLabelByLevel(aListLabelByLevel);
   FWPcapDBSqLite.CommitAndClose;
   FPCAPCallBackEnd(aFileName)
 end;
@@ -112,10 +113,10 @@ begin
       if Not Assigned(FPcapUtils) then      
         FPcapUtils := TPCAPUtils.Create;
       Try
-        FPcapUtils.OnPCAPCallBackError    := DoPCAPCallBackError;
-        FPcapUtils.OnPCAPCallBackProgress := aPCAPCallBackProgress;
-        FPcapUtils.OnPCAPCallBackPacket   := DoPCAPCallBackPacket;
-        FPcapUtils.OnPCAPCallBackEnd      := DoPCAPCallBackEnd;                    
+        FPcapUtils.OnPCAPCallBackError      := DoPCAPCallBackError;
+        FPcapUtils.OnPCAPCallBackProgress   := aPCAPCallBackProgress;
+        FPcapUtils.OnPCAPCallBackPacket     := DoPCAPCallBackPacket;
+        FPcapUtils.OnPCAPCallBeforeBackEnd  := DoPCAPCallBeforeBackEnd;                    
         FPcapUtils.AnalyzePCAPOffline(aFileName,afilter,aGeoLiteDB);          
       finally
         

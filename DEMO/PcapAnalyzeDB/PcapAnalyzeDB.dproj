@@ -100,7 +100,6 @@
         </DelphiCompile>
         <DCCReference Include="UnMain.pas">
             <Form>FormMain</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\wpcap.Pcap.SQLite.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Conts.pas"/>
@@ -115,7 +114,6 @@
         <DCCReference Include="..\..\Source\wpcap.DB.Base.pas"/>
         <DCCReference Include="UnFormRecording.pas">
             <Form>FormRecording</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\wpcap.NetDevice.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Graphics.pas"/>
@@ -141,17 +139,14 @@
         <DCCReference Include="..\..\Source\wpcap.DB.SQLite.Packet.pas"/>
         <DCCReference Include="UnFormImportGeoLite.pas">
             <Form>FormImportGeoLite</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="UnFormMap.pas">
             <Form>FormMap</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\wpcap.IPUtils.pas"/>
         <DCCReference Include="..\..\Source\wpcap.Geometry.pas"/>
         <DCCReference Include="UnFormFlow.pas">
             <Form>FormFlow</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.HTTP.pas"/>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.POP3.pas"/>
@@ -159,7 +154,6 @@
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.RTP.pas"/>
         <DCCReference Include="UnFormPlayerWave.pas">
             <Form>FormPlayerWave</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.TFTP.pas"/>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.SIP.pas"/>
@@ -169,6 +163,11 @@
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.IGMP.pas"/>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.GTP.pas"/>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.DHCP.pas"/>
+        <DCCReference Include="UnFunctionFilter.pas"/>
+        <DCCReference Include="UnitCustomOpenDialog.pas">
+            <Form>FormOpenDialog</Form>
+        </DCCReference>
+        <DCCReference Include="..\..\Source\wpcap.MCC.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

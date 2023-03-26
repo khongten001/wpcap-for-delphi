@@ -1,7 +1,7 @@
 ﻿unit wpcap.BufferUtils;
 
 interface
-uses System.SysUtils,winsock2,System.Classes;
+uses System.SysUtils,winsock2,System.Classes,System.Math,idGlobal;
 
 /// <summary>
 /// Converts an array of bytes to a TBytes dynamic array.
@@ -17,7 +17,21 @@ function BytesToArray(const Bytes: array of Byte): TBytes;
 /// <returns>Returns the input 16-bit integer in host byte order.</returns>
 function wpcapntohs(aWord: Word): word;
 
-function wpcapntohl(aWord: cardinal):Cardinal;
+/// <summary>
+/// Converts a 32-bit integer from network byte order to host byte order.
+/// </summary>
+/// <param name="aCardinal">The input 32-bit integer in network byte order.</param>
+/// <returns>Returns the input 32-bit integer in host byte order.</returns>
+function wpcapntohl(aCardinal: cardinal):Cardinal;
+
+/// <summary>
+/// Converts a 64-bit integer from network byte order to host byte order.
+/// </summary>
+/// <param name="aUInt64">The input 64-bit integer in network byte order.</param>
+/// <returns>Returns the input 64-bit integer in host byte order.</returns>
+function wpcaphtobe64(aUInt64: UInt64): UInt64;
+
+function BCDToDec(const aBCDValue: UInt64): UInt64;
 
 /// <summary>
 /// Extracts the byte at the specified index from a 16-bit integer value.
@@ -63,9 +77,20 @@ function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
 function HexToBytes(const hex: string): TBytes;
 function GetWordFromCardinal(aCValue: Cardinal; aByteIndex: Integer): word;
+Function InvertSingleByte(const aBytes : TidBytes): TIdBytes;
+
+
+
 
 implementation
 
+Function InvertSingleByte(const aBytes : TidBytes): TIdBytes;
+var I: Integer;
+begin
+  SetLength(Result, Length(aBytes));
+  for I := Low(aBytes) to High(aBytes) do
+     Result[I] := aBytes[I] xor $FF;
+end;
 
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
 var LIdx            : Integer;
@@ -123,9 +148,44 @@ begin
   result := Winsock2.ntohs(aWord);
 end;
 
-function wpcapntohl(aWord: cardinal):Cardinal;
+function wpcapntohl(aCardinal: cardinal):Cardinal;
 begin
-  result := ntohl(aWord);
+  result := ntohl(aCardinal);
+end;
+
+
+
+function wpcaphtobe64(aUInt64: UInt64): UInt64;
+var i       : Integer;
+    LpValue : PByte;  
+    LpResult: PByte;
+begin
+  GetMem(LpResult, SizeOf(UInt64));
+  Try
+    LpValue := PByte(@aUInt64);
+  
+    for i := 0 to 7 do
+      (LpResult + (7 - i))^ := (LpValue + i)^;
+
+    Move(LpResult^, Result, SizeOf(UInt64));  
+  Finally
+    FreeMem(LpResult);
+  End;
+end;
+
+function BCDToDec(const aBCDValue: UInt64): UInt64;
+var LDigit   : UInt64;
+    LDecValue: UInt64;
+    i        : Integer;
+begin
+  LDecValue := 0;
+  for i := 0 to 15 do
+  begin
+    LDigit := (aBCDValue shr (i * 4)) and $F; // preleva la cifra BCD dal valore
+    if LDigit > 9 then Continue;
+    LDecValue := Trunc(LDecValue + (LDigit * Power(10, i))); // somma la cifra decimale al valore decimale totale
+  end;
+  Result := LDecValue;
 end;
 
 function GetByteFromWord(aWordValue: Word; aByteIndex: Integer): Byte;

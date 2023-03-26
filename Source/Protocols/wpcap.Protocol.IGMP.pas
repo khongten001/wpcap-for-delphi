@@ -82,7 +82,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;      
   end;
 
 
@@ -127,7 +127,7 @@ begin
   end;
 end;
   
-class function TWPcapProtocolIGMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolIGMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LHeader        : PTIGMPHeader;
     LGroupRec      : PTIGMPGroupRecord;
     LSizeEthIP     : Integer;
@@ -137,30 +137,31 @@ var LHeader        : PTIGMPHeader;
     LLongWordValue : LongWord;
 begin
   Result := False;
+  FisFilterMode := aisFilterMode;
 
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
-  AListDetail.Add(AddHeaderInfo(aStartLevel,Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeader),HeaderLength(0))); 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Type:',TypeToString(LHeader.VerType),@LHeader.VerType,sizeOf(LHeader.VerType)));             
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'CheckSum:',wpcapntohs( LHeader.CheckSum),@LHeader.CheckSum,sizeOf(LHeader.CheckSum)));                 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Reserved:',wpcapntohs( LHeader.Reserved),@LHeader.Reserved,sizeOf(LHeader.Reserved)));       
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Num Group Records:',wpcapntohs( LHeader.NGroupRec),@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec))); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeader),HeaderLength(0))); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',TypeToString(LHeader.VerType),@LHeader.VerType,sizeOf(LHeader.VerType), LHeader.VerType ));             
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CheckSum',[AcronymName]), 'CheckSum:',wpcapntohs( LHeader.CheckSum),@LHeader.CheckSum,sizeOf(LHeader.CheckSum) ));                 
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Reserved',[AcronymName]), 'Reserved:',wpcapntohs( LHeader.Reserved),@LHeader.Reserved,sizeOf(LHeader.Reserved) ));       
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NGroupRecords',[AcronymName]), 'Num Group Records:',wpcapntohs( LHeader.NGroupRec),@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec) )); 
 
   LSizeEthIP  := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LCurrentPos := LSizeEthIP+SizeOf(TIGMPHeader);
   for I := 0 to wpcapntohs( LHeader.NGroupRec)-1 do
   begin
     LGroupRec := PTIGMPGroupRecord(aPacketData + LCurrentPos );
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Group record:',null,@LGroupRec,SizeOf(LGroupRec)));
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Type:',RecordTypeToString(LGroupRec.RecType),@LGroupRec.RecType,sizeOf(LGroupRec.RecType)));            
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Aux Data Len:',LGroupRec.DataLen,@LGroupRec.DataLen,sizeOf(LGroupRec.DataLen)));    
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Num src:',wpcapntohs(LGroupRec.NumSrc),@LGroupRec.NumSrc,sizeOf(LGroupRec.NumSrc)));   
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Multicast addess:',intToIPV4(LGroupRec.Ipaddr),@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr)));  
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.GroupRecord',[AcronymName]), 'Group record:',null,@LGroupRec,SizeOf(LGroupRec)));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.Type',[AcronymName]), 'Type:',RecordTypeToString(LGroupRec.RecType),@LGroupRec.RecType,sizeOf(LGroupRec.RecType), LGroupRec.RecType ));            
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.AudLen',[AcronymName]), 'Aux Data Len:',LGroupRec.DataLen,@LGroupRec.DataLen,sizeOf(LGroupRec.DataLen) ));    
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.NSrc',[AcronymName]), 'Num src:',wpcapntohs(LGroupRec.NumSrc),@LGroupRec.NumSrc,sizeOf(LGroupRec.NumSrc) ));   
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',intToIPV4(LGroupRec.Ipaddr),@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
     Inc(LCurrentPos,SizeOf(TIGMPGroupRecord));
     
     for X := 0 to wpcapntohs(LGroupRec.NumSrc) -1 do
     begin
       LLongWordValue := PLongWord(aPacketData+LCurrentPos)^ ;
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Source Address:',intToIPV4(LLongWordValue),@LLongWordValue,sizeOf(LLongWordValue)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.SrcAddr',[AcronymName]), 'Source Address:',intToIPV4(LLongWordValue),@LLongWordValue,sizeOf(LLongWordValue) ));
       Inc(LCurrentPos,SizeOf(LLongWordValue));
     end;
     
@@ -217,7 +218,6 @@ begin
 
   else Result := 'Unknown';  
   end;
-  Result := Format('%s [%d]',[Result, aType]).Trim;
 end;
 
 class function TWPcapProtocolIGMP.RecordTypeToString(const aType:Byte):String;
@@ -231,7 +231,6 @@ begin
     6: Result := 'BLOCK_OLD_SOURCES';
   else Result := 'Unknown';  
   end;
-  Result := Format('%s [%d]',[Result, aType]).Trim;
 end;
 
 end.

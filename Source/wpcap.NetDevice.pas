@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Wrapper, wpcap.Conts, wpcap.Types, System.SysUtils, System.Classes,
+  wpcap.Wrapper, wpcap.Conts, wpcap.Types, System.SysUtils, System.Classes,System.Win.Registry,
   System.Generics.Collections,WinSock,WinApi.Windows,Winapi.IpHlpApi,Winapi.IpTypes;
 
 type
@@ -37,16 +37,33 @@ implementation
 
 
 function GetAdapterNameFromGUID(const aGUID: String): string;
-var LErrBuf     : array [0..PCAP_ERRBUF_SIZE - 1] of AnsiChar;
-    LAdapterName: PAnsiChar;
+CONST REG_PATH = 'SYSTEM\ControlSet001\Control\Network\{4D36E972-E325-11CE-BFC1-08002BE10318}\%S\Connection';
+var LReg : TRegistry;
+    LKey : string;
 begin
-  // Use pcap_lookupdev to resolve the adapter name from the GUID
-  LAdapterName := pcap_lookupdev(LErrBuf);
-  if LAdapterName = nil then
-    raise Exception.CreateFmt('Error resolving adapter name from GUID %s: %s', [aGUID, LErrBuf]);
+  Result := aGUID;
+  Try
+    LReg := TRegistry.Create;
+    try
+      LReg.RootKey := HKEY_LOCAL_MACHINE;
+      LKey := Format(REG_PATH,[aGUID.Split(['_'])[1]]); 
+      if LReg.OpenKeyReadOnly(LKey) then
+      begin     
+        Try
+          Result := LReg.ReadString('Name');
+        Except 
+          ;
+        End;
+        LReg.CloseKey;
+      end;
+    finally
+      FreeAndNil(LReg);
+    end;
+  Except
 
-  Result := string(LAdapterName);
+  End;
 end;
+
 
 /// <summary>
 ///   Returns a list of the names of all available network interfaces on the system.

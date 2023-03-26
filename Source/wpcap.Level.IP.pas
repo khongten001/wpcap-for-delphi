@@ -255,7 +255,7 @@ type
     ///   Returns a dictionary containing the string representation of each field in the IP header, as well as its value in the provided packet data.
     /// </summary>
     /// <returns>A dictionary containing the string representation of each field in the IP header, as well as its value in the provided packet data.</returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;override;
 
     ///  <summary>
     ///  Analyzes the IP header of the packet data and stores the result in the given InternalIP record.
@@ -310,9 +310,9 @@ begin
         +---+---+---+
   }
 
-	  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'May Fragment:',GetBitValue(aFlags,2)=1,nil,0)); 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Last Fragment:',GetBitValue(aFlags,3)=1,nil,0));    
+	                                            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv4.MayFragment','May Fragment:',GetBitValue(aFlags,2)=1,nil,0)); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv4.LastFragment','Last Fragment:',GetBitValue(aFlags,3)=1,nil,0));    
 end;
 
 class function TWpcapIPHeader.DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices;
@@ -457,7 +457,7 @@ begin
   Result := (aVerLen and $0F) * 4;
 end;
 
-class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;  
+class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;  
 var LHederInfo         : THeaderString;
     LInternalIP        : PTInternalIP;
     LHeaderV4          : PTIPHeader;
@@ -473,7 +473,8 @@ var LHederInfo         : THeaderString;
     LNewPacket         : PByte;
     LNewPacketSize     : Integer;    
 begin
-  Result := False;
+  Result        := False;
+  FisFilterMode := aisFilterMode;
   new(LInternalIP);
   Try
     if not InternalIP(aPacketData,aPacketSize,nil,LInternalIP,False) then exit;
@@ -489,10 +490,10 @@ begin
       Result                 := True;
       LHeaderV6              := HeaderIPv6(aPacketData,aPacketSize);
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel,Format('Internet protocol version 6, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize))); 
+      AListDetail.Add(AddHeaderInfo(aStartLevel,'IP.IPv6','Internet protocol version 6',Format('Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),PByte(LHeaderV6),HeaderIPSize(aPacketData,aPacketSize))); 
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Header length:',HeaderIPSize(aPacketData,aPacketSize),nil,0));  
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Version:',(LHeaderV6.Version shr 4) and $0F,PByte(@LHeaderV6.Version),SizeOf(LHeaderV6.Version))); 
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.HeaderLen','Header length:',HeaderIPSize(aPacketData,aPacketSize),nil,0));  
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.Version','Version:',(LHeaderV6.Version shr 4) and $0F,PByte(@LHeaderV6.Version),SizeOf(LHeaderV6.Version))); 
 
 
       // Leggere il campo TrafficClass
@@ -501,10 +502,10 @@ begin
       LFlowLabel             := LTrafficClassValue and $0FFFFF;  // 20 bit per il flow label
       LTrafficClass          := LTrafficClassValue and $3;       // 2 bit meno significativi per la classe di traffico   
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Traffic Class:',LTrafficClassValue,PByte(@LHeaderV6.TrafficClass),SizeOf(LHeaderV6.TrafficClass)));          
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Priority:',LPriority,nil,0));          
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'FlowLabel:',LFlowLabel,nil,0));   
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Class:',LTrafficClass,nil,0));                               
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.TrafficClass','Traffic Class:',LTrafficClassValue,PByte(@LHeaderV6.TrafficClass),SizeOf(LHeaderV6.TrafficClass)));          
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv6.TrafficClass.Priority','Priority:',LPriority,nil,0));          
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv6.TrafficClass.FlowLabel','FlowLabel:',LFlowLabel,nil,0));   
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv6.TrafficClass.Class','Class:',LTrafficClass,nil,0));                               
            
       // Leggere il campo FlowLabel
 
@@ -516,12 +517,12 @@ begin
       LFlowLabel             := LFlowLabel shr 4;
       // Now the FlowLabel variable contains the 20-bit value      
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Payload Length:',wpcapntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Next Header:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress))); 
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.FlowLabel2','Flow Label:',LFlowLabel,PByte(@LHeaderV6.FlowLabel),SizeOf(LHeaderV6.FlowLabel)));                
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.PayloadLength','Payload Length:',wpcapntohs(LHeaderV6.PayloadLength),PByte(@LHeaderV6.PayloadLength),SizeOf(LHeaderV6.PayloadLength)));                     
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.NextHeader','Next Header:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.HopLimit','Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.SourceAddress','Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.DestinationAddress','Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress))); 
       LCurrentPos := HeaderEthSize + SizeOf(TIPv6Header);
       LIpProto    := LHeaderV6.NextHeader;
       ExtentionHeader(aPacketData,aStartLevel,LCurrentPos,LIpProto,AListDetail);                     
@@ -529,28 +530,29 @@ begin
     else                                                                                
     begin
       Result  := True;
-      AListDetail.Add(AddHeaderInfo(aStartLevel,Format('Internet protocol version 4, Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),null,PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize)));       
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Version:',(LHeaderV4.VerLen shr 4) and $0F,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Header length:',HeaderLenConvert(LHeaderV4.VerLen),PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Differetiated services field:',LHeaderV4.TOS,PByte(@LHeaderV4.TOS),SizeOf(LHeaderV4.TOS)));       
+      AListDetail.Add(AddHeaderInfo(aStartLevel,'IP.IPv4','Internet protocol version 4',Format('Src: %s, Dst %s',[LInternalIP.Src,LInternalIP.Dst]),PByte(LHeaderV4),HeaderIPSize(aPacketData,aPacketSize)));       
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv4.HeaderLen','Header length:',HeaderLenConvert(LHeaderV4.VerLen),PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv4.Version','Version:',(LHeaderV4.VerLen shr 4) and $0F,PByte(@LHeaderV4.VerLen),SizeOf(LHeaderV4.VerLen))); 
+
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv4.DifferetiatedServicesField','Differetiated services field:',LHeaderV4.TOS,PByte(@LHeaderV4.TOS),SizeOf(LHeaderV4.TOS)));       
 
       LTOSInfo := DecodeDifferentiatedServices(LHeaderV4.TOS);
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Precedence:',LTOSInfo.Precedence,nil,0));        
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Delay:',LTOSInfo.Delay,nil,0));        
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Throughput:',LTOSInfo.Throughput,nil,0));        
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Reliability:',LTOSInfo.Reliability,nil,0));                          
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.Precedence','Precedence:',LTOSInfo.Precedence,@LHeaderV4.TOS,SizeOf(LHeaderV4.TOS), (LHeaderV4.TOS shr 5) ));        
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.Delay', 'Delay:', LTOSInfo.Delay, @LHeaderV4.TOS,SizeOf(LHeaderV4.TOS), GetBitValue(LHeaderV4.TOS,4) ));        
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.Throughput','Throughput:',LTOSInfo.Throughput, @LHeaderV4.TOS,SizeOf(LHeaderV4.TOS), GetBitValue(LHeaderV4.TOS,5) ));        
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.Reliability','Reliability:',LTOSInfo.Reliability, @LHeaderV4.TOS,SizeOf(LHeaderV4.TOS), GetBitValue(LHeaderV4.TOS,6) ));                          
                        
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Total length:',wpcapntohs(LHeaderV4.TotalLen),PByte(@LHeaderV4.TotalLen),SizeOf(LHeaderV4.TotalLen)));            
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Identification:',wpcapntohs(LHeaderV4.ID),PByte(@LHeaderV4.ID),SizeOf(LHeaderV4.ID)));                  
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.TotalLen','Total length:',wpcapntohs(LHeaderV4.TotalLen), PByte(@LHeaderV4.TotalLen),SizeOf(LHeaderV4.TotalLen) ));            
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.Identification','Identification:',wpcapntohs(LHeaderV4.ID), PByte(@LHeaderV4.ID),SizeOf(LHeaderV4.ID) ));                  
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Flags:',ByteToBinaryString(LHeaderV4.FlagsOfF shr 13),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff))); 
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv4.Flags','Flags:',ByteToBinaryString(LHeaderV4.FlagsOfF shr 13), PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff), LHeaderV4.FlagsOfF shr 13 )); 
       LFlagOffInfo := GetIpFlag(LHeaderV4.FlagsOfF shr 13,AListDetail,aStartLevel); 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Fragment OffSet:',wpcapntohs(LHeaderV4.FlagsOff and $1FFF),PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Time to live:',Format('%d hop',[LHeaderV4.TTL]),PByte(@LHeaderV4.TTL),SizeOf(LHeaderV4.TTL)));                                     
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Protocol:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV4.Protocol),SizeOf(LHeaderV4.Protocol)));                     
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'CheckSum:',wpcapntohs(LHeaderV4.CheckSum),PByte(@LHeaderV4.CheckSum),SizeOf(LHeaderV4.CheckSum)));                  
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Source:',LInternalIP.Src,PByte(@LHeaderV4.SrcIP),SizeOf(LHeaderV4.SrcIP)));                        
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Destination:',LInternalIP.Dst,PByte(@LHeaderV4.DestIP),SizeOf(LHeaderV4.DestIP)));                              
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv4.Flags.FragmentOffSet','Fragment OffSet:',wpcapntohs(LHeaderV4.FlagsOff and $1FFF), PByte(@LHeaderV4.FlagsOff),SizeOf(LHeaderV4.FlagsOff)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv4.TTL','Time to live:',Format('%d hop',[LHeaderV4.TTL]),PByte(@LHeaderV4.TTL),SizeOf(LHeaderV4.TTL)));                                     
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv4.Protocol','Protocol:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV4.Protocol),SizeOf(LHeaderV4.Protocol)));                     
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv4.CheckSum','CheckSum:',wpcapntohs(LHeaderV4.CheckSum),PByte(@LHeaderV4.CheckSum),SizeOf(LHeaderV4.CheckSum)));                  
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv4.Source','Source:',LInternalIP.Src,PByte(@LHeaderV4.SrcIP),SizeOf(LHeaderV4.SrcIP)));                        
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv4.Destination','Destination:',LInternalIP.Dst,PByte(@LHeaderV4.DestIP),SizeOf(LHeaderV4.DestIP)));                              
     end;
 
     if Result then
@@ -593,9 +595,7 @@ begin
         IPPROTO_PGM     :;
         IPPROTO_SCTP    :;
         IPPROTO_RAW     :;
-
       end;
-
     end;        
   finally               
     Dispose(LInternalIP)
@@ -605,15 +605,22 @@ end;
 class function TWpcapIPHeader.ExtentionHeaderOptions(const aPacketData: PByte;aStartLevel:Integer;var aCurrentPos:Integer;var aIpProto:word;AListDetail: TListHeaderString):Boolean;
 var LHopeOptions  : PTOptionHeader;
 
-    procedure WriteInfo;
+    procedure WriteInfo(Const alabelInfo:String);
+    var aCurrentValue : Byte;
+        LLabel        : String;
     begin
       if Assigned(AListDetail) then
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Flags',null,@LHopeOptions.OptType,SizeOf(LHopeOptions.OptType)));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4,'Action',GetFistNBit(LHopeOptions.OptType,2),nil,0));               
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4,'May Change',GetbitValue(LHopeOptions.OptType,3)=1,nil,0));            
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4,'Data len',GetLastNBit(LHopeOptions.OptType,5),nil,0));           
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Low order bytes', LHopeOptions.OptDataLen,@LHopeOptions.OptDataLen,SizeOf(LHopeOptions.OptDataLen)));     
+        LLabel := Format('IP.IPv6.ExtHeader.HbH.Options.%s.Flags',[alabelInfo]);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3,LLabel,'Flags',ByteToBinaryString(LHopeOptions.OptType),@LHopeOptions.OptType,SizeOf(LHopeOptions.OptType),LHopeOptions.OptType));
+
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Action',[LLabel]), 'Action',GetFistNBit(LHopeOptions.OptType,2), @LHopeOptions.OptType,SizeOf(LHopeOptions.OptType) ));
+
+        AcurrentValue := GetFistNBit(LHopeOptions.OptType,3);                
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Maychange',[LLabel]), 'May Change',AcurrentValue=1, @AcurrentValue,SizeOf(AcurrentValue),AcurrentValue ));            
+
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Len',[LLabel]), 'Data len',GetLastNBit(LHopeOptions.OptType,5), @LHopeOptions.OptType,SizeOf(LHopeOptions.OptType) ));           
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.LowOrder',[LLabel]), 'Low order bytes', LHopeOptions.OptDataLen, @LHopeOptions.OptDataLen,SizeOf(LHopeOptions.OptDataLen) ));     
       end;
       Inc(aCurrentPos,SizeOf(TOptionHeader));        
       Result := True;  
@@ -634,16 +641,16 @@ begin
     1:
       begin 
         if Assigned(AListDetail) then           
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('PadN [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions)));  
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv6.ExtHeader.HbH.Options.PadN', Format('PadN [%d]',[LHopeOptions.OptType]), null, PByte(LHopeOptions),SizeOf(LHopeOptions), LHopeOptions.OptType ));  
 
-        WriteInfo;
+        WriteInfo('PadN');
       end;
     // RFC8200 Jumbo Payload (JMP)
     2:
       begin
         if Assigned(AListDetail) then     
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('Jumbo payload [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions))); 
-        WriteInfo;
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv6.ExtHeader.HbH.Options.JumboPayLoad', Format('Jumbo payload [%d]',[LHopeOptions.OptType]), null, PByte(LHopeOptions),SizeOf(LHopeOptions), LHopeOptions.OptType )); 
+        WriteInfo('JumboPayload');
       end;
 
     //Unassigned
@@ -652,16 +659,16 @@ begin
     5:
       begin
         if Assigned(AListDetail) then     
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('Router alert [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions))); 
-        WriteInfo;      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv6.ExtHeader.HbH.Options.RouterAlart' , Format('Router alert [%d]',[LHopeOptions.OptType]), null, PByte(LHopeOptions),SizeOf(LHopeOptions),LHopeOptions.OptType)); 
+        WriteInfo('RouterAlert');      
       end;
     6..63: ;
     //RFC2460 Home Address (HAD) 
     64:  
       begin
         if Assigned(AListDetail) then     
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('Home Address [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions))); 
-        WriteInfo;
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv6.ExtHeader.HbH.Options.HomeAddr' , Format('Home Address [%d]',[LHopeOptions.OptType]),null,PByte(LHopeOptions),SizeOf(LHopeOptions),LHopeOptions.OptType)); 
+        WriteInfo('HomeAddress');
 
       end;
     //Unassigned
@@ -673,6 +680,7 @@ begin
     //Reserved for future use
     255: ;          
   end;   
+  
   if Result then    
     ExtentionHeaderOptions(aPacketData,aStartLevel,aCurrentPos,aIpProto,AListDetail);      
 end;
@@ -691,11 +699,10 @@ begin
 
       if Assigned(AListDetail) then
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IPv6 Hop-by-Hop Option',null,PByte(LHope),SizeOf(THopByHopOption))); 
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Next Header:',Format('%s [%d]',[GetIPv6ProtocolName(LHope.NextHeader),LHope.NextHeader]),PByte(@LHope.NextHeader),SizeOf(LHope.NextHeader)));                     
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Header ext len:',LHope.HdrExtLen * 8,PByte(@LHope.HdrExtLen),SizeOf(LHope.HdrExtLen)));                     
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'IP.IPv6.ExtHeader.HbH', 'IPv6 Hop-by-Hop Option',null, PByte(LHope),SizeOf(THopByHopOption) )); 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv6.ExtHeader.HbH', 'Next Header:',GetIPv6ProtocolName(LHope.NextHeader), PByte(@LHope.NextHeader),SizeOf(LHope.NextHeader), LHope.NextHeader ));                     
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'IP.IPv6.ExtHeader.HbH', 'Header ext len:', LHope.HdrExtLen * 8, PByte(@LHope.HdrExtLen),SizeOf(LHope.HdrExtLen), LHope.HdrExtLen ));                     
         aCurrentPos := aCurrentPos + LHope.HdrExtLen;
-
       end;
       ExtentionHeaderOptions(aPacketData,aStartLevel,aCurrentPos,aIpProto,AListDetail);
       Result := true;
@@ -879,7 +886,6 @@ const
     (Protocol: IPPROTO_NONE; Name: 'No next header'),
     (Protocol: IPPROTO_DSTOPTS; Name: 'Destination options'),
     (Protocol: IPPROTO_MH; Name: 'Mobility header'),
- //   (protocol: IPPROTO_ICMPV62;Name:'ICMPv6'),
     (Protocol: $FF; Name: 'Reserved')
   );
 var
@@ -902,7 +908,6 @@ begin
     IPPROTO_TCP     : Result := 'TCP';
     IPPROTO_UDP     : Result := 'UDP';
     IPPROTO_IPV6    : Result := 'IPv6';
-//    IPPROTO_ICMPV62,
     IPPROTO_ICMPV6  : Result := 'ICMPv6';
     IPPROTO_PUP     : Result := 'PUP';   // ETH ??
     IPPROTO_IDP     : Result := 'xns idp';

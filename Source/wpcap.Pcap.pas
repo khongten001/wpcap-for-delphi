@@ -23,10 +23,11 @@ type
 
   TThreaPcap = class( TThread)
   private         
-    FAbort                  : Boolean; 
-    FOnPCAPCallBackPacket   : TPCAPCallBackPacket;
-    FOnPCAPCallBackError    : TPCAPCallBackError;
-    FOnPCAPCallBackProgress : TPCAPCallBackProgress;      
+    FAbort                   : Boolean; 
+    FOnPCAPCallBackPacket    : TPCAPCallBackPacket;
+    FOnPCAPCallBackError     : TPCAPCallBackError;
+    FOnPCAPCallBackProgress  : TPCAPCallBackProgress; 
+    FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;         
   protected
     FFilename               : string;
     FFilter                 : string;  
@@ -36,10 +37,11 @@ type
     procedure Stop;
     procedure DoProgress(aTotalSize,aCurrentSize:Int64);
     procedure DoPacket(const aInternalPacket : PTInternalPacket);
-    Property Abort                  : Boolean                 read FAbort;
-    property OnPCAPCallBackError    : TPCAPCallBackError      read FOnPCAPCallBackError     write FOnPCAPCallBackError;
-    property OnPCAPCallBackProgress : TPCAPCallBackProgress   read FOnPCAPCallBackProgress  write FOnPCAPCallBackProgress;
-    property OnPCAPCallBackPacket   : TPCAPCallBackPacket     read FOnPCAPCallBackPacket    write FOnPCAPCallBackPacket;    
+    Property Abort                    : Boolean                 read FAbort;
+    property OnPCAPCallBackError      : TPCAPCallBackError      read FOnPCAPCallBackError     write FOnPCAPCallBackError;
+    property OnPCAPCallBackProgress   : TPCAPCallBackProgress   read FOnPCAPCallBackProgress  write FOnPCAPCallBackProgress;
+    property OnPCAPCallBackPacket     : TPCAPCallBackPacket     read FOnPCAPCallBackPacket    write FOnPCAPCallBackPacket;    
+    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;         
   end;
 
   TPCAPCaptureRT = class( TThreaPcap)
@@ -53,35 +55,37 @@ type
     FTimeRecoStop           : TTime;  
     FTimeRecCheck           : TDatetime;
     FPCapRT                 : Ppcap_t;    
-    FDataLink               : Integer;      
+    FDataLink               : Integer;   
+    FListLabelByLevel       : TListLabelByLevel;   
   protected
     procedure Execute; override;
   public
-    constructor Create(const aOwner : Tobject;const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean;aTimeoutMs: Integer = 1000;aMaxSizePacket: Integer = MAX_PACKET_SIZE; aTimeRecoStop: TTime = 0);
+    constructor Create(const aOwner : Tobject;const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean;aTimeoutMs: Integer = 1000;aMaxSizePacket: Integer = MAX_PACKET_SIZE; aTimeRecoStop: TTime = 0);  
+    destructor Destroy; override;
     {Property}
-    Property PCapRT   : Ppcap_t     Read FPCapRT; 
-    property DataLink : Integer     read FDataLink;
+    Property PCapRT           : Ppcap_t           read FPCapRT; 
+    property DataLink         : Integer           read FDataLink;
+    property ListLabelByLevel : TListLabelByLevel read FListLabelByLevel;
   end;
 
   
   TPCAPLoadFile = class( TThreaPcap)
   private
-    FGeoLiteDB              : TWpcapGEOLITE;
-    FOnPCAPCallBackEnd      : TPCAPCallBackEnd;    
+    FGeoLiteDB               : TWpcapGEOLITE;
   protected
     procedure Execute; override;
   public
     constructor Create(const aOwner : Tobject;const aFilename, aFilter:String;aGeoLiteDB : TWpcapGEOLITE );
-    property OnPCAPCallBackEnd      : TPCAPCallBackEnd        read FOnPCAPCallBackEnd       write FOnPCAPCallBackEnd;     
   end;  
 
  
   TPCAPUtils = class
   strict private
-    var FAbort                  : Boolean; 
-    var FThreadCaptureRT        : TPCAPCaptureRT;    
-    var FThreadLoadFile         : TPCAPLoadFile;        
-    var FOnPCAPCallBackEnd      : TPCAPCallBackEnd;
+    var FAbort                   : Boolean; 
+    var FThreadCaptureRT         : TPCAPCaptureRT;    
+    var FThreadLoadFile          : TPCAPLoadFile;        
+    var FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;
+
     var FOnPCAPCallBackPacket   : TPCAPCallBackPacket;
     var FOnPCAPCallBackError    : TPCAPCallBackError;
     var FOnPCAPCallBackProgress : TPCAPCallBackProgress;
@@ -175,12 +179,12 @@ type
     ///  </param>
     ///
     procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);
-    property Abort                  : Boolean                 read FAbort                   write SetAbort;
-    property OnPCAPCallBackError    : TPCAPCallBackError      read FOnPCAPCallBackError     write FOnPCAPCallBackError;
-    property OnPCAPCallBackProgress : TPCAPCallBackProgress   read FOnPCAPCallBackProgress  write FOnPCAPCallBackProgress;
-    property OnPCAPCallBackPacket   : TPCAPCallBackPacket     read FOnPCAPCallBackPacket    write FOnPCAPCallBackPacket;
-    property OnPCAPCallBackEnd      : TPCAPCallBackEnd        read FOnPCAPCallBackEnd       write FOnPCAPCallBackEnd; 
-    property ThreadCaptureRT        : TPCAPCaptureRT          read FThreadCaptureRT;
+    property Abort                    : Boolean                 read FAbort                     write SetAbort;
+    property OnPCAPCallBackError      : TPCAPCallBackError      read FOnPCAPCallBackError       write FOnPCAPCallBackError;
+    property OnPCAPCallBackProgress   : TPCAPCallBackProgress   read FOnPCAPCallBackProgress    write FOnPCAPCallBackProgress;
+    property OnPCAPCallBackPacket     : TPCAPCallBackPacket     read FOnPCAPCallBackPacket      write FOnPCAPCallBackPacket;
+    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;   
+    property ThreadCaptureRT          : TPCAPCaptureRT          read FThreadCaptureRT;
   end;
 
   /// <summary>
@@ -188,26 +192,46 @@ type
   /// </summary>
   /// <param name="aPacketData">A pointer to the packet data.</param>
   /// <param name="aHeader">A pointer to the packet header.</param>
-  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE): PTInternalPacket;
+  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel): PTInternalPacket;
 
 
 implementation
 
-function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE) : PTInternalPacket;
-var LLen : Integer;
+function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel) : PTInternalPacket;
+var LLen              : Integer;
+    LListDetail       : TListHeaderString;
+    LLikLayersSize    : Integer;
 begin
   Result := nil;
   if not Assigned(aPacketData) then Exit;
   
   New(Result); 
 
-  Result.PacketDate := UnixToDateTime(aHeader.ts.tv_sec,false);    
-  LLen              := aHeader.len;
-  TWpcapEthHeader.InternalPacket(aPacketData,LLen,FIANADictionary,Result);  
-  Result.PacketData := aPacketData;
-  Result.PacketSize := LLen;
-  
+  Result.PacketDate       := UnixToDateTime(aHeader.ts.tv_sec,false);    
+  LLen                    := aHeader.len;
+  LLikLayersSize          := 0;
+  TWpcapEthHeader.InternalPacket(aPacketData,LLen,FIANADictionary,Result,LLikLayersSize); 
 
+  if LLikLayersSize > 0 then
+  begin
+    {Free Memory}
+    FreeMem(Result.PacketData,LLikLayersSize);
+    Result.PacketData  := aPacketData;
+    Result.PacketSize  := LLen;
+  end;
+  
+  Result.RAW_Text    := BufferToASCII(aPacketData,LLen);
+  LListDetail := TListHeaderString.Create;
+  Try
+    if TWpcapEthHeader.HeaderToString(aPacketData,LLen,0,LListDetail,True) then  
+        
+      Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
+   else
+      Result.XML_Detail := String.empty;
+  Finally
+    FreeAndNil(LListDetail);
+  End;
+  
   Result.IP.SrcGeoIP.ASNumber        := String.Empty;
   Result.IP.SrcGeoIP.ASOrganization  := String.Empty;
   Result.IP.SrcGeoIP.Location        := String.Empty;            
@@ -271,18 +295,25 @@ begin
     Exit;
   end;
 
+  if not Assigned(FOnPCAPCallBeforeBackEnd) then
+  begin
+    FOnPCAPCallBackError(aFileName,'Callback event for end analyze not assigned');
+    Exit;
+  end;  
+
   if aInterfaceName.Trim.IsEmpty then
   begin
     FOnPCAPCallBackError(aFilename,'Interface name is empty');
     Exit;
   end;  
 
-  FThreadCaptureRT                        := TPCAPCaptureRT.Create(self,aFilename, aFilter,aInterfaceName,aIP,aPromisc,aSevePcapDump,aTimeOutMs,aMaxSizePakcet,aTimeRecoStop);
-  FThreadCaptureRT.OnPCAPCallBackError    := FOnPCAPCallBackError; 
-  FThreadCaptureRT.OnPCAPCallBackProgress := FOnPCAPCallBackProgress;
-  FThreadCaptureRT.OnPCAPCallBackPacket   := FOnPCAPCallBackPacket; 
-  FThreadCaptureRT.OnTerminate            := DoOnTerminateRT;
-  FThreadCaptureRT.FreeOnTerminate        := True;
+  FThreadCaptureRT                          := TPCAPCaptureRT.Create(self,aFilename, aFilter,aInterfaceName,aIP,aPromisc,aSevePcapDump,aTimeOutMs,aMaxSizePakcet,aTimeRecoStop);
+  FThreadCaptureRT.OnPCAPCallBackError      := FOnPCAPCallBackError; 
+  FThreadCaptureRT.OnPCAPCallBackProgress   := FOnPCAPCallBackProgress;
+  FThreadCaptureRT.OnPCAPCallBackPacket     := FOnPCAPCallBackPacket; 
+  FThreadCaptureRT.OnPCAPCallBeforeBackEnd  := FOnPCAPCallBeforeBackEnd;   
+  FThreadCaptureRT.OnTerminate              := DoOnTerminateRT;
+  FThreadCaptureRT.FreeOnTerminate          := True;
   FThreadCaptureRT.Start;     
 end;
 
@@ -314,21 +345,22 @@ begin
     Exit;
   end;
 
-  if not Assigned(FOnPCAPCallBackEnd) then
+  if not Assigned(FOnPCAPCallBeforeBackEnd) then
   begin
     FOnPCAPCallBackError(aFileName,'Callback event for end analyze not assigned');
     Exit;
   end;  
 
-  FThreadLoadFile                        := TPCAPLoadFile.Create(self,aFilename, aFilter,aGeoLiteDB);
-  FThreadLoadFile.OnPCAPCallBackError    := FOnPCAPCallBackError; 
-  FThreadLoadFile.OnPCAPCallBackProgress := FOnPCAPCallBackProgress;
-  FThreadLoadFile.OnPCAPCallBackPacket   := FOnPCAPCallBackPacket; 
-  FThreadLoadFile.OnPCAPCallBackEnd      := FOnPCAPCallBackEnd;   
-  FThreadLoadFile.OnTerminate            := DoOnTerminateOffline;
-  FThreadLoadFile.FreeOnTerminate        := True;
+  FThreadLoadFile                         := TPCAPLoadFile.Create(self,aFilename, aFilter,aGeoLiteDB);
+  FThreadLoadFile.OnPCAPCallBackError     := FOnPCAPCallBackError; 
+  FThreadLoadFile.OnPCAPCallBackProgress  := FOnPCAPCallBackProgress;
+  FThreadLoadFile.OnPCAPCallBackPacket    := FOnPCAPCallBackPacket; 
+  FThreadLoadFile.OnPCAPCallBeforeBackEnd := FOnPCAPCallBeforeBackEnd;   
+  FThreadLoadFile.OnTerminate             := DoOnTerminateOffline;
+  FThreadLoadFile.FreeOnTerminate         := True;
   FThreadLoadFile.Start;      
 end;
+
 
 procedure TPCAPUtils.DoOnTerminateOffline(sender:Tobject);   
 begin
@@ -419,6 +451,7 @@ var PacketBuffer     : TBytes;
     LPacketLen       : Word;
     aNewHeader       : PTpcap_pkthdr;
     LTInternalPacket : PTInternalPacket;
+
 begin
   if Assigned(aPacketData) then
   begin
@@ -434,8 +467,8 @@ begin
       
       if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
         SetLength(PacketBuffer,LPacketLen);
-      aNewHeader.len   := LPacketLen ;
-      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil);
+
+      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel);
       
       if Assigned(LTInternalPacket) then
       begin
@@ -461,17 +494,24 @@ end;
 constructor TPCAPCaptureRT.Create(const aOwner: Tobject;const aFilename, aFilter, aInterfaceName,aIP: string; aPromisc, aSavePcapDump: Boolean; aTimeoutMs,aMaxSizePacket: Integer; aTimeRecoStop: TTime);
 begin
   inherited Create(True);
-  FFilename      := aFilename;
-  FOwner         := aOwner;
-  FFilter        := aFilter;
-  FInterfaceName := aInterfaceName;
-  FIP            := aIP;
-  FPromisc       := aPromisc;
-  FSavePcapDump  := aSavePcapDump;
-  FTimeoutMs     := aTimeoutMs;
-  FMaxSizePacket := aMaxSizePacket;
-  FTimeRecoStop  := aTimeRecoStop;
-  FAbort         := False;
+  FFilename         := aFilename;
+  FOwner            := aOwner;
+  FFilter           := aFilter;
+  FInterfaceName    := aInterfaceName;
+  FIP               := aIP;
+  FPromisc          := aPromisc;
+  FSavePcapDump     := aSavePcapDump;
+  FTimeoutMs        := aTimeoutMs;
+  FMaxSizePacket    := aMaxSizePacket;
+  FTimeRecoStop     := aTimeRecoStop;
+  FAbort            := False;
+  FListLabelByLevel := TListLabelByLevel.Create;
+end;
+
+destructor TPCAPCaptureRT.Destroy;
+begin
+  FreeAndNil(FListLabelByLevel);
+  inherited;
 end;
 
 procedure TPCAPCaptureRT.Execute;
@@ -540,6 +580,8 @@ begin
          DoError(FFilename,Format('pcap_loop ended unknow return code [%d] error %s',[LLoopResult,string(pcap_geterr(FPcapRT))]));
       end;
 
+      
+
     Finally
       // Close the output file and the network adapter
       if FSavePcapDump then     
@@ -569,6 +611,7 @@ var LHandlePcap      : Ppcap_t;
     LLenAnalyze      : Int64;
     LTolSizePcap     : Int64;
     LTInternalPacket : PTInternalPacket;
+    LListLabelByLevel: TListLabelByLevel;
 begin
   FAbort               := False;
   LTolSizePcap         := FileGetSize(FFileName);  
@@ -586,59 +629,68 @@ begin
   try
     if not CheckWPcapFilter(LHandlePcap,FFileName,FFilter,String.Empty,FOnPCAPCallBackError) then exit;
     // Loop over packets in PCAP file
-    while True do
-    begin
-      if Terminated then exit;
+    LListLabelByLevel := TListLabelByLevel.Create;
+    Try
+      while True do
+      begin
+        if Terminated then exit;
       
-      // Read the next packet
-      LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
-      case LResultPcapNext of
-        1:  // packet read correctly
-          begin      
-            LTInternalPacket := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB);              
-            if Assigned(LTInternalPacket) then
-            begin
-              Try
-                DoPacket(LTInternalPacket);
-              finally
-                Dispose(LTInternalPacket)
-              end; 
-            end;   
-            Inc(LLenAnalyze,LHeader^.Len);
-            DoProgress(LTolSizePcap,LLenAnalyze);
+        // Read the next packet
+        LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
+        case LResultPcapNext of
+          1:  // packet read correctly
+            begin      
+              LTInternalPacket := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel);              
+              if Assigned(LTInternalPacket) then
+              begin
+                Try
+                  DoPacket(LTInternalPacket);
+                finally
+                  Dispose(LTInternalPacket)
+                end; 
+              end;   
+              Inc(LLenAnalyze,LHeader^.Len);
+              DoProgress(LTolSizePcap,LLenAnalyze);
 
-            if FAbort then break;
+              if FAbort then break;
             
-          end;
-        0: 
-          begin
-            // No packets available at the moment
-            Continue;
-          end;
-        -1: 
-          begin
-            // Error reading packet
-            DoError(FFileName,string(pcap_geterr(LHandlePcap)));
-            Break;
-          end;
-        -2:
-          begin
-            // No packets available, the pcap file instance has been closed
-            DoProgress(LTolSizePcap,LTolSizePcap);
+            end;
+          0: 
+            begin
+              // No packets available at the moment
+              Continue;
+            end;
+          -1: 
+            begin
+              // Error reading packet
+              DoError(FFileName,string(pcap_geterr(LHandlePcap)));
+              Break;
+            end;
+          -2:
+            begin
+              // No packets available, the pcap file instance has been closed
+              DoProgress(LTolSizePcap,LTolSizePcap);
 
-            TThread.Synchronize(nil,
-              procedure
-              begin              
-                 FOnPCAPCallBackEnd(FFileName);
-              end);
-            Break;
-          end;
+              TThread.Synchronize(nil,
+                procedure
+                begin  
+                               
+                   FOnPCAPCallBeforeBackEnd(FFileName,LListLabelByLevel);
+                end);
+              Break;
+            end;
+        end;
       end;
+
+    finally
+      FreeAndNil(LListLabelByLevel);
     end;
   finally
     // Close PCAP file
     pcap_close(LHandlePcap);
   end;
 end;
+
+
 
 end.

@@ -130,7 +130,7 @@ type
     ///  </returns>
     class function AnalyzeTCPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;static;  
     class function GetTCPFlagsV6(Flags: Byte): string;static;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString): Boolean;override;      
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;override;      
   end;      
 
 
@@ -327,28 +327,29 @@ begin
 end;
 
 
-class function TWPcapProtocolBaseTCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolBaseTCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LPTCPHdr  : PTCPHdr;
     LesBits   : Integer;
 begin
   Result := False;
+  FIsFilterMode := aisFilterMode;
   if not HeaderTCP(aPacketData,aPacketSize,LPTCPHdr) then exit;
   
-  AListDetail.Add(AddHeaderInfo(aStartLevel,Format('Transmission Control Protocol, Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[SrcPort(LPTCPHdr),DstPort(LPTCPHdr),
-                                   ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),null,nil,0));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Header length:',SizeToStr(GetDataOFFSetBytes(LPTCPHdr^.DataOff) *4),PByte(@LPTCPHdr.DataOff),2));              
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Source:',wpcapntohs(LPTCPHdr.SrcPort),PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Destination:',wpcapntohs(LPTCPHdr.DstPort),PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Sequence number(RAW):',wpcapntohl(LPTCPHdr.SeqNum),PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Acknowledgment number(RAW):',wpcapntohl(LPTCPHdr.AckNum),PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Data offset:',GetDataOFFSetBytes(LPTCPHdr^.DataOff),PByte(@LPTCPHdr.DataOff),2));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName,'Transmission Control Protocol',Format('Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[SrcPort(LPTCPHdr),DstPort(LPTCPHdr),
+                                   ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),nil,0));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Header length:',SizeToStr(GetDataOFFSetBytes(LPTCPHdr^.DataOff) *4), PByte(@LPTCPHdr.DataOff),2));              
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Source',[AcronymName]), 'Source:',wpcapntohs(LPTCPHdr.SrcPort), PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Destination',[AcronymName]), 'Destination:',wpcapntohs(LPTCPHdr.DstPort), PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumber',[AcronymName]), 'Sequence number(RAW):',wpcapntohl(LPTCPHdr.SeqNum), PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AcknowledgmentNUmber',[AcronymName]), 'Acknowledgment number(RAW):',wpcapntohl(LPTCPHdr.AckNum), PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.MsgLen',[AcronymName]), 'Data offset:',GetDataOFFSetBytes(LPTCPHdr^.DataOff), PByte(@LPTCPHdr.DataOff),2));          
   LesBits := (LPTCPHdr.DataOff and $0F) shl 2; 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Reserved bits:',LesBits,PByte(LesBits),2));          
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Flags:',GetTCPFlagsV6(LPTCPHdr.Flags),PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags)));   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Window size:',wpcapntohs(LPTCPHdr.WindowSize),PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Checksum:',wpcapntohs(LPTCPHdr.Checksum),PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,'Payload length:',SizeToStr(TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize)),PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));     
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ReservedBits',[AcronymName]), 'Reserved bits:',LesBits,PByte(LesBits),2));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',GetTCPFlagsV6(LPTCPHdr.Flags), PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags), LPTCPHdr.Flags ));   
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.WindowSize',[AcronymName]), 'Window size:',wpcapntohs(LPTCPHdr.WindowSize), PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPTCPHdr.Checksum), PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UrgentPointer',[AcronymName]), 'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr), PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));   
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize)), PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));     
 
   {TODO OPTIONS}
   Result := True;       

@@ -52,7 +52,7 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -88,8 +88,9 @@ begin
   Result := 'QUIC';
 end;
 
-class function TWPcapProtocolQUIC.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolQUIC.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LUDPPayLoad      : PByte;
+    LUDPPayLoadLen   : INteger;
     LPUDPHdr         : PUDPHdr;
     TtmpByte         : Byte;
     LFirst_byte_bit1 : Boolean;
@@ -109,9 +110,10 @@ begin
 
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
-  LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);
-
-  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
+  LUDPPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
+  FIsFilterMode  := aIsFilterMode;
+  AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
   TtmpByte         := PByte(LUDPPayLoad)^;
   LFirst_byte_bit1 := GetBitValue(TtmpByte,1)=1;
   LFirst_byte_bit2 := GetBitValue(TtmpByte,2)=1;
@@ -122,9 +124,9 @@ begin
   LFirst_byte_bit7 := GetBitValue(TtmpByte,7)=1;
   LFirst_byte_bit8 := GetBitValue(TtmpByte,8)=1;
 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Flags', ByteToBinaryString(TtmpByte), @TtmpByte,SizeOf(TtmpByte)));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Header Form:', LFirst_byte_bit1, @LFirst_byte_bit1,SizeOf(LFirst_byte_bit1)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, 'Fixed bit:', LFirst_byte_bit2, @LFirst_byte_bit1,SizeOf(LFirst_byte_bit1)));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags', ByteToBinaryString(TtmpByte), @TtmpByte,SizeOf(TtmpByte) ,TtmpByte));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.HeaderForm',[AcronymName]), 'Header Form:', LFirst_byte_bit1, @LFirst_byte_bit1,SizeOf(LFirst_byte_bit1), GetBitValue(TtmpByte,1) ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.FixedBit',[AcronymName]), 'Fixed bit:', LFirst_byte_bit2, @LFirst_byte_bit1,SizeOf(LFirst_byte_bit1), GetBitValue(TtmpByte,2) ));  
 
   LVersion         := 0; 
   if (LFirst_byte_bit1) then
@@ -132,18 +134,18 @@ begin
   else if LFirst_byte_bit5 and not LFirst_byte_bit2 then
   begin
     if not (LFirst_byte_bit8) then      
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Packet without version', null, @TtmpByte,SizeOf(TtmpByte)))
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NoVersion',[AcronymName]), 'Packet without version', null, @TtmpByte,SizeOf(TtmpByte)))
     else if (LFirst_byte_bit5) then
       Move((LUDPPayLoad + 9)^, LVersion, SizeOf(LVersion))
     else
       Move((LUDPPayLoad + 5)^, LVersion, SizeOf(LVersion))
   end
   else 
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Packet without version', null, @TtmpByte,SizeOf(TtmpByte)));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NoVersion',[AcronymName]), 'Packet without version', null, @TtmpByte,SizeOf(TtmpByte)));
 
   if LVersion <> 0 then
   begin
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Version:', LongWordToString(LVersion).Trim, @LVersion,SizeOf(LVersion)));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Version',[AcronymName]), 'Version:', LongWordToString(LVersion).Trim, @LVersion,SizeOf(LVersion), LVersion ));
     LVersion := wpcapntohl(LVersion);
   end;
     
@@ -152,31 +154,31 @@ begin
   begin
     if (LFirst_byte_bit5) then
     begin
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Destination Connection ID Length:', 8, nil,0));         
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', 8, nil,0));         
       Move((LUDPPayLoad + 1)^, LDestConnectionID[0], 8);  
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID)));                           
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));                           
     end;
   end
   else if (LVersion = Q046) then
   begin
     TtmpByte := PByte(LUDPPayLoad+5)^;
     if (TtmpByte <> $50) then
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unexpected connection ID length', null, @TtmpByte,SizeOf(TtmpByte)))
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Unexpected connection ID length', null, @TtmpByte,SizeOf(TtmpByte) ,TtmpByte))
     else
     begin      
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Destination Connection ID Length:', 8, nil,0));   
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', 8, nil,0));   
       SetLength(LDestConnectionID,8);
       Move((LUDPPayLoad + 6)^, LDestConnectionID[0], 8);      
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID)));             
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));             
     end;
   end
   else
   begin 
     TtmpByte := PByte(LUDPPayLoad+5)^;
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Destination Connection ID Length:', TtmpByte, @TtmpByte,SizeOf(TtmpByte)));    
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', TtmpByte, @TtmpByte,SizeOf(TtmpByte)));    
     SetLength(LDestConnectionID,TtmpByte);
     Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID)));        
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));        
   end;
 
 
@@ -200,7 +202,7 @@ begin
     if (LVersion = Q043) then
     begin
       if (LFirst_byte_bit3) or (LFirst_byte_bit4) then
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte)))
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UnexpectedPktLen',[AcronymName]), 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte), TtmpByte ))
       else
       begin
        { Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
@@ -211,7 +213,7 @@ begin
     else // version = Q046
     begin
       if (not LFirst_byte_bit7) or (not LFirst_byte_bit8) then
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte)))
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UnexpectedPktLen',[AcronymName]), 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte), TtmpByte ))
       else
       begin
        { Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
@@ -222,7 +224,7 @@ begin
   else
   begin
     if (LFirst_byte_bit3) or (LFirst_byte_bit4) then
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte)))      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UnexpectedPktLen',[AcronymName]), 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte), TtmpByte ))      
     else if (LVersion = Q050) then
       Linitial_salt := TBytes.Create($50, $45, $74, $ef, $d0, $66, $fe, $2f, $9d, $94, $5c, $fc, $db, $d3, $a7, $f0, $d3, $b5, $6b, $45)
     else if (LVersion = $ff00001d) then
@@ -230,7 +232,7 @@ begin
     else if (LVersion = $00000001) then
       Linitial_salt := TBytes.Create($38, $76, $2c, $f7, $f5, $59, $34, $b3, $4d, $17, $9a, $e6, $a4, $c8, $0c, $ad, $cc, $bb, $7f, $0a)
     else
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Unknown version', null, @TtmpByte,SizeOf(TtmpByte)))    
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UnknownVersion',[AcronymName]), 'Unknown version', null, @TtmpByte,SizeOf(TtmpByte)))    
   end;
 
   //Lpayload = Decrypt(LUDPPayLoad, Linitial_salt){https://datatracker.ietf.org/doc/html/rfc9001#section-5}

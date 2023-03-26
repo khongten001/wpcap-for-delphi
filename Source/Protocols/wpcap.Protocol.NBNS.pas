@@ -86,12 +86,12 @@ type
   TWPcapProtocolNBNS = class(TWPcapProtocolDNS)
   private  
     class function NBNSNameToString(const aName:String): string;
-    class procedure ParseAnswerName(const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString);static;
+    class procedure ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString);static;
     class function OwnerNodeTypeToStr(aFlags: Byte): String; static;
   protected
     class function ApplyConversionName(const aName: AnsiString): AnsiString;override;  
-    class function DecodeDNS_RSS_SRV(const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;        
-    class function DecodeDNS_RSS_NIMLOC(const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;    
+    class function DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;        
+    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;    
   public
     /// <summary>
     /// Returns the default port number used by the NBNS protocol.
@@ -305,8 +305,6 @@ begin
   
   if Result.IsEmpty then  
     Result := inherited QuestionClassToStr(aType)  
-  else
-    Result := Format('%s [%d]',[Result,aType])    
 end;
 
 class function TWPcapProtocolNBNS.ApplyConversionName(const aName: AnsiString): AnsiString;
@@ -318,14 +316,14 @@ begin
   End;
 end;
 
-class procedure TWPcapProtocolNBNS.ParseAnswerName(const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString);
+class procedure TWPcapProtocolNBNS.ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString);
 CONST MAX_LEN =16;
 var  
    LName : String;
    I     : Integer;
    LChar : AnsiChar;
    LFlags: Byte;
-
+   
    LLen: Integer;
 begin
 
@@ -393,15 +391,15 @@ begin
       if LLen = MAX_LEN  then
       begin
         if not LName.IsEmpty then
-          AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('Name:%d:',[I]),LName.Trim, @LName, Length(LName)));
+          AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Name',[aLabelPrefix]), Format('Name:%d:',[I]),LName.Trim, @LName, Length(LName)));
         LFlags := aPacket[aOffset];
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Type:',ifthen(GetBitValue(LFlags,1)=1,'Group name','Unique name'), nil, 0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Owner node:',OwnerNodeTypeToStr(LFlags), nil, 0)); 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.Type',[aLabelPrefix]),  'Type:',ifthen(GetBitValue(LFlags,1)=1,'Group name','Unique name'), @LFlags, SizeOf(LFlags), GetBitValue(LFlags,1) ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.OwnerNode',[aLabelPrefix]), 'Owner node:',OwnerNodeTypeToStr(LFlags), @LFlags, SizeOf(LFlags), LFlags ));
 
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Deregister:',GetBitValue(LFlags,4)=1, nil, 0));                
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Conflict:',GetBitValue(LFlags,5)=1, nil, 0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Active:',GetBitValue(LFlags,6)=1, nil, 0));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Permanent:',GetBitValue(LFlags,7)=1, nil, 0));                
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.Deregister',[aLabelPrefix]), 'Deregister:',GetBitValue(LFlags,4)=1, @LFlags, SizeOf(LFlags), GetBitValue(LFlags,4) ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.Conflict',[aLabelPrefix]), 'Conflict:',GetBitValue(LFlags,5)=1, @LFlags, SizeOf(LFlags), GetBitValue(LFlags,5) ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.Active',[aLabelPrefix]), 'Active:',GetBitValue(LFlags,6)=1, @LFlags, SizeOf(LFlags), GetBitValue(LFlags,6) ));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.Permanent',[aLabelPrefix]), 'Permanent:',GetBitValue(LFlags,7)=1, @LFlags, SizeOf(LFlags), GetBitValue(LFlags,7) ));
         inc(aOffset,2);
         Inc(aTotalNameLen,2);  
   
@@ -430,12 +428,14 @@ begin
 end;
 
 
-class function TWPcapProtocolNBNS.DecodeDNS_RSS_SRV(const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
+class function TWPcapProtocolNBNS.DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType; const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
 var LNumberName    : Byte;
     LStatisticsRSS : TStatisticsRSS;
+    LLabel         : String;
 begin
-  Result := String.Empty;
+  Result      := String.Empty;
   LNumberName := aPacket[aOffset];
+  LLabel      := Format('%s.%s.Name',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]);
 
   { NODE STATUS RESPONSE
                         1 1 1 1 1 1 1 1 1 1 2 2 2 2 2 2 2 2 2 2 3 3
@@ -471,9 +471,9 @@ begin
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   }
           
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number of name:',LNumberName,PByte(@aPacket[aOffset]), SizeOf(LNumberName))); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NumberName',[LLabel]), 'Number of name:',LNumberName,PByte(@aPacket[aOffset]), SizeOf(LNumberName))); 
   Inc(aOffset, SizeOf(LNumberName));
-  ParseAnswerName(aPacket,LNumberName,aStartLevel,aOffset,aTotalNameLen,AListDetail);  
+  ParseAnswerName(LLabel,aPacket,LNumberName,aStartLevel,aOffset,aTotalNameLen,AListDetail);  
 
   
   {   STATISTICS Field of the NODE STATUS RESPONSE:
@@ -508,27 +508,27 @@ begin
 
   Move(aPacket[aOffset], LStatisticsRSS, SizeOf(LStatisticsRSS));
 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Unit ID:', wpcapntohl(LStatisticsRSS.UnitID), @LStatisticsRSS.UnitID, SizeOf(LStatisticsRSS.UnitID)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Unit ID, continued:', wpcapntohs(LStatisticsRSS.UnitIDContinued), @LStatisticsRSS.UnitIDContinued, SizeOf(LStatisticsRSS.UnitIDContinued)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Jumpers:', LStatisticsRSS.Jumpers, @LStatisticsRSS.Jumpers, SizeOf(LStatisticsRSS.Jumpers)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Test Result:', LStatisticsRSS.TestResult, @LStatisticsRSS.TestResult, SizeOf(LStatisticsRSS.TestResult)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Version Number:', wpcapntohs(LStatisticsRSS.VersionNumber), @LStatisticsRSS.VersionNumber, SizeOf(LStatisticsRSS.VersionNumber)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Period of Statistics:', wpcapntohs(LStatisticsRSS.PeriodOfStatistics), @LStatisticsRSS.PeriodOfStatistics, SizeOf(LStatisticsRSS.PeriodOfStatistics)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number of CRCs:', wpcapntohs(LStatisticsRSS.NumberOfCRCs), @LStatisticsRSS.NumberOfCRCs, SizeOf(LStatisticsRSS.NumberOfCRCs)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Alignment Errors:', wpcapntohs(LStatisticsRSS.NumberAlignmentErrors), @LStatisticsRSS.NumberAlignmentErrors, SizeOf(LStatisticsRSS.NumberAlignmentErrors)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number of Collisions:', wpcapntohs(LStatisticsRSS.NumberOfCollisions), @LStatisticsRSS.NumberOfCollisions, SizeOf(LStatisticsRSS.NumberOfCollisions)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Send Aborts:', wpcapntohs(LStatisticsRSS.NumberSendAborts), @LStatisticsRSS.NumberSendAborts, SizeOf(LStatisticsRSS.NumberSendAborts)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Good Sends:', wpcapntohl(LStatisticsRSS.NumberGoodSends), @LStatisticsRSS.NumberGoodSends, SizeOf(LStatisticsRSS.NumberGoodSends)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Good Receives:', wpcapntohl(LStatisticsRSS.NumberGoodReceives), @LStatisticsRSS.NumberGoodReceives, SizeOf(LStatisticsRSS.NumberGoodReceives)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Retransmits:', wpcapntohs(LStatisticsRSS.NumberRetransmits), @LStatisticsRSS.NumberRetransmits, SizeOf(LStatisticsRSS.NumberRetransmits)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number No Resource Conditions:', wpcapntohs(LStatisticsRSS.NumberNoResourceConditions), @LStatisticsRSS.NumberNoResourceConditions, SizeOf(LStatisticsRSS.NumberNoResourceConditions)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Free Command Blocks:', wpcapntohs(LStatisticsRSS.NumberFreeCommandBlocks), @LStatisticsRSS.NumberFreeCommandBlocks, SizeOf(LStatisticsRSS.NumberFreeCommandBlocks)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Total Number Command Blocks:', wpcapntohs(LStatisticsRSS.TotalNumberCommandBlocks), @LStatisticsRSS.TotalNumberCommandBlocks, SizeOf(LStatisticsRSS.TotalNumberCommandBlocks)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Max Total Number Command Blocks:', wpcapntohs(LStatisticsRSS.MaxTotalNumberCommandBlocks), @LStatisticsRSS.MaxTotalNumberCommandBlocks, SizeOf(LStatisticsRSS.MaxTotalNumberCommandBlocks)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Number Pending Sessions:', wpcapntohs(LStatisticsRSS.NumberPendingSessions), @LStatisticsRSS.NumberPendingSessions, SizeOf(LStatisticsRSS.NumberPendingSessions)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Max Number Pending Sessions:', wpcapntohs(LStatisticsRSS.MaxNumberPendingSessions), @LStatisticsRSS.MaxNumberPendingSessions, SizeOf(LStatisticsRSS.MaxNumberPendingSessions)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Max Total Sessions Possible:', wpcapntohs(LStatisticsRSS.MaxTotalSessionsPossible), @LStatisticsRSS.MaxTotalSessionsPossible, SizeOf(LStatisticsRSS.MaxTotalSessionsPossible)));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Session Data Packet Size:', wpcapntohs(LStatisticsRSS.SessionDataPacketSize), @LStatisticsRSS.SessionDataPacketSize, SizeOf(LStatisticsRSS.SessionDataPacketSize)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.UnitID',[LLabel]), 'Unit ID:', wpcapntohl(LStatisticsRSS.UnitID), @LStatisticsRSS.UnitID, SizeOf(LStatisticsRSS.UnitID)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.UnitIDContinue',[LLabel]), 'Unit ID, continued:', wpcapntohs(LStatisticsRSS.UnitIDContinued), @LStatisticsRSS.UnitIDContinued, SizeOf(LStatisticsRSS.UnitIDContinued)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Jumpers',[LLabel]), 'Jumpers:', LStatisticsRSS.Jumpers, @LStatisticsRSS.Jumpers, SizeOf(LStatisticsRSS.Jumpers)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.TestResult',[LLabel]), 'Test Result:', LStatisticsRSS.TestResult, @LStatisticsRSS.TestResult, SizeOf(LStatisticsRSS.TestResult)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.VersionNumber',[LLabel]), 'Version Number:', wpcapntohs(LStatisticsRSS.VersionNumber), @LStatisticsRSS.VersionNumber, SizeOf(LStatisticsRSS.VersionNumber)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.PeriodStatistics',[LLabel]), 'Period of Statistics:', wpcapntohs(LStatisticsRSS.PeriodOfStatistics), @LStatisticsRSS.PeriodOfStatistics, SizeOf(LStatisticsRSS.PeriodOfStatistics)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NCRCs',[LLabel]), 'Number of CRCs:', wpcapntohs(LStatisticsRSS.NumberOfCRCs), @LStatisticsRSS.NumberOfCRCs, SizeOf(LStatisticsRSS.NumberOfCRCs)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NAlignmentErrors',[LLabel]), 'Number Alignment Errors:', wpcapntohs(LStatisticsRSS.NumberAlignmentErrors), @LStatisticsRSS.NumberAlignmentErrors, SizeOf(LStatisticsRSS.NumberAlignmentErrors)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NCollisions',[LLabel]), 'Number of Collisions:', wpcapntohs(LStatisticsRSS.NumberOfCollisions), @LStatisticsRSS.NumberOfCollisions, SizeOf(LStatisticsRSS.NumberOfCollisions)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NSendAborts',[LLabel]), 'Number Send Aborts:', wpcapntohs(LStatisticsRSS.NumberSendAborts), @LStatisticsRSS.NumberSendAborts, SizeOf(LStatisticsRSS.NumberSendAborts)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NGoodSends',[LLabel]), 'Number Good Sends:', wpcapntohl(LStatisticsRSS.NumberGoodSends), @LStatisticsRSS.NumberGoodSends, SizeOf(LStatisticsRSS.NumberGoodSends)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NGoodReceives',[LLabel]), 'Number Good Receives:', wpcapntohl(LStatisticsRSS.NumberGoodReceives), @LStatisticsRSS.NumberGoodReceives, SizeOf(LStatisticsRSS.NumberGoodReceives)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NRetransmits',[LLabel]), 'Number Retransmits:', wpcapntohs(LStatisticsRSS.NumberRetransmits), @LStatisticsRSS.NumberRetransmits, SizeOf(LStatisticsRSS.NumberRetransmits)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NNoResourceConditions',[LLabel]), 'Number No Resource Conditions:', wpcapntohs(LStatisticsRSS.NumberNoResourceConditions), @LStatisticsRSS.NumberNoResourceConditions, SizeOf(LStatisticsRSS.NumberNoResourceConditions)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NFreeCommandBlocks',[LLabel]), 'Number Free Command Blocks:', wpcapntohs(LStatisticsRSS.NumberFreeCommandBlocks), @LStatisticsRSS.NumberFreeCommandBlocks, SizeOf(LStatisticsRSS.NumberFreeCommandBlocks)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.TotalNumberCommandBlocs',[LLabel]), 'Total Number Command Blocks:', wpcapntohs(LStatisticsRSS.TotalNumberCommandBlocks), @LStatisticsRSS.TotalNumberCommandBlocks, SizeOf(LStatisticsRSS.TotalNumberCommandBlocks)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.MaxTotalNumberCommandBlocs',[LLabel]), 'Max Total Number Command Blocks:', wpcapntohs(LStatisticsRSS.MaxTotalNumberCommandBlocks), @LStatisticsRSS.MaxTotalNumberCommandBlocks, SizeOf(LStatisticsRSS.MaxTotalNumberCommandBlocks)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.NPendingSessions',[LLabel]), 'Number Pending Sessions:', wpcapntohs(LStatisticsRSS.NumberPendingSessions), @LStatisticsRSS.NumberPendingSessions, SizeOf(LStatisticsRSS.NumberPendingSessions)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.MaxNPendingSessions',[LLabel]), 'Max Number Pending Sessions:', wpcapntohs(LStatisticsRSS.MaxNumberPendingSessions), @LStatisticsRSS.MaxNumberPendingSessions, SizeOf(LStatisticsRSS.MaxNumberPendingSessions)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.MaxTotalSessionsPossible',[LLabel]), 'Max Total Sessions Possible:', wpcapntohs(LStatisticsRSS.MaxTotalSessionsPossible), @LStatisticsRSS.MaxTotalSessionsPossible, SizeOf(LStatisticsRSS.MaxTotalSessionsPossible)));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.SessionDataPktSize',[LLabel]), 'Session Data Packet Size:', wpcapntohs(LStatisticsRSS.SessionDataPacketSize), @LStatisticsRSS.SessionDataPacketSize, SizeOf(LStatisticsRSS.SessionDataPacketSize)));
 
 end;
 
@@ -558,12 +558,12 @@ begin
   if LisQuery then
   begin
     Result := 'Message is query'; // Message is a query
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Response:','Message is query',nil,0));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is query', @LByte0,SizeOf(LByte0), GetBitValue(LByte0,1)  ));
   end  
   else
   begin
     Result := 'Message is response'; // Message is a response
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Response:','Message is response',nil,0));       
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is response', @LByte0,SizeOf(LByte0), GetBitValue(LByte0,1)));       
   end;
 
   {
@@ -592,7 +592,7 @@ begin
   if not LtmpResult.IsEmpty then
   begin
     Result := Format('%s, %s',[Result,LtmpResult]);
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'OPCode:',LtmpResult,nil,0));  
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.OPCode',[AcronymName]), 'OPCode:',LtmpResult, @LByte0,SizeOf(LByte0), LtmpValue));  
   end;
 
   {
@@ -615,7 +615,7 @@ begin
   if not LisQuery then  
   begin
     LtmpBooleanValue :=  GetBitValue(LByte0,6)=1;
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Authoritative answer:',LtmpBooleanValue,nil,0));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.AuthoritativeAnswer',[AcronymName]), 'Authoritative answer:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,6) ));
     Result := Format('%s, Authoritative answer %s',[result,BoolToStr(LtmpBooleanValue,True)]);
   end;
 
@@ -626,7 +626,7 @@ begin
 
   }
   LtmpBooleanValue :=  GetBitValue(LByte0,7)=1;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Truncated:',LtmpBooleanValue,nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Truncated',[AcronymName]), 'Truncated:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,6) ));
   Result := Format('%s, Truncated %s',[result,BoolToStr(LtmpBooleanValue,True)]);  
 
   {
@@ -636,7 +636,7 @@ begin
       Recursive query support is optional.
   }
   LtmpBooleanValue :=  GetBitValue(LByte0,8)=1;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Recursion Desired:',LtmpBooleanValue,nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.RecursionDesired',[AcronymName]), 'Recursion Desired:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,8) ));
   Result := Format('%s, Recursion Desired %s',[result,BoolToStr(LtmpBooleanValue,True)]);  
   LByte0 := GetByteFromWord(aFlags,1);
   {
@@ -647,7 +647,7 @@ begin
   if not LisQuery then
   begin
     LtmpBooleanValue :=  GetBitValue(LByte0,1)=1;
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Recursion available:',LtmpBooleanValue,nil,0));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.RecursionAvailable',[AcronymName]), 'Recursion available:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,1) ));
     Result := Format('%s, Recursion available %s',[result,BoolToStr(LtmpBooleanValue,True)]);
   end;
 
@@ -660,7 +660,7 @@ begin
   }  
 
   LtmpBooleanValue :=  GetBitValue(LByte0,4)=1;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Broadcast:',LtmpBooleanValue,nil,0));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Broadcast',[AcronymName]), 'Broadcast:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,4) ));
   Result := Format('%s, Broadcast available %s',[result,BoolToStr(LtmpBooleanValue,True)]); 
 
   if not LisQuery then
@@ -680,14 +680,15 @@ begin
     if not LtmpResult.IsEmpty then
     begin
       Result := Format('%s, %s',[Result,LtmpResult]);
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,'Response code:',LtmpResult.Replace('Response code:',String.Empty).Trim,nil,0));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.ResponseCode',[AcronymName]), 'Response code:',LtmpResult.Replace('Response code:',String.Empty).Trim, @LByte0,SizeOf(LByte0), LtmpValue ));
     end;       
   end;   
 end;
 
-class function TWPcapProtocolNBNS.DecodeDNS_RSS_NIMLOC(const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
+class function TWPcapProtocolNBNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
 var LByte0        : Byte;
     LCardinalTmp  : Cardinal;
+    LLabel        : String;
 begin
 {
                                              1   1   1   1   1   1
@@ -720,13 +721,13 @@ begin
 
   Result := String.Empty;
   LByte0 := aPacket[aOffset];
-   
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3,'Type:',ifthen(GetBitValue(LByte0,1) = 1,'Group name','Unique name'),@LByte0,1));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Owner node:',OwnerNodeTypeToStr(LByte0), @LByte0, 1));   
+  LLabel := Format('%s.%s.Name',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Type',[LLabel]), 'Type:',ifthen(GetBitValue(LByte0,1) = 1,'Group name','Unique name'),@LByte0,1, GetBitValue(LByte0,1) ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.OwnerNode',[LLabel]), 'Owner node:',OwnerNodeTypeToStr(LByte0), @LByte0, 1));   
   Inc(aOffset,2);
   Inc(aTotalNameLen,2);
   Move(aPacket[aOffset], LCardinalTmp, SizeOf(cardinal));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Addr:',intToIPV4(LCardinalTmp), @LCardinalTmp,SizeOf(LCardinalTmp)));     
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',intToIPV4(LCardinalTmp), @LCardinalTmp,SizeOf(LCardinalTmp)));     
   Inc(aOffset,2);
   Inc(aTotalNameLen,2); 
 end;

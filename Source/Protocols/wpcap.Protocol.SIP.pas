@@ -34,7 +34,7 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -74,17 +74,19 @@ begin
   Result := 'SIP';
 end;
 
-class function TWPcapProtocolSIP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolSIP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LUDPPayLoad        : PByte;
     LPUDPHdr           : PUDPHdr;
+    LUDPPayLoadLen     : Integer;
 begin
   Result := False;
 
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
-  LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);
-
-  AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,0));
+  LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
+  LUDPPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8; 
+  FIsFilterMode  := aIsFilterMode;
+  AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
 
 
   Result := True;

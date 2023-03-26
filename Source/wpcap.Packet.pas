@@ -50,16 +50,20 @@ Type
   /// This record defines an internal packet. It has five fields: a pointer to the packet data, the packet size, the packet date, an Ethernet packet, and an IP packet.
   /// </summary>
   TInternalPacket = record
-    PacketData: PByte;       // A pointer to the packet data.
-    PacketSize: Integer;     // The packet size.
-    PacketDate: TDateTime;   // The packet date.
-    Eth       : TIntenalETH; // An Ethernet packet.
-    IP        : TInternalIP; // An IP packet.  
+    PacketData   : PByte;       // A pointer to the packet data.
+    PacketSize   : Integer;     // The packet size.
+    PacketDate   : TDateTime;   // The packet date.
+    Eth          : TIntenalETH; // An Ethernet packet.
+    IP           : TInternalIP; // An IP packet.  
+    XML_Detail   : String;
+    RAW_Text     : AnsiString;
   end;
   PTInternalPacket = ^TInternalPacket;
 
  
 
 implementation
+
+
 
 end.

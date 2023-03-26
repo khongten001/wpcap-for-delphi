@@ -3,19 +3,23 @@
 interface
 
 uses
-  wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math, wpcap.Conts,
-  FireDAC.Comp.Client, System.Generics.Collections, wpcap.StrUtils,Vcl.Graphics,
-  wpcap.Level.IP, wpcap.Types, FireDac.Stan.Param, wpcap.Level.Eth, wpcap.Packet,
-  System.Classes, System.SysUtils, Data.Db,System.StrUtils,winApi.Winsock2,Wpcap.Protocol.RTP;
+  wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math,
+  wpcap.Conts, FireDAC.Comp.Client, System.Generics.Collections, wpcap.StrUtils,
+  Vcl.Graphics, wpcap.BufferUtils, wpcap.Level.IP, wpcap.Types,WinApi.Windows,
+  FireDac.Stan.Param, wpcap.Level.Eth, wpcap.Packet, System.Classes,
+  System.SysUtils, Data.Db, System.StrUtils, winApi.Winsock2, Wpcap.Protocol.RTP;
 
   type
     TWPcapDBSqLitePacket = Class(TWPcapDBSqLite)
   private
-    FDQueryFlow     : TFDQuery;
-    FDQuerySession  : TFDQuery;
+    FDQueryFlow        : TFDQuery;
+    FFDQueryInsert     : TFDQuery;
+    FDQuerySession     : TFDQuery;
+    FDQueryInsertLabel : TFDQuery;
   protected
     function GetSQLScriptDatabaseSchema: String;override;
     procedure InitConnection;override;
+    procedure InsertMetadata(const aName: String; aValue: String);override;               
   public
     Destructor Destroy;override;
     ///<summary>
@@ -51,7 +55,7 @@ uses
     /// <param name="aNPacket">The number of packet to display (starting from 0)</param>
     /// <returns>A list of string containing the hexadecimal dump of the packet data</returns>
     function GetListHexPacket(aNPacket,aStartLevel: Integer;var aListDetail:TListHeaderString): TArray<String>;    
-
+    procedure InsertLabelByLevel(const aListLabelByLevel: TListLabelByLevel);
     Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
     function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
     
@@ -81,22 +85,40 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  IANA_PROTO TEXT,                              '+sLineBreak+ {IANA}                         
                       '  SRC_ASN TEXT,                                 '+sLineBreak+ {GEOIP SRC}      
                       '  SRC_ORGANIZZATION TEXT,                       '+sLineBreak+       
-                      '  SRC_LOCATION TEXT,                            '+sLineBreak+       
+                      '  SRC_LOCATION TEXT,                            '+sLineBreak+
                       '  SRC_LATITUDE FLOAT,                           '+sLineBreak+       
                       '  SRC_LONGITUDE FLOAT,                          '+sLineBreak+                                                                                               
                       '  DST_ASN TEXT,                                 '+sLineBreak+ {GEOIP DST}        
                       '  DST_ORGANIZZATION TEXT,                       '+sLineBreak+       
-                      '  DST_LOCATION TEXT,                           '+sLineBreak+       
+                      '  DST_LOCATION TEXT,                            '+sLineBreak+       
                       '  DST_LATITUDE FLOAT,                           '+sLineBreak+       
-                      '  DST_LONGITUDE FLOAT,                           '+sLineBreak+       
+                      '  DST_LONGITUDE FLOAT,                          '+sLineBreak+    
+                      '  PACKET_RAW_TEXT TEXT,                         '+sLineBreak+  
+                      '  XML_PACKET_DETAIL TEXT,                       '+sLineBreak+  
                       '  PACKET_DATA BLOB                              '+sLineBreak+
                       ');                                              ';
-                      
+
+           SQL_DB_METADATA =  'CREATE TABLE METADATA(                     '+sLineBreak+
+                              '  NAME TEXT,                               '+sLineBreak+
+                              '  VALUE TEXT                               '+sLineBreak+
+                              ');';      
+
+           SQL_DB_LABEL_FILTER =  'CREATE TABLE LABEL_FILTER(                         '+sLineBreak+
+                                  '  ID_LABEL_NAME INTEGER , '+sLineBreak+ 
+                                  '  LABEL_NAME TEXT,                                 '+sLineBreak+
+                                  '  DESCRIPTION TEXT,                                '+sLineBreak+
+                                  '  LEVEL INTEGER,                                   '+sLineBreak+ 
+                                  '  ID_PARENT INTEGER                                '+sLineBreak+ 
+                                  '); ';
+
+           SQL_INDEX_LF_1 = 'CREATE UNIQUE INDEX LABEL_FILTER_IDX ON LABEL_FILTER (ID_LABEL_NAME);  ';
+     SQL_INDEX_LF_2 = 'CREATE UNIQUE INDEX LABEL_FILTER_UQ ON LABEL_FILTER (LABEL_NAME,LEVEL);  ';
+           
            SQL_INDEX = 'CREATE UNIQUE INDEX PACKETS_NPACKET_IDX ON PACKETS (NPACKET);  ';
 
            SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS                                                               ' +sLineBreak+ 
                        'SELECT                                                                                   ' +sLineBreak+ 
-                       '  NPACKET, PACKET_LEN, PACKET_DATE,                                                      ' +sLineBreak+   {Packet}
+                       '  NPACKET, PACKET_LEN, PACKET_DATE,PACKET_RAW_TEXT,XML_PACKET_DETAIL,                    ' +sLineBreak+   {Packet}
                        '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                        '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                        '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
@@ -108,15 +130,19 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
 {$ENDREGION}
 begin
 
-  Result := SQL_TABLE +sLineBreak+
-            SQL_INDEX +sLineBreak+
-            SQL_VIEW;
+  Result := SQL_TABLE            +sLineBreak+
+            SQL_INDEX            +sLineBreak+
+            SQL_VIEW             +sLineBreak+
+            SQL_DB_LABEL_FILTER  +sLineBreak+
+            SQL_INDEX_LF_1       +sLineBreak+
+            SQL_INDEX_LF_2       +sLineBreak+
+            SQL_DB_METADATA;
 end;
 
 procedure TWPcapDBSqLitePacket.InitConnection;
 {$REGION 'SQL insert}
 CONST SQL_INSERT = 'INSERT INTO PACKETS(                                                                     ' +slineBreak+
-                   '  PACKET_LEN, PACKET_DATE, PACKET_DATA,                                                  ' +sLineBreak+   {Packet}
+                   '  PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL,                ' +sLineBreak+   {Packet}
                    '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                    '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
                    '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
@@ -125,7 +151,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                    '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE )                ' +sLineBreak+   {GEOIP DST}   
                    'VALUES                                                                                   ' +slineBreak+
-                   ' (:pLen,:pDate,:pPacket,                                                                 ' +sLineBreak+   {Packet}
+                   ' (:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,                                           ' +sLineBreak+   {Packet}
                    '  :pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIsIPV6,                                         ' +sLineBreak+   {EThernet}
                    '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
                    '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
@@ -142,132 +168,197 @@ begin
 //  Connection.Params.Add('JournalMode=WAL'); // Enable WAL mode   
 
 
-  Connection.Params.Values['Synchronous'] := 'OFF'; 
-  Connection.Params.Values['Cache']       := 'True'; 
-  Connection.Params.Values['JournalMode'] := 'MEMORY';
-  Connection.Params.Values['PageSize']    := '20480';
-  Connection.FormatOptions.StrsEmpty2Null := True;
+  Connection.Params.Values['Synchronous']                   := 'OFF'; 
+  Connection.Params.Values['Cache']                         := 'True'; 
+  Connection.Params.Values['JournalMode']                   := 'MEMORY';
+  Connection.Params.Values['PageSize']                      := '20480';
+  Connection.FormatOptions.StrsEmpty2Null                   := True;
 
-    
-  FFDQueryTmp.SQL.Text                              := SQL_INSERT; 
-  FFDQueryTmp.ParamByName('pLen').DataType          := ftInteger; {Packet}
-  FFDQueryTmp.ParamByName('pDate').DataType         := ftString; 
-  FFDQueryTmp.ParamByName('pEthType').DataType      := ftInteger; {EThernet} 
-  FFDQueryTmp.ParamByName('pEthAcr').DataType       := ftString;
-  FFDQueryTmp.ParamByName('pMacSrc').DataType       := ftString;
-  FFDQueryTmp.ParamByName('pMacDst').DataType       := ftString;
-  FFDQueryTmp.ParamByName('pIsIPV6').DataType       := ftInteger;      
-  FFDQueryTmp.ParamByName('pProtoDetect').DataType  := ftInteger; {IP Protocol} 
-  FFDQueryTmp.ParamByName('pProto').DataType        := ftString; 
-  FFDQueryTmp.ParamByName('pIpProto').DataType      := ftInteger;
-  FFDQueryTmp.ParamByName('pIpProtoStr').DataType   := ftString;
-  FFDQueryTmp.ParamByName('pIpSrc').DataType        := ftString;  {IP IpAddress}
-  FFDQueryTmp.ParamByName('pIpDst').DataType        := ftString;        
-  FFDQueryTmp.ParamByName('pPortSrc').DataType      := ftInteger; {TCP/UDP}      
-  FFDQueryTmp.ParamByName('pPortDst').DataType      := ftInteger;   
-  FFDQueryTmp.ParamByName('pProtoIANA').DataType    := ftString;  {IANA}
-  FFDQueryTmp.ParamByName('pSrcLoc').DataType       := ftString;  {GEOIP SRC} 
-  FFDQueryTmp.ParamByName('pSrcOrg').DataType       := ftString;  
-  FFDQueryTmp.ParamByName('pSrcAsn').DataType       := ftString;  
-  FFDQueryTmp.ParamByName('pSrcLat').DataType       := ftFloat;   
-  FFDQueryTmp.ParamByName('pSrcLong').DataType      := ftFloat;   
-  FFDQueryTmp.ParamByName('pDstLoc').DataType       := ftString;  {GEOIP DST} 
-  FFDQueryTmp.ParamByName('pDstOrg').DataType       := ftString;  
-  FFDQueryTmp.ParamByName('pDstAsn').DataType       := ftString;
-  FFDQueryTmp.ParamByName('pDstLat').DataType       := ftFloat;   
-  FFDQueryTmp.ParamByName('pDstLong').DataType      := ftFloat;   
-  FFDQueryTmp.ParamByName('pPacket').DataType       := ftBlob;    
-  FFDQueryTmp.CachedUpdates                         := True;   
-  FFDQueryGrid.SQL.Text                             := 'SELECT * FROM VST_PACKETS ORDER BY NPACKET ';
-  FFDGetDataByID.SQL.Text                           := 'SELECT PACKET_DATA FROM PACKETS WHERE NPACKET = :pNPACKET '; 
+  FFDQueryInsert                                            := TFDQuery.Create(nil);
+  FFDQueryInsert.Connection                                 := FConnection;    
+  FFDQueryInsert.SQL.Text                                   := SQL_INSERT; 
+  FFDQueryInsert.ParamByName('pLen').DataType               := ftInteger; {Packet}
+  FFDQueryInsert.ParamByName('pDate').DataType              := ftString; 
+  FFDQueryInsert.ParamByName('pEthType').DataType           := ftInteger; {EThernet} 
+  FFDQueryInsert.ParamByName('pEthAcr').DataType            := ftString;
+  FFDQueryInsert.ParamByName('pMacSrc').DataType            := ftString;
+  FFDQueryInsert.ParamByName('pMacDst').DataType            := ftString;
+  FFDQueryInsert.ParamByName('pIsIPV6').DataType            := ftInteger;      
+  FFDQueryInsert.ParamByName('pProtoDetect').DataType       := ftInteger; {IP Protocol} 
+  FFDQueryInsert.ParamByName('pProto').DataType             := ftString; 
+  FFDQueryInsert.ParamByName('pIpProto').DataType           := ftInteger;
+  FFDQueryInsert.ParamByName('pIpProtoStr').DataType        := ftString;
+  FFDQueryInsert.ParamByName('pIpSrc').DataType             := ftString;  {IP IpAddress}
+  FFDQueryInsert.ParamByName('pIpDst').DataType             := ftString;        
+  FFDQueryInsert.ParamByName('pPortSrc').DataType           := ftInteger; {TCP/UDP}      
+  FFDQueryInsert.ParamByName('pPortDst').DataType           := ftInteger;   
+  FFDQueryInsert.ParamByName('pProtoIANA').DataType         := ftString;  {IANA}
+  FFDQueryInsert.ParamByName('pSrcLoc').DataType            := ftString;  {GEOIP SRC} 
+  FFDQueryInsert.ParamByName('pSrcOrg').DataType            := ftString;  
+  FFDQueryInsert.ParamByName('pSrcAsn').DataType            := ftString;  
+  FFDQueryInsert.ParamByName('pSrcLat').DataType            := ftFloat;   
+  FFDQueryInsert.ParamByName('pSrcLong').DataType           := ftFloat;   
+  FFDQueryInsert.ParamByName('pDstLoc').DataType            := ftString;  {GEOIP DST} 
+  FFDQueryInsert.ParamByName('pDstOrg').DataType            := ftString;  
+  FFDQueryInsert.ParamByName('pDstAsn').DataType            := ftString;
+  FFDQueryInsert.ParamByName('pXMLInfo').DataType           := ftString;  
+  FFDQueryInsert.ParamByName('pPacketRaw').DataType         := ftString;    
+  FFDQueryInsert.ParamByName('pDstLat').DataType            := ftFloat;   
+  FFDQueryInsert.ParamByName('pDstLong').DataType           := ftFloat;
+  FFDQueryInsert.ParamByName('pPacket').DataType            := ftBlob;    
+  FFDQueryInsert.CachedUpdates                              := True;   
+  FFDQueryGrid.SQL.Text                                     := 'SELECT * FROM VST_PACKETS ORDER BY NPACKET ';
+  FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA FROM PACKETS WHERE NPACKET = :pNPACKET '; 
 
-  FDQueryFlow                                       := TFDQuery.Create(nil);
-  FDQueryFlow.Connection                            := FConnection;
-  FDQueryFlow.SQL.Text                              := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                 '+sLineBreak+ 
-                                                       'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) OR (IP_SRC = :pIpDst AND IP_DST= :pIpSrc )  )                '+sLineBreak+ 
-                                                       'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst ) OR (PORT_SRC = :pPortDst AND PORT_DST= :pPortSrc )  ) '+sLineBreak+
-                                                       'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';
+  FDQueryFlow                                               := TFDQuery.Create(nil);
+  FDQueryFlow.Connection                                    := FConnection;
+  FDQueryFlow.SQL.Text                                      := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                  '+sLineBreak+ 
+                                                               'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) OR (IP_SRC = :pIpDst AND IP_DST= :pIpSrc )  )                 '+sLineBreak+ 
+                                                               'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst ) OR (PORT_SRC = :pPortDst AND PORT_DST= :pPortSrc )  ) '+sLineBreak+
+                                                               'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';
 
-  FDQuerySession                                    := TFDQuery.Create(nil);
-  FDQuerySession.Connection                         := FConnection;
-  FDQuerySession.SQL.Text                           := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                 '+sLineBreak+ 
-                                                       'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) )                '+sLineBreak+ 
-                                                       'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst )  ) '+sLineBreak+
-                                                       'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';                                                       
+  FDQuerySession                                            := TFDQuery.Create(nil);
+  FDQuerySession.Connection                                 := FConnection;
+  FDQuerySession.SQL.Text                                   := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS   '+sLineBreak+ 
+                                                               'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) )              '+sLineBreak+ 
+                                                               'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst )  )     '+sLineBreak+
+                                                               'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';     
+
+  FDQueryInsertLabel                                        := TFDQuery.Create(nil);
+  FDQueryInsertLabel.Connection                             := FConnection;
+  FDQueryInsertLabel.SQL.Text                               := 'INSERT INTO LABEL_FILTER (ID_LABEL_NAME,LABEL_NAME,DESCRIPTION,LEVEL,ID_PARENT) VALUES (:pIdLabel,:pLabelName,:pDescription,:pLevel,:pIdParent)';
+  FDQueryInsertLabel.ParamByName('pIdLabel').DataType       := ftInteger; 
+  FDQueryInsertLabel.ParamByName('pLabelName').DataType     := ftString;
+  FDQueryInsertLabel.ParamByName('pDescription').DataType   := ftString;
+  FDQueryInsertLabel.ParamByName('pLevel').DataType         := ftInteger; 
+  FDQueryInsertLabel.ParamByName('pIdParent').DataType      := ftInteger;     
 end; 
+
+procedure TWPcapDBSqLitePacket.InsertLabelByLevel(const aListLabelByLevel : TListLabelByLevel);
+var Literator : TDictionary<String, TLabelByLevel>.TPairEnumerator;
+
+    procedure AddLabelFilter(const aIdParent,aLevel: Integer;var AIndex:Integer);
+    var aParent : Integer;
+    begin
+      aParent := AIndex;  
+      Inc(AIndex);
+      if Literator.Current.Value.LabelName.Trim.IsEmpty then exit;
+
+      FDQueryInsertLabel.ParamByName('pIdLabel').AsIntegers[AIndex]     := AIndex;
+      FDQueryInsertLabel.ParamByName('pLabelName').AsStrings[AIndex]    := Literator.Current.Value.LabelName;
+      FDQueryInsertLabel.ParamByName('pDescription').AsStrings[AIndex]  := Literator.Current.Value.Description;
+      FDQueryInsertLabel.ParamByName('pLevel').AsIntegers[AIndex]       := aLevel;
+
+      if aIdParent > 0 then
+        FDQueryInsertLabel.ParamByName('pIdParent').AsIntegers[AIndex] := aIdParent
+      else
+        FDQueryInsertLabel.ParamByName('pIdParent').Clear;
+
+      Literator.MoveNext;
+      while AIndex < aListLabelByLevel.Count -1 do
+      begin
+
+        if Literator.Current.Value.Level = 0 then Break;        
+        if Literator.Current.Value.Level <= aLevel then Break;      
+        
+        AddLabelFilter(aParent,Literator.Current.Value.Level,AIndex);     
+      end;
+   
+    end;  
+var I : integer;   
+   
+begin
+  if aListLabelByLevel.Count = 0 then Exit;
+
+  if not FDQueryInsertLabel.Prepared then
+    FDQueryInsertLabel.Prepare;
+  FDQueryInsertLabel.Params.ArraySize := aListLabelByLevel.Count;
+  Literator := aListLabelByLevel.GetEnumerator();  
+
+  // Popolare i parametri per ogni riga nella batch
+  i := 0;
+  Literator.MoveNext;
+  while I < aListLabelByLevel.Count -1 do
+    AddLabelFilter(0,Literator.Current.Value.Level,I); 
+      
+  FDQueryInsertLabel.Execute(FDQueryInsertLabel.Params.ArraySize); // esegue la batch insert        
+end;
 
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
 begin
   {TODO use Batch insert}
-  if not FFDQueryTmp.Prepared then
-    FFDQueryTmp.Prepare;
+  if not FFDQueryInsert.Prepared then
+    FFDQueryInsert.Prepare;
   {Packet}
-  FFDQueryTmp.ParamByName('pLen').AsInteger         := aInternalPacket.PacketSize;
-  FFDQueryTmp.ParamByName('pDate').AsString         := DateTimeToStr(aInternalPacket.PacketDate);
+  FFDQueryInsert.ParamByName('pLen').AsInteger         := aInternalPacket.PacketSize;
+  FFDQueryInsert.ParamByName('pDate').AsString         := DateTimeToStr(aInternalPacket.PacketDate);
   {EThernet}
-  FFDQueryTmp.ParamByName('pEthType').AsInteger     := aInternalPacket.Eth.EtherType;
-  FFDQueryTmp.ParamByName('pEthAcr').AsString       := aInternalPacket.Eth.Acronym.Trim;
-  FFDQueryTmp.ParamByName('pMacSrc').AsString       := ifthen(aInternalPacket.Eth.SrcAddr=SRC_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.SrcAddr);
-  FFDQueryTmp.ParamByName('pMacDst').AsString       := ifthen(aInternalPacket.Eth.DestAddr=DST_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.DestAddr);
-  FFDQueryTmp.ParamByName('pIsIPV6').AsInteger      := ifthen(aInternalPacket.IP.IsIPv6,1,0);  
+  FFDQueryInsert.ParamByName('pEthType').AsInteger     := aInternalPacket.Eth.EtherType;
+  FFDQueryInsert.ParamByName('pEthAcr').AsString       := aInternalPacket.Eth.Acronym.Trim;
+  FFDQueryInsert.ParamByName('pMacSrc').AsString       := ifthen(aInternalPacket.Eth.SrcAddr=SRC_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.SrcAddr);
+  FFDQueryInsert.ParamByName('pMacDst').AsString       := ifthen(aInternalPacket.Eth.DestAddr=DST_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.DestAddr);
+  FFDQueryInsert.ParamByName('pIsIPV6').AsInteger      := ifthen(aInternalPacket.IP.IsIPv6,1,0);  
   {IP Protocol} 
-  FFDQueryTmp.ParamByName('pProtoDetect').AsInteger := aInternalPacket.IP.DetectedIPProto;  
-  FFDQueryTmp.ParamByName('pIpProto').AsInteger     := aInternalPacket.IP.IpProto;    
+  FFDQueryInsert.ParamByName('pProtoDetect').AsInteger := aInternalPacket.IP.DetectedIPProto;  
+  FFDQueryInsert.ParamByName('pIpProto').AsInteger     := aInternalPacket.IP.IpProto;    
 
   if aInternalPacket.IP.ProtoAcronym.Trim.IsEmpty then
-    FFDQueryTmp.ParamByName('pProto').Clear
+    FFDQueryInsert.ParamByName('pProto').Clear
   else
-    FFDQueryTmp.ParamByName('pProto').AsString := aInternalPacket.IP.ProtoAcronym;
+    FFDQueryInsert.ParamByName('pProto').AsString := aInternalPacket.IP.ProtoAcronym;
 
   if aInternalPacket.IP.IpPrototr.Trim.IsEmpty then
-    FFDQueryTmp.ParamByName('pIpProtoStr').Clear
+    FFDQueryInsert.ParamByName('pIpProtoStr').Clear
   else
-    FFDQueryTmp.ParamByName('pIpProtoStr').AsString := aInternalPacket.IP.IpPrototr;  
+    FFDQueryInsert.ParamByName('pIpProtoStr').AsString := aInternalPacket.IP.IpPrototr;  
     
   if aInternalPacket.IP.Src.Trim.IsEmpty then
-    FFDQueryTmp.ParamByName('pIpSrc').Clear
+    FFDQueryInsert.ParamByName('pIpSrc').Clear
   else
-    FFDQueryTmp.ParamByName('pIpSrc').AsString := aInternalPacket.IP.Src;  
+    FFDQueryInsert.ParamByName('pIpSrc').AsString := aInternalPacket.IP.Src;  
 
   if aInternalPacket.IP.Dst.Trim.IsEmpty then
-    FFDQueryTmp.ParamByName('pIpDst').Clear
+    FFDQueryInsert.ParamByName('pIpDst').Clear
   else
-    FFDQueryTmp.ParamByName('pIpDst').AsString := aInternalPacket.IP.Dst;      
+    FFDQueryInsert.ParamByName('pIpDst').AsString := aInternalPacket.IP.Dst;      
   
   {TCP/UDP}      
   if aInternalPacket.IP.PortSrc > 0 then  
-    FFDQueryTmp.ParamByName('pPortSrc').AsInteger := aInternalPacket.IP.PortSrc
+    FFDQueryInsert.ParamByName('pPortSrc').AsInteger := aInternalPacket.IP.PortSrc
   else
-    FFDQueryTmp.ParamByName('pPortSrc').Clear;
+    FFDQueryInsert.ParamByName('pPortSrc').Clear;
 
   if aInternalPacket.IP.PortDst > 0 then  
-    FFDQueryTmp.ParamByName('pPortDst').AsInteger := aInternalPacket.IP.PortDst
+    FFDQueryInsert.ParamByName('pPortDst').AsInteger := aInternalPacket.IP.PortDst
   else
-    FFDQueryTmp.ParamByName('pPortDst').Clear;
+    FFDQueryInsert.ParamByName('pPortDst').Clear;
   
   {IANA} 
-  FFDQueryTmp.ParamByName('pProtoIANA').AsString    := aInternalPacket.IP.IANAProtoStr;   
+  FFDQueryInsert.ParamByName('pProtoIANA').AsString    := aInternalPacket.IP.IANAProtoStr;   
         
   {GEOIP SRC}
-  FFDQueryTmp.ParamByName('pSrcLoc').AsString       := aInternalPacket.IP.SrcGeoIP.Location;
-  FFDQueryTmp.ParamByName('pSrcOrg').AsString       := aInternalPacket.IP.SrcGeoIP.ASOrganization;  
-  FFDQueryTmp.ParamByName('pSrcAsn').AsString       := aInternalPacket.IP.SrcGeoIP.ASNumber;    
-  FFDQueryTmp.ParamByName('pSrcLat').AsFloat        := aInternalPacket.IP.SrcGeoIP.Latitude;
-  FFDQueryTmp.ParamByName('pSrcLong').AsFloat       := aInternalPacket.IP.SrcGeoIP.Longitude;
+  FFDQueryInsert.ParamByName('pSrcLoc').AsString       := aInternalPacket.IP.SrcGeoIP.Location;
+  FFDQueryInsert.ParamByName('pSrcOrg').AsString       := aInternalPacket.IP.SrcGeoIP.ASOrganization;  
+  FFDQueryInsert.ParamByName('pSrcAsn').AsString       := aInternalPacket.IP.SrcGeoIP.ASNumber;    
+  FFDQueryInsert.ParamByName('pSrcLat').AsFloat        := aInternalPacket.IP.SrcGeoIP.Latitude;
+  FFDQueryInsert.ParamByName('pSrcLong').AsFloat       := aInternalPacket.IP.SrcGeoIP.Longitude;
   {GEOIP DST}
-  FFDQueryTmp.ParamByName('pDstLoc').AsString       := aInternalPacket.IP.DestGeoIP.Location;
-  FFDQueryTmp.ParamByName('pDstOrg').AsString       := aInternalPacket.IP.DestGeoIP.ASOrganization;  
-  FFDQueryTmp.ParamByName('pDstAsn').AsString       := aInternalPacket.IP.DestGeoIP.ASNumber;    
-  FFDQueryTmp.ParamByName('pDstLat').AsFloat        := aInternalPacket.IP.DestGeoIP.Latitude;
-  FFDQueryTmp.ParamByName('pDstLong').AsFloat       := aInternalPacket.IP.DestGeoIP.Longitude;
+  FFDQueryInsert.ParamByName('pDstLoc').AsString       := aInternalPacket.IP.DestGeoIP.Location;
+  FFDQueryInsert.ParamByName('pDstOrg').AsString       := aInternalPacket.IP.DestGeoIP.ASOrganization;  
+  FFDQueryInsert.ParamByName('pDstAsn').AsString       := aInternalPacket.IP.DestGeoIP.ASNumber;    
+  FFDQueryInsert.ParamByName('pDstLat').AsFloat        := aInternalPacket.IP.DestGeoIP.Latitude;
+  FFDQueryInsert.ParamByName('pDstLong').AsFloat       := aInternalPacket.IP.DestGeoIP.Longitude;
+  FFDQueryInsert.ParamByName('pXMLInfo').AsString      := aInternalPacket.XML_Detail;
+  FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiString := aInternalPacket.RAW_Text;
+
 
   LMemoryStream := TMemoryStream.Create; 
   Try
     LMemoryStream.WriteBuffer(aInternalPacket.PacketData^,aInternalPacket.PacketSize);
 
-    FFDQueryTmp.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob);
-    FFDQueryTmp.ExecSQL;
+    FFDQueryInsert.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob);
+    FFDQueryInsert.ExecSQL;
   Finally
     FreeAndNil(LMemoryStream);
   End;  
@@ -363,7 +454,7 @@ begin
            IPPROTO_UDP :
               begin
                 if not TWPcapProtocolBaseUDP.HeaderUDP(LPacketData,LPacketSize,LUDPHdr) then exit;
-                LPayLoad    := TWPcapProtocolBaseUDP.GetUDPPayLoad(LPacketData,LPacketSize);
+                LPayLoad     := TWPcapProtocolBaseUDP.GetUDPPayLoad(LPacketData,LPacketSize);
                 LPayloadSize := TWPcapProtocolBaseUDP.UDPPayLoadLength(LUDPHdr)            
               end
           else
@@ -463,8 +554,19 @@ end;
 destructor TWPcapDBSqLitePacket.Destroy;
 begin
   FreeAndNil(FDQuerySession);
+  FreeAndNil(FFDQueryInsert);  
+  FreeAndNil(FDQueryInsertLabel);    
+  
   FreeAndNil(FDQueryFlow);  
   inherited;
+end;
+
+procedure TWPcapDBSqLitePacket.InsertMetadata(const aName: String;aValue: String);
+begin
+  FFDQueryTmp.SQL.Text                       := 'INSERT INTO METADATA VALUES (:pName,:pValue)';
+  FFDQueryTmp.ParamByName('pName').AsString  := aName;
+  FFDQueryTmp.ParamByName('pValue').AsString := aValue;  
+  FFDQueryTmp.ExecSQL;
 end;
 
 end.

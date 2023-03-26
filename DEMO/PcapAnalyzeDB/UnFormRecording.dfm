@@ -112,11 +112,12 @@ object FormRecording: TFormRecording
         Style.TransparentBorder = False
         TabOrder = 4
         Transparent = True
+        ExplicitWidth = 121
       end
       object tStopRecordingTime: TcxTimeEdit
         AlignWithMargins = True
         Left = 3
-        Top = 123
+        Top = 124
         Align = alTop
         Properties.Alignment.Horz = taRightJustify
         Properties.Circular = True
@@ -125,6 +126,7 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.Position = sbpHorzLeftRight
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 5
+        ExplicitTop = 123
         Width = 34
       end
     end
@@ -199,6 +201,7 @@ object FormRecording: TFormRecording
       Align = alTop
       PanelStyle.Active = True
       TabOrder = 1
+      ExplicitTop = -9
       Height = 43
       Width = 1043
       object EPathDB: TcxButtonEdit
@@ -216,8 +219,9 @@ object FormRecording: TFormRecording
         Properties.Images = cxImageList1
         Properties.OnButtonClick = EPathDBPropertiesButtonClick
         TabOrder = 0
-        ExplicitWidth = 783
-        Width = 793
+        ExplicitWidth = 793
+        ExplicitHeight = 21
+        Width = 783
       end
       object cxLabel3: TcxLabel
         AlignWithMargins = True
@@ -231,7 +235,7 @@ object FormRecording: TFormRecording
       end
       object TSfileDumb: TdxToggleSwitch
         AlignWithMargins = True
-        Left = 885
+        Left = 875
         Top = 7
         Align = alRight
         Caption = 'Save dump file'
@@ -239,7 +243,7 @@ object FormRecording: TFormRecording
         Style.TransparentBorder = False
         TabOrder = 2
         Transparent = True
-        ExplicitLeft = 875
+        ExplicitHeight = 21
       end
     end
     object cxGroupBox3: TcxGroupBox
@@ -248,6 +252,7 @@ object FormRecording: TFormRecording
       Align = alTop
       PanelStyle.Active = True
       TabOrder = 2
+      ExplicitTop = 34
       Height = 43
       Width = 1043
       object cxLabel2: TcxLabel
@@ -270,6 +275,7 @@ object FormRecording: TFormRecording
         Properties.OnValidate = EFilterPropertiesValidate
         ShowHint = True
         TabOrder = 1
+        ExplicitHeight = 21
         Width = 909
       end
     end

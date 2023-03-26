@@ -16,8 +16,8 @@ type
     class function IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
 
   protected
-    class procedure ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);override;
-    class procedure ParserDNSTTL(const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); override;
+    class procedure ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);override;
+    class procedure ParserDNSTTL(const aQuestionClass:String;const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); override;
   public
 
     /// <summary>
@@ -114,7 +114,7 @@ begin
   end;    
 end;
 
-class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
+class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
 var Lz         : Word;
     LWordValue : Word;
 begin
@@ -124,32 +124,32 @@ begin
     rtAuthority  : inherited;
     rtAdditional : 
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Higher bits in extended RCODE:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 2));              
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.HbitExtRCODE',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Higher bits in extended RCODE:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 2));              
         inc(aInternalOffset,1);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'EDNS0 version:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 1));              
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.EDNS0Version',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'EDNS0 version:',aDataRss[aInternalOffset], PByte(@aDataRss[aInternalOffset]), 1));              
         inc(aInternalOffset,1);
         Lz         := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
         LWordValue  := ( ( Lz  and $7FFF));
       
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Z:',Lz, PByte(@aDataRss[aInternalOffset]), 2));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Reserved:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+4, 'Do bit:',GetBitValue(aDataRss[aInternalOffset],1), PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.Z',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Z:',Lz, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.%s.Name.Z.Reserved',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Reserved:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.%s.Name.Z.DoBit',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Do bit:',GetBitValue(aDataRss[aInternalOffset],1), PByte(@aDataRss[aInternalOffset]), 2));
       end;
   end;
 end;
 
-class procedure TWPcapProtocolMDNS.ParserDNSClass(const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
-var   LQClass : Word;
+class procedure TWPcapProtocolMDNS.ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
+var   LWordValue : Word;
 begin
   case aRRsType of
     rtAnswer     : inherited; 
     rtAuthority  : inherited;
     rtAdditional : 
       begin
-        LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
-        LQClass  := ( LQClass  and $7FFF);      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'UDP payload size:',LQClass, PByte(@aDataRss[aInternalOffset]), 2));    
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Cache flush:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));   
+        LWordValue  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
+        LWordValue  := ( LWordValue  and $7FFF);      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.UDPPayLoadLen',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'UDP payload size:',LWordValue, PByte(@aDataRss[aInternalOffset]), 2));    
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.CacheFlush',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Cache flush:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));   
       end;
     rtQuestion   : 
       begin
@@ -168,10 +168,10 @@ begin
          unicast-response bit in those questions.
         }
 
-        LQClass  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
-        LQClass  := ( LQClass  and $7FFF);      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'Class:',QClassToString(LQClass), PByte(@aDataRss[aInternalOffset]), 2));   
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3, 'QU:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));
+        LWordValue  := (aDataRss[aInternalOffset] shl 8) or aDataRss[aInternalOffset+1];
+        LWordValue  := ( LWordValue  and $7FFF);      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.Class',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Class:',QClassToString(LWordValue), PByte(@aDataRss[aInternalOffset]), 2 , LWordValue));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.QU',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'QU:',GetBitValue(aDataRss[aInternalOffset],1)=1, PByte(@aDataRss[aInternalOffset]), 2));
       end;
   end;
 end;

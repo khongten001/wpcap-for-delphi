@@ -9,7 +9,7 @@ uses
 
 type
 
-
+  TWcapEnrichmentType =( WetNone ,WetIP,WetMCC,WetMNC,WetIMSI);
 
   bpf_u_int32 = LongWord;  
   Ppcap_t = Pointer;
@@ -28,6 +28,14 @@ type
     Oid   : ULONG;
     Length: ULONG;
     Data  : array [0..1] of UCHAR;
+  end;
+
+
+  TMCCRow = record
+    MCC         : integer;
+    COUNTRY     : String;
+    LATITUDINE  : Extended;
+    LONGITUDINE : Extended;    
   end;
   
   //PacketBurst is a structure defined in the WinPcap library that represents a burst of packets to be sent via PacketSendPackets.
@@ -260,22 +268,36 @@ type
         0: (Bytes: TIPAddrBytes);
         1: (Addr: Cardinal);
     end;  
+
+  /// <summary>
+  ///  Record containing string label representations of item of protol with level for parent indentify
+  /// </summary>    
+  TLabelByLevel = record
+    LabelName  : String;
+    Description: String;
+    Level      : Byte;
+  end;
+    
+  TListLabelByLevel = class(TDictionary<String,TLabelByLevel>);
     
   /// <summary>
   ///  Record containing string representations of packet header information
   /// </summary>
   THeaderString = Record
-    Level       : Byte;    // Level of detail for string output
-    Description : String;  // Descriptive text for the header information
-    Hex         : String;  // Hexadecimal representation of the header information
-    Value       : Variant;
-    Size        : Integer;
+    Level          : Byte;    // Level of detail for string output
+    Labelname      : String;  // String with Protocolo_Acronym_name.fieldname
+    Description    : String;  // Descriptive text for the header information
+    Hex            : String;  // Hexadecimal representation of the header information
+    Value          : Variant;
+    Size           : Integer;
+    RawValue       : Variant;
+    EnrichmentType : TWcapEnrichmentType;
   End;  
-
-  TIpClaseType = (imtNone,imtIpv4,imtIpv6);  
 
   TListHeaderString = class(TList<THeaderString>);
 
+  TIpClaseType = (imtNone,imtIpv4,imtIpv6);    
+  
   /// <summary>
   ///  Represents a row in the IANA registry, which maps port numbers to protocol names, IP protocol numbers, and descriptions.
   /// </summary>
@@ -351,6 +373,21 @@ type
   /// The total size of the file being processed and the number of bytes processed so far are passed to the callback procedure as parameters.
   ///</remarks>  
   TPCAPCallBackProgress      = procedure(aTotalSize,aCurrentSize:Int64) of object;
+  
+  ///<summary>
+  /// Type definition for a callback procedure to be called before packet processing is complete.
+  ///</summary>
+  ///<param name="aFileName">
+  /// The name of the file that was processed.
+  ///</param>
+  ///<param name="aListLabelByLevel">
+  /// The list with helper label for filter to be insert on database
+  ///</param>
+  ///<remarks>
+  /// This type definition is used for a callback procedure that is called by the packet capture module before packet processing is complete. 
+  /// The callback procedure is responsible for insert the helper filter list on database. 
+  ///</remarks>  
+  TPCAPCallBeforeBackEnd    = procedure(const aFileName:String;aListLabelByLevel:TListLabelByLevel) of object;
   
   ///<summary>
   /// Type definition for a callback procedure to be called when packet processing is complete.

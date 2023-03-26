@@ -20,7 +20,11 @@ type
     var FDriverLink : TFDPhysSQLiteDriverLink;   
 
   protected
+
+    procedure InsertVersion;virtual;     
+  
     procedure CreateFDDriverLink;override;
+    procedure InsertMetadata(const aName: String; aValue: String);override;       
     function GetDriverIDName:String;override;
     procedure DestroyFDDriverLink;override;  
     procedure SetCredentialConnection(const aUsername,aPassword:String); override;    
@@ -54,6 +58,16 @@ procedure TWPcapDBSqLite.SetTNSConnection(const aTNS: String);
 begin
   //
 
+end;
+
+procedure TWPcapDBSqLite.InsertVersion;
+begin
+
+end;
+
+procedure TWPcapDBSqLite.InsertMetadata(const aName: String; aValue: String);
+begin
+  
 end;
 
 end.

@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,
-  System.Variants,wpcap.Types;
+  System.Variants,wpcap.Types,wpcap.BufferUtils;
 
 Type
 
@@ -14,9 +14,15 @@ Type
   /// This class defines the base behavior that each protocol should implement.
   /// </summary>
   TWPcapProtocolBase = class(TWpcapEthHeader)
+  private
+
+
   protected
-    class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;
-      var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
+    class var FIsFilterMode : Boolean;
+    class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
+     class procedure ParserWordValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);
+     class procedure ParserCardinalValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);
+     class procedure ParserByteValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);     
   public
     /// <summary>
     /// Returns the default port number for the protocol.
@@ -54,14 +60,14 @@ Type
     /// </summary>
     class function HeaderLength(aFlag:Byte): Word; virtual;
 
-    class function AddHeaderInfo(aLevel:Byte;const aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word):THeaderString;static;
+
+    class function AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;static;
     /// <summary>
     /// Checks whether the packet has the default port for the protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
-    class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;
-      var aIdProtoDetected: Byte): Boolean;overload; virtual;
-
+    class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;overload; virtual;
+    class property IsFilterMode  : Boolean read FIsFilterMode write FIsFilterMode default false;
   end;
   
 implementation
@@ -94,16 +100,23 @@ begin
   raise Exception.Create('TWPcapProtocolBase.AcronymName- Non implemented in base class - please override this method');
 end;
 
-class function TWPcapProtocolBase.AddHeaderInfo(aLevel:Byte;const aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word):THeaderString;
+class function TWPcapProtocolBase.AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;
 begin    
-  Result.Description := aDescription;
-  Result.Value       := aValue;
-  Result.Level       := aLevel;
-  if aPacketInfo = nil then      
+  Result.Description     := aDescription;
+  Result.Labelname       := aLabel;
+  Result.Value           := aValue;
+  Result.Level           := aLevel;
+  Result.Size            := aPacketInfoSize;
+  if aRaWData <> -1 then  
+    Result.RawValue := aRaWData
+  else
+    Result.RawValue := aValue;
+    
+  Result.EnrichmentType  := aEnrichmentType;  
+  if (aPacketInfo = nil) or FisFilterMode then      
     Result.Hex := String.Empty
   else
     Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False)).Trim;
-  Result.Size := aPacketInfoSize;
 end;   
 
 class function TWPcapProtocolBase.IsValidByPort(aTestPort,aSrcPort,aDstPort: Integer;
@@ -132,4 +145,34 @@ begin
   Result := String.Empty;
 end;
 
+class procedure TWPcapProtocolBase.ParserCardinalValue(const aPacketData: PByte;
+  aLevel:byte;const aLabel, aCaption: String; AListDetail: TListHeaderString;
+  var aCurrentPos: Integer);
+var LCardinalValue : Cardinal;  
+begin
+  LCardinalValue :=  PCardinal(aPacketData+aCurrentPos )^;
+  AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, wpcapntohl( LCardinalValue ), @LCardinalValue,sizeOf(LCardinalValue)));
+  Inc(aCurrentPos,SizeOf(LCardinalValue));
+end;
+
+class procedure TWPcapProtocolBase.ParserWordValue(const aPacketData: PByte;
+  aLevel: byte; const aLabel, aCaption: String; AListDetail: TListHeaderString;
+  var aCurrentPos: Integer);
+var LWordValue : Word;  
+begin
+  LWordValue :=  PWord(aPacketData+aCurrentPos )^;
+  AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, wpcapntohs( LWordValue ), @LWordValue,sizeOf(LWordValue)));
+  Inc(aCurrentPos,SizeOf(LWordValue));
+end;
+
+class procedure TWPcapProtocolBase.ParserByteValue(const aPacketData: PByte;
+  aLevel: byte; const aLabel, aCaption: String; AListDetail: TListHeaderString;
+  var aCurrentPos: Integer);
+var LByteValue : Byte;    
+begin
+  LByteValue :=  PByte(aPacketData+aCurrentPos )^;
+  AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, wpcapntohl( LByteValue ), @LByteValue,sizeOf(LByteValue)));
+  Inc(aCurrentPos,SizeOf(LByteValue));
+end;
+                                                
 end.

@@ -56,6 +56,35 @@ type
   /// </summary>
   TWPcapProtocolRTP = Class(TWPcapProtocolBaseUDP)
   private
+    CONST
+      PT_PCMU        = 0;       //* RFC 1890 */
+      PT_1016        = 1;       //* RFC 1890 */
+      PT_G721        = 2;       //* RFC 1890 */
+      PT_GSM         = 3;       //* RFC 1890 */
+      PT_G723        = 4;       //* From Vineet Kumar of Intel; see the Web page */
+      PT_DVI4_8000   = 5;       //* RFC 1890 */
+      PT_DVI4_16000  = 6;       //* RFC 1890 */
+      PT_LPC         = 7;       //* RFC 1890 */
+      PT_PCMA        = 8;       //* RFC 1890 */
+      PT_G722        = 9;       //* RFC 1890 */
+      PT_L16_STEREO  = 10;      //* RFC 1890 */
+      PT_L16_MONO    = 11;      //* RFC 1890 */
+      PT_QCELP       = 12;      //* Qualcomm Code Excited Linear Predictive coding? */
+      PT_CN          = 13;      //* RFC 3389 */
+      PT_MPA         = 14;      //* RFC 1890, RFC 2250 */
+      PT_G728        = 15;      //* RFC 1890 */
+      PT_DVI4_11025  = 16;      //* from Joseph Di Pol of Sun; see the Web page */
+      PT_DVI4_22050  = 17;      //* from Joseph Di Pol of Sun; see the Web page */
+      PT_G729        = 18;      //
+      PT_CN_OLD      = 19;      //* Payload type reserved (old version Comfort Noise) */
+      PT_CELB        = 25;      //* RFC 2029 */
+      PT_JPEG        = 26;      //* RFC 2435 */
+      PT_NV          = 28;      //* RFC 1890 */
+      PT_H261        = 31;      //* RFC 2032 */
+      PT_MPV         = 32;      //* RFC 2250 */
+      PT_MP2T        = 33;      //* RFC 2250 */
+      PT_H263        = 34;      //* from Chunrong Zhu of Intel; see the Web page */    
+      PT_iLBC        = 99;
     class function GetInternalStructure(const aPacketData: PByte;aPacketSize:Integer): PTRTPHeaderInternal; static;
     class function GetRTPPayloadTypeString(APayloadType: Byte): string; static;
     
@@ -100,7 +129,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
     class function GetPayLoadRTP(const aPacketData: PByte;aPacketSize: Integer;var aSize:Integer): PByte; static;
     class function GetSoxCommandDecode(const aPacketData:PByte;aPacketSize:Integer): String; static;      
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
@@ -142,13 +171,14 @@ begin
   Result := PTRTPHeader(aUDPPayLoad);
 end;
 
-class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString): Boolean;
+class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LInternalHeader : PTRTPHeaderInternal;
     LHeaderRTP      : PTRTPHeader;
     LUDPPayLoad     : PByte;
     LPUDPHdr        : PUDPHdr;
     LPayLoad        : PByte;
     LSizePayLoad    : integer;
+    LUDPPayLoadLen  : Integer;
     I               : Integer;
 begin
   Result := False;
@@ -156,27 +186,29 @@ begin
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
   LUDPPayLoad     := GetUDPPayLoad(aPacketData,aPacketSize);
-  LHeaderRTP      := Header(LUDPPayLoad);    
+  LHeaderRTP      := Header(LUDPPayLoad);   
+  LUDPPayLoadLen  := UDPPayLoadLength(LPUDPHdr)-8;  
   LInternalHeader := GetInternalStructure(aPacketData,aPacketSize);
+  FIsFilterMode   := aIsFilterMode;
 
   if not Assigned(LInternalHeader) then Exit;
   Try
     LPayLoad := GetPayLoadRTP(aPacketData,aPacketSize,LSizePayLoad);
     Try
-      AListDetail.Add(AddHeaderInfo(aStartLevel, Format('%s (%s)', [ProtoName, AcronymName]), null, PByte(LHeaderRTP), SizeOf(TRTPHeader)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Version:',LInternalHeader.Version , @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Padding:',LInternalHeader.Padding, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Extension:', LInternalHeader.Extension, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'CSRC Count:',LInternalHeader.CountCSRC, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Marker:',LInternalHeader.Marker , @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Payload Type:', GetRTPPayloadTypeString(LInternalHeader.PayloadType), @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Sequence Number:', LInternalHeader.SequenceNumber, @LHeaderRTP.SequenceNumber, SizeOf(LHeaderRTP.SequenceNumber)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'Timestamp:',LInternalHeader.Timestamp , @LHeaderRTP.timestamp, SizeOf(LHeaderRTP.timestamp)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'SSRC:', LInternalHeader.ssrc, @LHeaderRTP.ssrc, SizeOf(LHeaderRTP.ssrc)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad));
+      AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad, LUDPPayLoadLen ));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Version',[AcronymName]), 'Version:',LInternalHeader.Version , @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Padding',[AcronymName]), 'Padding:',LInternalHeader.Padding, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Extension',[AcronymName]), 'Extension:', LInternalHeader.Extension, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CountCSRC',[AcronymName]), 'CSRC Count:',LInternalHeader.CountCSRC, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Marker',[AcronymName]), 'Marker:',LInternalHeader.Marker , @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadType',[AcronymName]), 'Payload Type:', GetRTPPayloadTypeString(LInternalHeader.PayloadType), @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT), LInternalHeader.PayloadType ));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumber',[AcronymName]), 'Sequence Number:', LInternalHeader.SequenceNumber, @LHeaderRTP.SequenceNumber, SizeOf(LHeaderRTP.SequenceNumber)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Timestamp',[AcronymName]), 'Timestamp:',LInternalHeader.Timestamp , @LHeaderRTP.timestamp, SizeOf(LHeaderRTP.timestamp)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SSRC',[AcronymName]), 'SSRC:', LInternalHeader.ssrc, @LHeaderRTP.ssrc, SizeOf(LHeaderRTP.ssrc)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.payload',[AcronymName]), 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad, LSizePayLoad));
 
       for I := Low(LInternalHeader.CSRC) to High(LInternalHeader.CSRC) do
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Cardinal)));
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CSRC',[AcronymName]), 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Cardinal)));
       
       Result := True;
     Finally
@@ -188,24 +220,44 @@ begin
 end;
 
 Class function TWPcapProtocolRTP.GetRTPPayloadTypeString(APayloadType: Byte): string;
-const
-  RTPPayloadTypes: array[0..82] of string = ('PCMU (G.711 μ-law)', 'reserved (formerly 1016)', 'reserved (formerly 1017)', 'GSM', 'G723', 'DVI4', 'DVI4', 'LPC', 'PCMA (G.711 A-law)',
-    'G722', 'L16 (uncompressed)', 'L16 (uncompressed)', 'QCELP', 'CN (uncompressed)', 'MPA', 'G728', 'DVI4', 'DVI4', 'G729', 'reserved (TSB)', 'reserved (IANA)', 'reserved (IANA)', 
-    'unassigned', 'CelB (not IANA assigned)', 'JPEG (not IANA assigned)', 'unassigned', 'nv', 'unassigned', 'H261', 'MPV', 'MP2T', 'H263', 'unassigned', 'unassigned', 'H263-1998', 
-    'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)',
-    'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'reserved (Cisco)', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 
-    'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned',
-    'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned',
-    'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned', 'unassigned');
 begin
-  if APayloadType <= High(RTPPayloadTypes) then
-    Result := RTPPayloadTypes[APayloadType]
-  else if APayloadType > 127 then
-    Result := 'Dynamic'
+
+  case APayloadType of
+     PT_PCMU        : Result := 'PCMU (G.711 μ-law)';      
+     PT_1016        : Result := 'reserved (formerly 1016)';
+     PT_G721        : Result := 'G721';
+     PT_GSM         : Result := 'GSM';
+     PT_G723        : Result := 'G723';
+     PT_DVI4_8000   : Result := 'DVI4 8000';
+     PT_DVI4_16000  : Result := 'DVI4 16000';
+     PT_LPC         : Result := 'LPC';     
+     PT_PCMA        : Result := 'PCMA (G.711 A-law)';
+     PT_G722        : Result := 'G722 ';
+     PT_L16_STEREO  : Result := 'L16 Stereo';
+     PT_L16_MONO    : Result := 'L16 Mono';
+     PT_QCELP       : Result := 'QCELP';
+     PT_CN          : Result := 'CN';
+     PT_MPA         : Result := 'MPA';
+     PT_G728        : Result := 'G728';
+     PT_DVI4_11025  : Result := 'DVI4 11025';
+     PT_DVI4_22050  : Result := 'DVI4 22050';
+     PT_G729        : Result := 'G729';
+     PT_CN_OLD      : Result := 'CN Old';
+     20..22         : Result := 'reserved (IANA)';
+     23..24         : Result := 'unassigned';
+     PT_CELB        : Result := 'CelB';
+     PT_JPEG        : Result := 'JPEG';
+     27             : Result := 'unassigned';
+     PT_NV          : Result := 'NV';
+     29..30         : Result := 'unassigned';
+     PT_H261        : Result := 'H261';
+     PT_MPV         : Result := 'MPV';
+     PT_MP2T        : Result := 'MP2T';
+     PT_H263        : Result := 'H263';
+     PT_iLBC        : Result := 'iLBC';
   else     
-    Result := 'unknown';
-    
-  Result := Format('%s [%d]',[Result,APayloadType])    
+    Result := 'unknown';     
+  end;
 end;
 
 
@@ -269,8 +321,36 @@ begin
 
   if not Assigned(LInternalHeader) then Exit;
   Try  
+
+
     case LInternalHeader.PayloadType of
-       8 : Result :=  'sox -t raw -r 8000 -c 1 -e a-law %s %s'
+       PT_PCMU        : Result := '"%ssox.exe" -t raw -r 8000 -c 1 -e u-law %s %s';   //PCMA (G.711 u-law)
+       PT_1016        :;
+       PT_G721        :;
+       PT_GSM         :;// Result := '"%ssox.exe" -r8000 -c1 -t ul %S -t wav %s';
+       PT_G723        :;
+       PT_DVI4_8000   :;
+       PT_DVI4_16000  :;
+       PT_LPC         :;     
+       PT_PCMA        : Result :=  '"%ssox.exe" -t raw -r 8000 -c 1 -e a-law %s %s';   //PCMA (G.711 a-law)
+       PT_G722        :;
+       PT_L16_STEREO  :;
+       PT_L16_MONO    :;
+       PT_QCELP       :;
+       PT_CN          :;
+       PT_MPA         :;
+       PT_G728        :;
+       PT_DVI4_11025  :;
+       PT_DVI4_22050  :;
+       PT_G729        :;
+       PT_CN_OLD      :;
+       PT_CELB        :;
+       PT_JPEG        :;
+       PT_NV          :;
+       PT_H261        :;
+       PT_MPV         :;
+       PT_MP2T        :;
+       PT_H263        :;//Result :=  '"%ssox.exe" -t raw %s %s'; //H263-1998
     end;
   
   Finally
@@ -319,14 +399,14 @@ begin
   Try
     if (LInternalHeader.Version <> 2) then exit;
     
+    
     LPayLoad := GetPayLoadRTP(aPacket,aPacketSize,LSizePayLoad);
     Try
-      Result := ( LSizePayLoad > 100);
+      Result := ( LSizePayLoad > 100) or (LInternalHeader.PayloadType <= PT_iLBC) ;
     Finally
       FreeMem(LPayLoad);
     End;
       
-
     if Result then
     begin
       aAcronymName     := AcronymName;
