@@ -21,6 +21,7 @@ type
     dxMapControl1ImageTileLayer1: TdxMapImageTileLayer;
     dxMapControl1ItemLayer1: TdxMapItemLayer;
     ImgCell: TcxImage;
+    imgContry: TcxImage;
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormCreate(Sender: TObject);
   private
@@ -33,11 +34,13 @@ type
     procedure AddMarker(Lat, lng: extended; const Info: String; Img: TcxImage);
     procedure DrawLinePath(aCoordinate:TListCoordinate;aColor: TColor);
     procedure CenterMap(lat, lng: extended; Zoom: Smallint);
+
     { Private declarations }
   public
     { Public declarations }
     Property CurrentCoordinates : TListCoordinate read FCurrentCoordinates; 
     procedure DrawGeoIP(aClearLayer, aAutoZoom: Boolean);
+    procedure DrawCountry(aClearLayer, aAutoZoom: Boolean);
   end;
 
 
@@ -95,6 +98,24 @@ begin
   TdxMapPushpinAccess(LItem).Image.Assign(Img.Picture.Graphic as TdxSmartImage);
 end;
 
+
+Procedure TFormMap.DrawCountry(aClearLayer, aAutoZoom: Boolean);
+var i  : integer;
+begin
+  dxMapControl1ItemLayer1.MapItems.BeginUpdate;
+  Try
+    if aClearLayer then
+      ClearLayer;
+
+    for I := 0 to FCurrentCoordinates.Count -1 do
+      AddMarker(FCurrentCoordinates[I].latitude,FCurrentCoordinates[I].Longitude,GetHitCoordinates(FCurrentCoordinates[I].Info),imgContry);
+
+  Finally
+    dxMapControl1ItemLayer1.MapItems.EndUpdate();
+  End;
+  if aAutoZoom then
+    ZoomCurrentCoodinates;
+end;
 
 procedure TFormMap.DrawGeoIP(aClearLayer, aAutoZoom: Boolean);
 var i            : integer;

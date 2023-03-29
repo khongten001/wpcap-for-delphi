@@ -185,7 +185,7 @@ type
     /// <returns>
     ///   The corresponding domain name as a string.
     /// </returns>
-    class function ParseDNSName(const aPacket: TBytes; var aOffset,aTotalNameLen: integer;aApplyyConversion:Boolean=True): AnsiString;
+    class function ParseDNSName(const aPacket: TBytes;aMaxLen:Integer;var aOffset,aTotalNameLen: integer;aApplyyConversion:Boolean=True): AnsiString;
     
     /// <summary>
     ///  Returns the DNS flags as a string.
@@ -510,7 +510,7 @@ begin
   Result := Result.TrimLeft([',']);
 end;
 
-class function TWPcapProtocolDNS.ParseDNSName(const aPacket: TBytes; var aOffset,aTotalNameLen: integer;aApplyyConversion:Boolean=True): AnsiString;
+class function TWPcapProtocolDNS.ParseDNSName(const aPacket: TBytes;aMaxLen:Integer; var aOffset,aTotalNameLen: integer;aApplyyConversion:Boolean=True): AnsiString;
 var LLen        : integer;
     LCompressPos: integer;
     LCompressed : boolean;
@@ -526,6 +526,8 @@ begin
   while True do 
   begin
     LLen := aPacket[aOffset];
+    if aOffset > aMaxLen then Break;
+    
 
     if (LLen and $C0) = $C0 then 
     begin
@@ -537,7 +539,7 @@ begin
         LCompressed  := True;
       end;
       // follow pointer
-      aOffset := (((LLen and $3F) shl 8) or aPacket[aOffset+1]);
+      aOffset := aOffset + (((LLen and $3F) shl 8) or aPacket[aOffset+1]);
       if LastOffset = aOffset then break;
 
       LastOffset := aOffset;          
@@ -553,6 +555,7 @@ begin
     if not Trim(String(Result)).IsEmpty then
       Result := AnsiString(Format('%s.',[Result]));
 
+      
     SetLength(Result, Length(Result) + LLen);  
     Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
     
@@ -592,6 +595,7 @@ var LPUDPHdr        : PUDPHdr;
     i               : Integer;    
     LCountQuestion  : Word;  
     LTotalNameLen   : Integer;
+    LLenQuestion    : Integer;
 begin
   {Question section format
 
@@ -625,8 +629,8 @@ begin
   LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);    
   LHeaderDNS     := Header(LUDPPayLoad);
   LCountQuestion := wpcapntohs(LHeaderDNS.Questions);
-
-  SetLength(LDataQuestions,UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags));
+  LLenQuestion   := UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags);
+  SetLength(LDataQuestions,LLenQuestion);
   LDataQuestions := TBytes(LUDPPayLoad+HeaderLength(LHeaderDNS.Flags));
 
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Questions.Query',[AcronymName]), 'Query',NULL,Pbyte(@LDataQuestions),Length(LDataQuestions)));              
@@ -643,7 +647,7 @@ begin
   
 
     
-    LQName := String(ParseDNSName(LDataQuestions,aOffSetQuestion,LTotalNameLen));
+    LQName := String(ParseDNSName(LDataQuestions,LLenQuestion,aOffSetQuestion,LTotalNameLen));
     AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.Questions.Name',[AcronymName]), 'Name',LQName,nil,LQName.Length));  
     AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Questions.Name.Len',[AcronymName]), 'Name length',LTotalNameLen,nil,0));  
 
@@ -771,7 +775,7 @@ begin
            resource record pertains.
     }
   
-    LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen));
+    LRssName := String(ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen));
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, aLabelForName, 'Name', ifThen(LRssName.Trim.IsEmpty,'<Root>',LRssName), nil, LRssName.Length ));
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Len',[aLabelForName]), 'Name length',LTotalNameLen,nil,0));    
 
@@ -828,13 +832,13 @@ begin
        TYPE_DNS_QUESTION_NS :
         begin
           LCaption := 'Name server';
-          LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen,False));              
+          LRssName := String(ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen,False));              
         end;
 
         TYPE_DNS_QUESTION_CNAME :
         begin
           LCaption := 'CNAME';
-          LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen,False));            
+          LRssName := String(ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen,False));            
         end;
         
         TYPE_DNS_QUESTION_AAAA:
@@ -851,13 +855,13 @@ begin
           LRssTTL := wpcapntohl(Pinteger(@LDataRss[LInternalOffset])^);
           AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.TTL',[aLabelForName,LQuestionClass]), 'Time to live MX:', Format('%d seconds', [LRssTTL]),PByte(@LDataRss[LInternalOffset]), 4));    
           Inc(LInternalOffset, SizeOf(Pinteger));
-          LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen));
+          LRssName := String(ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen));
         end;
         
         TYPE_DNS_QUESTION_SRV    : LRssName := DecodeDNS_RSS_SRV(LQuestionClass,aRRsType,LDataRss,LInternalOffset,LTotalNameLen,AListDetail,aStartLevel);
         TYPE_DNS_QUESTION_NIMLOC : LRssName := DecodeDNS_RSS_NIMLOC(LQuestionClass,aRRsType,LDataRss,LInternalOffset,LTotalNameLen,AListDetail,aStartLevel);       
       else
-        LRssName := String(ParseDNSName(LDataRss, LInternalOffset,LTotalNameLen,False));
+        LRssName := String(ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen,False));
       end;
       
      if not LRssName.Trim.IsEmpty then
@@ -871,7 +875,7 @@ end;
 
 class function TWPcapProtocolDNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
 begin
-  Result := String(ParseDNSName(aPacket, aOffset,aTotalNameLen));
+  Result := String(ParseDNSName(aPacket,Length(aPacket), aOffset,aTotalNameLen));
 end;
 
 class function TWPcapProtocolDNS.DecodeDNS_RSS_SRV(const aQuestionClass:String;const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
@@ -881,7 +885,7 @@ begin
   Inc(aOffset, SizeOf(Pinteger));
           
   AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.TTLMX',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]), 'Time to live MX:', Format('%d seconds', [LRssTTL]),PByte(@aPacket[aOffset]), 4)); 
-  Result := String(ParseDNSName(aPacket, aOffset,aTotalNameLen));
+  Result := String(ParseDNSName(aPacket,Length(aPacket), aOffset,aTotalNameLen));
 end;
 
 Class procedure TWPcapProtocolDNS.ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss:TBytes;aInternalOffset,aStartLevel:Integer;AListDetail: TListHeaderString);
@@ -897,8 +901,6 @@ class procedure TWPcapProtocolDNS.ParserDNSTTL(const aQuestionClass:String;const
 begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Name.TTL',[AcronymName,RSSTypeToString(aRRsType),aQuestionClass]),  'Time to live:', Format('%d seconds', [wpcapntohl(PInteger(@aDataRss[aInternalOffset])^)]),PByte(@aDataRss[aInternalOffset]), 4));    
 end;
-
-
 
 class function TWPcapProtocolDNS.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LHeaderDNS        : PTDnsHeader;

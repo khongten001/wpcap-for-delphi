@@ -226,7 +226,7 @@ begin
 
         LNewPacketData := GetNextIpHeader(aPacketData,aPacketSize,0,LNewPacketLen);
         Try
-          Result := TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail);
+          TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail);
         Finally
           FreeMem(LNewPacketData);
         End;      

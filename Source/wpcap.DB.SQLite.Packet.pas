@@ -98,9 +98,9 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  PACKET_DATA BLOB                              '+sLineBreak+
                       ');                                              ';
 
-           SQL_DB_METADATA =  'CREATE TABLE METADATA(                     '+sLineBreak+
-                              '  NAME TEXT,                               '+sLineBreak+
-                              '  VALUE TEXT                               '+sLineBreak+
+           SQL_DB_METADATA =  'CREATE TABLE %S(                     '+sLineBreak+
+                              '  %S TEXT,                               '+sLineBreak+
+                              '  %s TEXT                               '+sLineBreak+
                               ');';      
 
            SQL_DB_LABEL_FILTER =  'CREATE TABLE LABEL_FILTER(                         '+sLineBreak+
@@ -136,7 +136,7 @@ begin
             SQL_DB_LABEL_FILTER  +sLineBreak+
             SQL_INDEX_LF_1       +sLineBreak+
             SQL_INDEX_LF_2       +sLineBreak+
-            SQL_DB_METADATA;
+            Format(SQL_DB_METADATA,[GetMetadataTableName,GetMetadataCOLUMN_NAME_NAME,GetMetadataCOLUMN_NAME_VALUE]);
 end;
 
 procedure TWPcapDBSqLitePacket.InitConnection;

@@ -1,7 +1,7 @@
 ﻿unit wpcap.MCC;
 
 interface
-uses  wpcap.Types;
+uses  wpcap.Types,wpcap.Geometry;
 
 
 CONST
@@ -209,8 +209,10 @@ MCC_ROWS: array [0..199] of TMCCRow = (
 );
 
 function MCCToCountry(const aMCC:integer):String;
+function MCCToCoordinate(const aMCC:integer ;var aCoordinate: TMapCoordinate):Boolean;
 
 implementation
+
 
 function MCCToCountry(const aMCC:integer):String;
 var LMccRow : TMCCRow;
@@ -222,6 +224,26 @@ begin
     if LMccRow.MCC = aMCC then
     begin
       Result := LMccRow.Country;
+      Break;
+    end;
+  end;
+end;
+
+
+function MCCToCoordinate(const aMCC:integer ;var aCoordinate: TMapCoordinate):Boolean;
+var LMccRow : TMCCRow; 
+begin
+  result := False;  
+  for LMccRow in MCC_ROWS do
+  begin
+    if LMccRow.MCC = aMCC then
+    begin
+      result := True;
+      
+      aCoordinate.Latitude  := LMccRow.LATITUDINE;
+      aCoordinate.Longitude := LMccRow.LONGITUDINE;      
+      aCoordinate.Info      := LMccRow.COUNTRY;            
+      aCoordinate.DateTime  := 0;
       Break;
     end;
   end;

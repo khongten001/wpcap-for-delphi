@@ -17,13 +17,13 @@ uses
   FireDAC.DApt, FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,wpcap.GEOLite2,
   FireDAC.Phys.SQLiteDef, Data.DB, cxDBData, cxGridDBTableView, wpcap.DB.SQLite.Packet,
   FireDAC.Phys.SQLite, FireDAC.Comp.DataSet, FireDAC.Comp.Client,wpcap.Protocol,
-  FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,
+  FireDAC.Comp.ScriptCommands, FireDAC.Stan.Util, FireDAC.Comp.Script,wpcap.MCC,
   cxTextEdit, cxMemo, cxSplitter, dxBar, System.ImageList, Vcl.ImgList,
   cxImageList, dxSkinBasic, dxCore, dxSkinsForm, cxLabel, cxGroupBox, cxTL,
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
   cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
   cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons, dxStatusBar,
-  dxCalloutPopup;
+  dxCalloutPopup, cxImageComboBox;
 
 type
   TFormMain = class(TForm)
@@ -104,6 +104,8 @@ type
     dxBarPopupMenu1: TdxBarPopupMenu;
     BCopyTreeList: TdxBarButton;
     BFilterByLabel: TdxBarButton;
+    ListPacketDetailEnrichment: TcxTreeListColumn;
+    BLoadSQLLiteDatabase: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -136,6 +138,8 @@ type
       ANode: TcxTreeListNode; var Value: string);
     procedure BCopyTreeListClick(Sender: TObject);
     procedure BFilterByLabelClick(Sender: TObject);
+    procedure ListPacketDetailClick(Sender: TObject);
+    procedure BLoadSQLLiteDatabaseClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -154,6 +158,7 @@ type
     procedure ExecuteAndWait(const aCommando: string);
     function GetTmpPath: String;
     function GetPathUtils: String;
+    procedure OpenDatabase(const aFileName: String;aCheckVersion:Boolean);
   public
     { Public declarations }
   end;
@@ -193,16 +198,36 @@ end;
 
 procedure TFormMain.DoPCAPOfflineCallBackEnd(const aFileName:String);
 begin
+  OpenDatabase(aFileName,false);
+end;
+
+Procedure TFormMain.OpenDatabase(Const aFileName:String;aCheckVersion:Boolean);
+begin
   FWPcapDBSqLite.OpenDatabase(ChangeFileExt(aFileName,'.db'));
 
   if FWPcapDBSqLite.Connection.Connected then  
   begin
+
+
+    if aCheckVersion then
+    begin
+      if not FWPcapDBSqLite.IsVersion(2) then
+      begin
+        MessageDlg(Format('Database %s: incompatible version',[aFileName]),mtError,[mbOK],0);
+        Exit;
+      end;
+    end;
+
     DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
     FWPcapDBSqLite.FDQueryGrid.Open;
     BSavePCAP.Enabled := True;
-    BSaevGrid.Enabled := True;
-  end;
-  pProgressImport.Visible := False;    
+    BSaevGrid.Enabled := True;    
+      
+  end
+  else
+    MessageDlg(Format('Database %s: unable open database',[aFileName]),mtError,[mbOK],0);
+    
+  pProgressImport.Visible := False;   
 end;
 
 
@@ -273,7 +298,7 @@ begin
             LCurrentNode.Values[ListPacketDetailHex.Position.ColIndex]         := LListDetail[I].Hex;
             LCurrentNode.Values[ListPacketDetailLabel.Position.ColIndex]       := LListDetail[I].Labelname;
             LCurrentNode.Values[ListPacketDetailSize.Position.ColIndex]        := LListDetail[I].Size;
-
+            LCurrentNode.Values[ListPacketDetailEnrichment.Position.ColIndex]  := Integer(LListDetail[I].EnrichmentType);
           end;
         finally
           ListPacketDetail.EndUpdate;
@@ -653,6 +678,7 @@ begin
     LFormOpenDialog.ShowModal;
     if LFormOpenDialog.ModalResult = mrOK then
     begin
+
       pProgressImport.Visible := True;  
 
       BSavePCAP.Enabled       := False;
@@ -720,6 +746,40 @@ begin
   if not Assigned(ListPacketDetail.FocusedNode) then Exit;
   
   FilterColumn(GridPcapDBTableView1XML_PACKET_DETAIL,GridPcapDBTableView1,foContains,ListPacketDetail.FocusedNode.Values[ListPacketDetailLabel.Position.ColIndex]);
+end;
+
+procedure TFormMain.ListPacketDetailClick(Sender: TObject);
+var LCoordinate: TMapCoordinate;
+begin
+  if Assigned(ListPacketDetail.FocusedColumn) then
+  begin
+    if ListPacketDetail.FocusedColumn = ListPacketDetailEnrichment then
+    begin
+      case TWcapEnrichmentType(ListPacketDetail.FocusedNode.Values[ListPacketDetailEnrichment.Position.ColIndex])  of
+        WetMCC :
+          begin
+            if MCCToCoordinate(ListPacketDetail.FocusedNode.Values[ListPacketDetailRawValue.Position.ColIndex],LCoordinate) then
+            begin
+              if Not Assigned(FFFormMap) then
+                FFFormMap := TFormMap.Create(nil);
+
+              FFFormMap.CurrentCoordinates.Clear;
+              FFFormMap.CurrentCoordinates.Add(@LCoordinate); 
+
+              FFFormMap.DrawCountry(True,True);
+              FFFormMap.Show;    
+            end;
+          end;
+      end;
+    end;
+  end;
+end;
+
+procedure TFormMain.BLoadSQLLiteDatabaseClick(Sender: TObject);
+begin
+  OpenDialog1.Filter := 'SQLite database(*.db)|*.db';
+  if OpenDialog1.Execute then
+    OpenDatabase(OpenDialog1.FileName,True);
 end;
 
 end.

@@ -223,8 +223,7 @@ begin
   Result.RAW_Text    := BufferToASCII(aPacketData,LLen);
   LListDetail := TListHeaderString.Create;
   Try
-    if TWpcapEthHeader.HeaderToString(aPacketData,LLen,0,LListDetail,True) then  
-        
+    if TWpcapEthHeader.HeaderToString(aPacketData,LLen,0,LListDetail,True) then          
       Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
    else
       Result.XML_Detail := String.empty;

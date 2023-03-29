@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,
+  System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,Windows,
   wpcap.Conts, System.SysUtils,wpcap.Types,Variants,wpcap.IANA.Dbport,winsock2;
 
 type  
@@ -33,6 +33,7 @@ type
     class function isValidSize(aPacketSize: Integer): Boolean; overload;
   protected
     class var FIsFilterMode : Boolean;  
+    class var aTest : Int64;
   public
 
     /// <summary>
@@ -154,13 +155,16 @@ var LInternalPacket   : PTInternalPacket;
     LLikLayersSize    : Integer;  
 begin
   Result := False;
+
+  
   new(LInternalPacket);
   Try
     FIsFilterMode := aIsFilterMode;
     if not InternalPacket(aPacketData,aPacketSize,nil,LInternalPacket,LLikLayersSize) then exit;
     Try    
+      
       LHeader := HeaderEth(aPacketData,aPacketSize);
-    
+
       if not Assigned(AListDetail) then
         AListDetail := TListHeaderString.Create;
 
@@ -341,6 +345,7 @@ begin
     begin
       {Lik layers type}
       LOffSet   := 0;
+      LEthType  := 0;
       if Pbyte(aPacketData)^ = 2 then     
       begin         
         LEthType  := ntohs(ETH_P_IP);  {Loopback}
@@ -370,7 +375,7 @@ begin
         GetMem(LNewData,LNewSize); 
         Move( (aPacketData+LOffSet)^, (LNewData + HeaderEthSize)^, aPacketSize-LOffSet);
         Move(LPETHHdr^, LNewData^, HeaderEthSize);
-        Result := InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
+        InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
       end;
           
     end;

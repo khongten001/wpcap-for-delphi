@@ -524,8 +524,8 @@ var LBytes         : TidBytes;
       LMCC3       := LSecondByte and $0f;      
       LMCC        :=  (100 * LMCC1) + (10 * LMCC2 )+ LMCC3;
   
-      AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MCC', [aLabelIEType]), 'Mobile Country Code (MCC):', LMCC, @LWordValue, SizeOf(LWordValue), LMCC, wetMcc));
-      AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCC), nil, 0, LMCC));
+      AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MCC', [aLabelIEType]), 'Mobile Country Code (MCC):', LMCC, @LWordValue, SizeOf(LWordValue), LMCC));
+      AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCC), nil, 0, LMCC, wetMcc ));
     end;
 
     Procedure AddMNC(const aLabelIEType:String;aLevel:Integer);
@@ -563,7 +563,7 @@ var LBytes         : TidBytes;
       end;
       LMCCImsi := Copy(LIMSIString,1,3);
       AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.IMSI', [aLabelIEType]), 'IMSI:',LIMSIString,@LIMSI,sizeOf(LIMSI)));
-      AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger));      
+      AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger, wetMcc ));      
       Inc(aCurrentPos,LLenIE);
     end;
 

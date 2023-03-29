@@ -441,15 +441,19 @@ end;
 class Function TWpcapIPHeader.GetNextBufferHeader(const aPacketData: PByte;aPacketSize,aHeaderPrevLen,aNewIpProto: Integer;var aNewPacketLen: Integer):PByte;
 var lHeaderEthLen    : Integer;
 begin
+  Result := nil;
   if aHeaderPrevLen = 0 then
       aHeaderPrevLen := HeaderIPSize(aPacketData,aPacketSize);
       
   lHeaderEthLen  := HeaderEthSize;
   aNewPacketLen  := aPacketSize -aHeaderPrevLen; 
-  GetMem(Result,aNewPacketLen);
-  Move(aPacketData^,Result^,lHeaderEthLen);
-  PETHHdr(Result)^.EtherType := ntohs(aNewIpProto);
-  Move(PByte(aPacketData + lHeaderEthLen + aHeaderPrevLen)^,Pbyte(Result + lHeaderEthLen)^, aNewPacketLen- lHeaderEthLen);
+  if aNewPacketLen > 0 then
+  begin
+    GetMem(Result,aNewPacketLen);
+    Move(aPacketData^,Result^,lHeaderEthLen);
+    PETHHdr(Result)^.EtherType := ntohs(aNewIpProto);
+    Move(PByte(aPacketData + lHeaderEthLen + aHeaderPrevLen)^,Pbyte(Result + lHeaderEthLen)^, aNewPacketLen- lHeaderEthLen);
+  end;
 end;
 
 class Function TWpcapIPHeader.HeaderLenConvert(const aVerLen: Word):Word;

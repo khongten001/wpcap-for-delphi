@@ -205,8 +205,8 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UnexpectedPktLen',[AcronymName]), 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte), TtmpByte ))
       else
       begin
-       { Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
-        Lpayload := Copy(packet, 27, Length(packet) - 26);}
+        Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
+    //    Lpayload := Copy(packet, 27, Length(packet) - 26);
       end;
 
     end
@@ -216,8 +216,8 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UnexpectedPktLen',[AcronymName]), 'Unexpected packet number length', null, @TtmpByte,SizeOf(TtmpByte), TtmpByte ))
       else
       begin
-       { Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
-        Lpayload := Copy(packet, 31, Length(packet) - 30);}
+        Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
+       // Lpayload := Copy(packet, 31, Length(packet) - 30);
       end;
     end;
   end

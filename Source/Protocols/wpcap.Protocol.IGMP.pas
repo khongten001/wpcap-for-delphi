@@ -148,15 +148,24 @@ begin
 
   LSizeEthIP  := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LCurrentPos := LSizeEthIP+SizeOf(TIGMPHeader);
+
+  if LCurrentPos+SizeOf(TIGMPGroupRecord) > aPacketSize then exit;
+  
   for I := 0 to wpcapntohs( LHeader.NGroupRec)-1 do
   begin
     LGroupRec := PTIGMPGroupRecord(aPacketData + LCurrentPos );
+    if LCurrentPos >aPacketSize  then break;
+    
     AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.GroupRecord',[AcronymName]), 'Group record:',null,@LGroupRec,SizeOf(LGroupRec)));
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.Type',[AcronymName]), 'Type:',RecordTypeToString(LGroupRec.RecType),@LGroupRec.RecType,sizeOf(LGroupRec.RecType), LGroupRec.RecType ));            
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.AudLen',[AcronymName]), 'Aux Data Len:',LGroupRec.DataLen,@LGroupRec.DataLen,sizeOf(LGroupRec.DataLen) ));    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.NSrc',[AcronymName]), 'Num src:',wpcapntohs(LGroupRec.NumSrc),@LGroupRec.NumSrc,sizeOf(LGroupRec.NumSrc) ));   
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',intToIPV4(LGroupRec.Ipaddr),@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
     Inc(LCurrentPos,SizeOf(TIGMPGroupRecord));
+
+    if LCurrentPos > aPacketSize then break;
+    
+    
     
     for X := 0 to wpcapntohs(LGroupRec.NumSrc) -1 do
     begin
@@ -167,7 +176,8 @@ begin
     
     INC(LCurrentPos,LGroupRec.DataLen);  
     {Padding ??}  
-  end;         
+  end;  
+  Result := True;       
 end;
 
 class function TWPcapProtocolIGMP.HeaderLength(aFlag: Byte): word;

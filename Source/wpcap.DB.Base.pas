@@ -14,7 +14,7 @@ uses
 Type
   TWPcapDBBase = Class(TObject)
   strict private
-
+    CONST METADATA_VERSION_LABEL = 'Version';
   private
     procedure DoOnErrorCreateDatabase(ASender, AInitiator: TObject;var AException: Exception);
 
@@ -32,13 +32,17 @@ Type
     ///<summary>
     ///   Insert metadata version
     ///</summary>
-    procedure InsertVersion;     
+    procedure InsertVersion;
+
   protected
     var FConnection       : TFDConnection; 
     var FFDQueryTmp       : TFdQuery; 
     var FFDQueryGrid      : TFdQuery;
     var FFDGetDataByID    : TFdQuery;  
     var FFilenameDB       : String;
+    function GetMetadataCOLUMN_NAME_NAME: String;
+    function GetMetadataCOLUMN_NAME_VALUE: String;     
+    function GetMetadataTableName:String;
     ///<summary>
     /// Creates a new FireDAC database connection object.
     ///</summary>
@@ -171,8 +175,11 @@ Type
     /// An EDatabaseError exception is raised if there are any errors during the commit.
     ///</exception>    
     procedure CommitAndClose;  
-
+    function IsVersion(const aVersion:Byte):Boolean;
+    
     property Connection  : TFDConnection read FConnection  write FConnection;  
+
+    
     
     /// <summary>
     ///   Gets or sets the FireDAC query object used to populate a grid.
@@ -212,13 +219,11 @@ begin
   FFDQueryTmp                           := TFDQuery.Create(nil);
   FFDQueryTmp.Connection                := FConnection;
 
-
   FFDQueryGrid                          := TFDQuery.Create(nil);
   FFDQueryGrid.Connection               := FConnection;
-
                                            
-  FFDGetDataByID                      := TFDQuery.Create(nil);
-  FFDGetDataByID.Connection           := FConnection;
+  FFDGetDataByID                        := TFDQuery.Create(nil);
+  FFDGetDataByID.Connection             := FConnection;
 end;
 
 function TWPcapDBBase.OpenDatabase(const aFilename: String): Boolean;
@@ -309,12 +314,47 @@ end;
 
 procedure TWPcapDBBase.InsertVersion;
 begin
-  InsertMetadata('Version',GetVersion);
+  InsertMetadata(METADATA_VERSION_LABEL,GetVersion);
 end;
 
 function TWPcapDBBase.GetVersion: String;
 begin
    Result := '2';
+end;
+
+function TWPcapDBBase.GetMetadataTableName: String;
+begin
+  Result := 'METADATA';
+end;
+
+function TWPcapDBBase.GetMetadataCOLUMN_NAME_NAME: String;
+begin
+  Result := 'NAME';
+end;
+
+function TWPcapDBBase.GetMetadataCOLUMN_NAME_VALUE: String;
+begin
+  Result := 'VALUE';
+end;
+
+function TWPcapDBBase.IsVersion(const aVersion: Byte): Boolean;
+var LFDGetVersion : TFDQuery;
+begin
+  Result        := False;
+  LFDGetVersion := TFDQuery.Create(nil);
+  Try
+    LFDGetVersion.Connection                    := FConnection;  
+    LFDGetVersion.SQL.Text                      := Format('SELECT %S FROM %s WHERE %s = :pName',[GetMetadataCOLUMN_NAME_VALUE,GetMetadataTableName,GetMetadataCOLUMN_NAME_NAME]);  
+    LFDGetVersion.ParamByName('pName').AsString := METADATA_VERSION_LABEL; 
+    LFDGetVersion.Open();
+
+    if not LFDGetVersion.IsEmpty then
+    begin
+      Result := LFDGetVersion.FieldByName(GetMetadataCOLUMN_NAME_VALUE).AsInteger = aVersion;
+    end;
+  Finally
+    FreeAndNil(LFDGetVersion);
+  End;
 end;
 
 Procedure TWPcapDBBase.InsertMetadata(const aName:String;aValue:String);
@@ -351,5 +391,6 @@ procedure TWPcapDBBase.SetTNSConnection(const aTNS: String);
 begin
   raise Exception.Create('TWPcapDBBase.SetTNSConnection- Non implemented in base class - please override this method');
 end;
+
 
 end.
