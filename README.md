@@ -5,7 +5,7 @@ It enables the capture and analysis of network packets, making it useful for a w
 
 # Pre-compiled Demo available in Bin folder.
 
-that the "Bin" folder in this repository contains the Demo already compiled and ready to use. This means that you don't need to compile the source code to run the program. Just download the "Bin" folder and run the Demo.
+The "Bin" folder in this repository contains the Demo already compiled and ready to use. This means that you don't need to compile the source code to run the program. Just download the "Bin" folder and run the Demo.
 
 ![image](https://user-images.githubusercontent.com/11525545/228578940-4be9a840-eb49-43f7-9077-d6d0cc3f18e1.png)
 
