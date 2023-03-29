@@ -1,7 +1,7 @@
 # wpcap-for-delphi
 The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
-![image](https://user-images.githubusercontent.com/11525545/221328217-04db309c-c45f-4d33-a297-beff01e0f1c2.png)
+![image](https://user-images.githubusercontent.com/11525545/228578940-4be9a840-eb49-43f7-9077-d6d0cc3f18e1.png)
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
