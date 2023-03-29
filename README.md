@@ -1,9 +1,13 @@
 # wpcap-for-delphi
 The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) library, which is a low-level packet capture library for Windows.
 
-![image](https://user-images.githubusercontent.com/11525545/228578940-4be9a840-eb49-43f7-9077-d6d0cc3f18e1.png)
-
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
+
+# Pre-compiled Demo available in Bin folder.
+
+that the "Bin" folder in this repository contains the Demo already compiled and ready to use. This means that you don't need to compile the source code to run the program. Just download the "Bin" folder and run the Demo.
+
+![image](https://user-images.githubusercontent.com/11525545/228578940-4be9a840-eb49-43f7-9077-d6d0cc3f18e1.png)
 
 # Protocol detection info
 
@@ -14,8 +18,6 @@ However, I also have an internal protocol recognition engine that allows me to i
 For protocols that are recognized directly by my library, I provide additional packet details and information directly in the grid (as listed in the INFO column). This helps to provide a more comprehensive and detailed understanding of the protocols being used.
 
 [Info protocol supported](https://github.com/amancini/wpcap-for-delphi/wiki/Table-protocol-supported)
-
-
 
 # Service Name and Transport Protocol Port Number Registry by IANA 
 
