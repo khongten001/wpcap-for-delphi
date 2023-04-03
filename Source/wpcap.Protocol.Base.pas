@@ -3,7 +3,7 @@
 interface
 
 uses
-  System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,
+  System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,idGlobal,
   System.Variants,wpcap.Types,wpcap.BufferUtils;
 
 Type
@@ -18,11 +18,12 @@ Type
 
 
   protected
-    class var FIsFilterMode : Boolean;
-    class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
+     class var FIsFilterMode : Boolean;
+     class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
      class procedure ParserWordValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);
      class procedure ParserCardinalValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);
-     class procedure ParserByteValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);     
+     class procedure ParserByteValue(const aPacketData:PByte;aLevel:byte;const aLabel,aCaption : String;AListDetail: TListHeaderString;var aCurrentPos:Integer);  
+     class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer): Boolean;        
   public
     /// <summary>
     /// Returns the default port number for the protocol.
@@ -175,4 +176,47 @@ begin
   Inc(aCurrentPos,SizeOf(LByteValue));
 end;
                                                 
+class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,
+  aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer): Boolean;
+var LCopYStart         : Integer;
+    aValue             : String;
+    LBytes             : TIdBytes;
+    aValueArray        : Tarray<String>;      
+begin
+  LCopYStart := 0;
+
+  while aStartOffSet+1 < aPayLoadLen do
+  begin
+    if (aPayLoad[aStartOffSet+1] = $0A )  then
+    begin
+       Inc(aStartOffSet); 
+       if aStartOffSet-LCopYStart > 0 then
+       begin
+         SetLength(LBytes,aStartOffSet-LCopYStart);
+         Move(aPayLoad[LCopYStart],LBytes[0],aStartOffSet-LCopYStart);             
+         aValue := BytesToString(LBytes);
+
+         if aValue.Contains(':') then
+         begin
+           aValueArray := aValue.Split([':']); 
+           if not aValueArray[0].Trim.IsEmpty then
+            AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValueArray[0].Trim]),aValueArray[0].Trim,aValueArray[1].Trim, @LBytes, Length(LBytes) ))
+         end
+         else if aValue.Contains('/')  then
+         begin
+           aValueArray := aValue.Split(['/']); 
+           if not aValueArray[0].Trim.IsEmpty then
+            AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValue.Split(['/'])[0]]),aValue.Split(['/'])[0],aValue.Split(['/'])[1], @LBytes, Length(LBytes) ))
+         end
+         else if not aValue.Trim.IsEmpty then              
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValue.Trim]),aValue.Trim,null, @LBytes, Length(LBytes) ));
+         
+         Inc(LCopYStart,aStartOffSet-LCopYStart)
+       end;
+    end;
+
+    Inc(aStartOffSet);
+  end;
+end;
+
 end.

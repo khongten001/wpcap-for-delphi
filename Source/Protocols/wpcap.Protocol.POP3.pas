@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,idGlobal,
   Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils;
 
 type
@@ -69,24 +69,25 @@ begin
   if not HeaderTCP(aPacket,aPacketSize,LTCPPtr) then exit;   
   if not PayLoadLengthIsValid(LTCPPtr,aPacket,aPacketSize) then  Exit;
 
-  Result := IsValidByDefaultPort(DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected)
-  
+  Result := IsValidByDefaultPort(DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected)  
 end;
 
 class function TWPcapProtocolPOP3.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LTCPPayLoad        : PByte;
     LTCPPHdr           : PTCPHdr;
-    LDataSize          : Integer;
+    LTCPPayLoadLen     : Integer;
+    LOffset            : Integer;    
 begin
   Result := False;
 
   if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
- FIsFilterMode := aIsFilterMode;
-  LTCPPayLoad  := GetTCPPayLoad(aPacketData,aPacketSize);
-  LDataSize    := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
-  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LDataSize ));
+  FIsFilterMode    := aIsFilterMode;
+  LTCPPayLoad      := GetTCPPayLoad(aPacketData,aPacketSize);
+  LTCPPayLoadLen   := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen ));
 
-  Result := True;
+  LOffSet    := 0;  
+  Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);
 end;
 
 

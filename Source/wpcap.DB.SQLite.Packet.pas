@@ -281,13 +281,16 @@ begin
   FDQueryInsertLabel.Params.ArraySize := aListLabelByLevel.Count;
   Literator := aListLabelByLevel.GetEnumerator();  
 
+  
   // Popolare i parametri per ogni riga nella batch
   i := 0;
   Literator.MoveNext;
   while I < aListLabelByLevel.Count -1 do
     AddLabelFilter(0,Literator.Current.Value.Level,I); 
-      
+  Try    
   FDQueryInsertLabel.Execute(FDQueryInsertLabel.Params.ArraySize); // esegue la batch insert        
+  except 
+  end;
 end;
 
 

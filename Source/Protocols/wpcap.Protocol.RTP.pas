@@ -307,16 +307,12 @@ end;
 Class function TWPcapProtocolRTP.GetSoxCommandDecode(const aPacketData:PByte;aPacketSize:Integer):String;
   //sox -t raw -r 8000 -c 1 -e a-law RTP.raw RTP.wav
 var LInternalHeader : PTRTPHeaderInternal;
-    LHeaderRTP      : PTRTPHeader;
-    LUDPPayLoad     : PByte;
     LPUDPHdr        : PUDPHdr;
 begin
   Result := String.Empty;
 
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
-  LUDPPayLoad     := GetUDPPayLoad(aPacketData,aPacketSize);
-  LHeaderRTP      := Header(LUDPPayLoad);    
   LInternalHeader := GetInternalStructure(aPacketData,aPacketSize);
 
   if not Assigned(LInternalHeader) then Exit;

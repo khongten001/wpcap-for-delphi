@@ -658,8 +658,8 @@ var LOffset         : Integer;
         end;    
     end;
 begin
-  Result       := False;
- FIsFilterMode := aIsFilterMode;
+  Result        := False;
+  FIsFilterMode := aIsFilterMode;
 
   if aPacketSize < SizeOf(TTLSRecordHeader) then Exit;
   if not HeaderTCP(aPacketData,aPacketSize,LTCPHdr) then exit;
@@ -683,8 +683,7 @@ begin
     LContectLen :=  wpcapntohs(LRecord.Length);
 
     if LContectLen > LTCPPayLoadLen then exit;
-    
-    
+        
     SetLength(LBytes,LContectLen);
     Move(LTCPPayLoad[LOffset],LBytes[0],LContectLen); 
                     

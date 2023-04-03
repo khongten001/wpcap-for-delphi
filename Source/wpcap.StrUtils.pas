@@ -68,8 +68,8 @@ begin
     while I < aHeaderStrings.Count - 1 do
     begin
       LLevel       := aHeaderStrings[I].Level;
-      LLabelName   := aHeaderStrings[I].Labelname;
-      LDescription := aHeaderStrings[I].Description;
+      LLabelName   := aHeaderStrings[I].Labelname.Trim;
+      LDescription := aHeaderStrings[I].Description.Trim;
       LValue       := VarToStrDef(aHeaderStrings[I].Value,'');
       LRawValue    := VarToStrDef(aHeaderStrings[I].RawValue,'');
 
@@ -81,8 +81,8 @@ begin
 
         LLabelByLevelID           := Format('%s_%d',[LLabelName,LLevel]);
         LLabelByLevel.Level       := LLevel;
-        LLabelByLevel.LabelName   := LLabelName;
-        LLabelByLevel.Description := LDescription;
+        LLabelByLevel.LabelName   := LLabelName.Trim;
+        LLabelByLevel.Description := LDescription.Trim;
         aListLabel.TryAdd(LLabelByLevelID,LLabelByLevel);          
         
         Inc(I);

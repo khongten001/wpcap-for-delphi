@@ -62,6 +62,7 @@ type
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function PayLoadLengthIsValid(const aTCPPtr: PTCPHdr;const aPacketData:PByte;aPacketSize:Word): Boolean; virtual;    
+
   public
     class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;  
     class function AcronymName: String; override;
@@ -354,5 +355,6 @@ begin
   {TODO OPTIONS}
   Result := True;       
 end;
+
 
 end.

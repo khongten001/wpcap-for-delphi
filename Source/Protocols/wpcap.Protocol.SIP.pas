@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,wpcap.StrUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,wpcap.StrUtils,idGlobal,
   Wpcap.protocol.UDP, WinApi.Windows,wpcap.BufferUtils,Variants;
 
 type
@@ -44,9 +44,6 @@ implementation
 uses wpcap.Level.Ip;
 
 { TWPcapProtocolSIP }
-
-
-
 class function TWPcapProtocolSIP.DefaultPort: Word;
 begin
   Result := PROTO_SIP_PORT;
@@ -77,7 +74,8 @@ end;
 class function TWPcapProtocolSIP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LUDPPayLoad        : PByte;
     LPUDPHdr           : PUDPHdr;
-    LUDPPayLoadLen     : Integer;
+    LUDPPayLoadLen     : Integer; 
+    LOffSet            : Integer;
 begin
   Result := False;
 
@@ -88,8 +86,8 @@ begin
   FIsFilterMode  := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
 
-
-  Result := True;
+  LOffSet    := 0;  
+  Result     := ParserByEndOfLine(aStartLevel,LUDPPayLoadLen,LUDPPayLoad,AListDetail,LOffSet);
 end;
 
 

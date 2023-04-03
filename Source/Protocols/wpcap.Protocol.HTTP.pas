@@ -3,46 +3,11 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,idGlobal,
   Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils;
 
 type
   {https://datatracker.ietf.org/doc/html/rfc7230}
-
-  TPacketHeader = packed record
-    ts_sec  : LongInt; // tempo di cattura, secondi
-    ts_usec : LongInt; // tempo di cattura, microsecondi
-    incl_len: LongInt; // lunghezza dei dati catturati
-    orig_len: LongInt; // lunghezza originale del pacchetto
-  end;
-  PPacketHeader = ^TPacketHeader;
-
-  TIPHeader = packed record
-    ip_verlen  : Byte;     // versione IP e lunghezza dell'header
-    ip_tos     : Byte;     // tipo di servizio
-    ip_len     : Word;     // lunghezza totale del pacchetto IP
-    ip_id      : Word;     // identificatore del pacchetto
-    ip_fragoff : Word;     // offset del frammento
-    ip_ttl     : Byte;     // time-to-live
-    ip_proto   : Byte;     // protocollo
-    ip_checksum: Word;     // checksum dell'header IP
-    ip_src     : LongWord; // indirizzo IP sorgente
-    ip_dst     : LongWord; // indirizzo IP destinazione
-  end;
-  PIPHeader = ^TIPHeader;
-
-  TTCPHeader = packed record
-    tcp_srcport : Word;     // porta sorgente TCP
-    tcp_dstport : Word;     // porta destinazione TCP
-    tcp_seq     : LongWord; // numero di sequenza
-    tcp_ack     : LongWord; // numero di ACK
-    tcp_offset  : Byte;     // offset dell'header TCP
-    tcp_flags   : Byte;     // flag TCP (syn, ack, etc.)
-    tcp_window  : Word;     // finestra di ricezione
-    tcp_checksum: Word;     // checksum dell'header TCP
-    tcp_urgent  : Word;     // indicatore di dati urgenti
-  end;
-  PTCPHeader = ^TTCPHeader;
 
   /// <summary>
   /// The HTTP protocol implementation class.
@@ -106,7 +71,11 @@ begin
   begin
     if not HeaderTCP(aPacket,aPacketSize,LTCPPtr) then exit;   
     if not PayLoadLengthIsValid(LTCPPtr,aPacket,aPacketSize) then  Exit;
-    Result := IsValidByPort(PROTO_HTTP_PORT_2,DstPort(LTCPPtr),aAcronymName,aIdProtoDetected)  
+  
+    if not Result then
+      Result := IsValidByPort(DefaultPort,DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected);
+    if not Result then
+      Result := IsValidByPort(PROTO_HTTP_PORT_2,DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected);         
   end;
 end;
 
@@ -114,6 +83,11 @@ class function TWPcapProtocolHTTP.HeaderToString(const aPacketData: PByte;aPacke
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
     LTCPPHdr       : PTCPHdr;
+    LOffset        : Integer;
+    LCopYStart     : Integer;
+    aValue         : String;
+    LBytes         : TIdBytes;
+    aValueArray    : Tarray<String>;
 begin
   Result := False;
 
@@ -123,8 +97,8 @@ begin
   LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
   FIsFilterMode   := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
-
-  Result := True;
+  LOffSet    := 0;  
+  Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);
 end;
 
  
