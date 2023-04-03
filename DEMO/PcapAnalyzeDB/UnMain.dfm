@@ -266,6 +266,7 @@ object FormMain: TFormMain
       OnClick = ListPacketDetailClick
       OnFocusedNodeChanged = ListPacketDetailFocusedNodeChanged
       object ListPacketDetailDescription: TcxTreeListColumn
+        DataBinding.ValueType = 'Variant'
         Width = 230
         Position.ColIndex = 0
         Position.RowIndex = 0
@@ -274,6 +275,7 @@ object FormMain: TFormMain
         Summary.GroupFooterSummaryItems = <>
       end
       object ListPacketDetailValue: TcxTreeListColumn
+        DataBinding.ValueType = 'Variant'
         Width = 118
         Position.ColIndex = 1
         Position.RowIndex = 0
@@ -282,6 +284,7 @@ object FormMain: TFormMain
         Summary.GroupFooterSummaryItems = <>
       end
       object ListPacketDetailRawValue: TcxTreeListColumn
+        DataBinding.ValueType = 'Variant'
         Width = 30
         Position.ColIndex = 2
         Position.RowIndex = 0
@@ -309,6 +312,7 @@ object FormMain: TFormMain
       end
       object ListPacketDetailSize: TcxTreeListColumn
         Visible = False
+        DataBinding.ValueType = 'Integer'
         Width = 100
         Position.ColIndex = 5
         Position.RowIndex = 0
@@ -321,27 +325,30 @@ object FormMain: TFormMain
         Properties.Images = cxImageList1
         Properties.Items = <
           item
-            Value = '0'
+            Value = 0
           end
           item
             Description = 'GeoIP'
             ImageIndex = 9
-            Value = '1'
+            Value = 1
           end
           item
             Description = 'MCC'
             ImageIndex = 8
-            Value = '2'
+            Value = 2
           end
           item
             Description = 'MNC'
-            Value = '3'
+            Value = 3
           end
           item
             Description = 'IMSI'
-            Value = '4'
+            Value = 4
+          end
+          item
           end>
         Properties.ShowDescriptions = False
+        DataBinding.ValueType = 'Integer'
         Width = 20
         Position.ColIndex = 6
         Position.RowIndex = 0

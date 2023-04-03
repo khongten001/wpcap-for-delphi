@@ -219,7 +219,6 @@ object FormRecording: TFormRecording
         Properties.Images = cxImageList1
         Properties.OnButtonClick = EPathDBPropertiesButtonClick
         TabOrder = 0
-        ExplicitWidth = 793
         ExplicitHeight = 21
         Width = 783
       end

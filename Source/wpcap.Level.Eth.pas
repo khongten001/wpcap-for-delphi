@@ -169,7 +169,7 @@ begin
         AListDetail := TListHeaderString.Create;
 
       AListDetail.Add(AddHeaderInfo(aStartLevel,String.Empty,Format('Frame packet size: %s',[SizeToStr(aPacketSize)]),NUlL,nil,0,aPacketSize));       
-      AListDetail.Add(AddHeaderInfo(aStartLevel, 'FramePacket.size', 'Size:', SizeToStr(aPacketSize), nil,0, aPacketSize));    
+      AListDetail.Add(AddHeaderInfo(aStartLevel,'FramePacket.size', 'Size:', SizeToStr(aPacketSize), nil,0, aPacketSize));    
     
       if (LInternalPacket.Eth.SrcAddr = SRC_MAC_RAW_DATA) and ( LInternalPacket.Eth.DestAddr = DST_MAC_RAW_DATA) then    
         AListDetail.Add(AddHeaderInfo(aStartLevel,String.Empty,'Raw data',NUlL,nil,0))                
@@ -191,14 +191,15 @@ begin
             begin
               LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
               if Assigned(LUDPProtoDetected) then
-                LUDPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode);
+                LUDPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode)
+              else
+              begin
+                LTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
+                if Assigned(LTCPProtoDetected) then
+                  LTCPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode);
+              end;
             end
-            else
-            begin
-              LTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
-              if Assigned(LTCPProtoDetected) then
-                LTCPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode);
-            end;
+
           end;        
  
         ETH_P_LOOP,

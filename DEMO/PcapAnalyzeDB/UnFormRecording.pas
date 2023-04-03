@@ -185,6 +185,7 @@ begin
   Try
 
     FWPcapDBSqLite.CreateDatabase(CurrentDBName);
+    FWPcapDBSqLite.ResetCounterIntsert;
     Try
       BEndRecording.Enabled   := True;
       BStartRecording.Enabled := False;
@@ -269,6 +270,7 @@ procedure TFormRecording.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   if Assigned(FPCAPUtils) then
   begin
+    FWPcapDBSqLite.FlushArrayInsert;
     FPCAPUtils.Abort := True;
     while Assigned(FPCAPUtils.ThreadCaptureRT) do
       Application.ProcessMessages;

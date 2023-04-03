@@ -172,6 +172,7 @@ begin
       LLongWordValue := PLongWord(aPacketData+LCurrentPos)^ ;
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.SrcAddr',[AcronymName]), 'Source Address:',intToIPV4(LLongWordValue),@LLongWordValue,sizeOf(LLongWordValue) ));
       Inc(LCurrentPos,SizeOf(LLongWordValue));
+      if LCurrentPos > aPacketSize then break;      
     end;
     
     INC(LCurrentPos,LGroupRec.DataLen);  

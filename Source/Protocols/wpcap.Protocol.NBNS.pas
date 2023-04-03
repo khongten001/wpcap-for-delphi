@@ -131,7 +131,7 @@ type
     /// <NBNS>
     ///   A string representation of the DNS flags.
     /// </returns>    
-    class function GetDNSFlags(aFlags: Word;aStartLevel:integer; AListDetail: TListHeaderString): string;override;
+    class procedure GetDNSFlags(aFlags: Word;aStartLevel:integer; AListDetail: TListHeaderString);override;
     
     /// <summary>
     ///  Returns a string representation of a NBNS question class.
@@ -532,14 +532,13 @@ begin
 
 end;
 
-class function TWPcapProtocolNBNS.GetDNSFlags(aFlags: Word;aStartLevel:integer;AListDetail: TListHeaderString): string;
+class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Word;aStartLevel:integer;AListDetail: TListHeaderString);
 var LtmpResult       : String;
-    LtmpBooleanValue : Boolean;
+    LByteValue       : Byte;
     LByte0           : Byte;
     LtmpValue        : Byte;
     LisQuery         : Boolean;    
 begin
-  Result := String.Empty;
   LByte0 := GetByteFromWord(aFlags,0);
 
   {
@@ -554,17 +553,12 @@ begin
                              if bit == 0 then request packet
                              if bit == 1 then response packet.
   }
-  LisQuery := GetBitValue(LByte0,1) =  0;
+  LByteValue := GetBitValue(LByte0,1);
+  LisQuery   := LByteValue = 0;
   if LisQuery then
-  begin
-    Result := 'Message is query'; // Message is a query
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is query', @LByte0,SizeOf(LByte0), GetBitValue(LByte0,1)  ));
-  end  
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is query', @LByte0,SizeOf(LByte0), LByteValue  ))
   else
-  begin
-    Result := 'Message is response'; // Message is a response
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is response', @LByte0,SizeOf(LByte0), GetBitValue(LByte0,1)));       
-  end;
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is response', @LByte0,SizeOf(LByte0), LByteValue )); 
 
   {
      Symbol     Bit(s)   Description
@@ -590,10 +584,8 @@ begin
   end;
 
   if not LtmpResult.IsEmpty then
-  begin
-    Result := Format('%s, %s',[Result,LtmpResult]);
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.OPCode',[AcronymName]), 'OPCode:',LtmpResult, @LByte0,SizeOf(LByte0), LtmpValue));  
-  end;
+
 
   {
     5   6   7   8   1  2   3
@@ -614,9 +606,8 @@ begin
   }
   if not LisQuery then  
   begin
-    LtmpBooleanValue :=  GetBitValue(LByte0,6)=1;
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.AuthoritativeAnswer',[AcronymName]), 'Authoritative answer:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,6) ));
-    Result := Format('%s, Authoritative answer %s',[result,BoolToStr(LtmpBooleanValue,True)]);
+    LByteValue :=  GetBitValue(LByte0,6);
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.AuthoritativeAnswer',[AcronymName]), 'Authoritative answer:',LByteValue=1, @LByte0,SizeOf(LByte0), LByteValue ));
   end;
 
   {
@@ -625,9 +616,8 @@ begin
       transmission channel.
 
   }
-  LtmpBooleanValue :=  GetBitValue(LByte0,7)=1;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Truncated',[AcronymName]), 'Truncated:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,6) ));
-  Result := Format('%s, Truncated %s',[result,BoolToStr(LtmpBooleanValue,True)]);  
+  LByteValue :=  GetBitValue(LByte0,7);
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Truncated',[AcronymName]), 'Truncated:',LByteValue=1, @LByte0,SizeOf(LByte0), LByteValue ));
 
   {
   RD  Recursion Desired - this bit may be set in a query and
@@ -635,9 +625,8 @@ begin
       the name server to pursue the query recursively.
       Recursive query support is optional.
   }
-  LtmpBooleanValue :=  GetBitValue(LByte0,8)=1;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.RecursionDesired',[AcronymName]), 'Recursion Desired:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,8) ));
-  Result := Format('%s, Recursion Desired %s',[result,BoolToStr(LtmpBooleanValue,True)]);  
+  LByteValue :=  GetBitValue(LByte0,8);
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.RecursionDesired',[AcronymName]), 'Recursion Desired:',LByteValue=1, @LByte0,SizeOf(LByte0), LByteValue ));
   LByte0 := GetByteFromWord(aFlags,1);
   {
   RA Recursion Available - this be is set or cleared in a
@@ -646,9 +635,8 @@ begin
   }
   if not LisQuery then
   begin
-    LtmpBooleanValue :=  GetBitValue(LByte0,1)=1;
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.RecursionAvailable',[AcronymName]), 'Recursion available:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,1) ));
-    Result := Format('%s, Recursion available %s',[result,BoolToStr(LtmpBooleanValue,True)]);
+    LByteValue :=  GetBitValue(LByte0,1);
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.RecursionAvailable',[AcronymName]), 'Recursion available:',LByteValue=1, @LByte0,SizeOf(LByte0), LByteValue ));
   end;
 
 
@@ -659,9 +647,9 @@ begin
         = 0: unicast
   }  
 
-  LtmpBooleanValue :=  GetBitValue(LByte0,4)=1;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Broadcast',[AcronymName]), 'Broadcast:',LtmpBooleanValue, @LByte0,SizeOf(LByte0), GetBitValue(LByte0,4) ));
-  Result := Format('%s, Broadcast available %s',[result,BoolToStr(LtmpBooleanValue,True)]); 
+  LByteValue :=  GetBitValue(LByte0,4);
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Broadcast',[AcronymName]), 'Broadcast:',LByteValue=1, @LByte0,SizeOf(LByte0),LByteValue ));
+
 
   if not LisQuery then
   begin
@@ -678,10 +666,7 @@ begin
     end;
 
     if not LtmpResult.IsEmpty then
-    begin
-      Result := Format('%s, %s',[Result,LtmpResult]);
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.ResponseCode',[AcronymName]), 'Response code:',LtmpResult.Replace('Response code:',String.Empty).Trim, @LByte0,SizeOf(LByte0), LtmpValue ));
-    end;       
   end;   
 end;
 

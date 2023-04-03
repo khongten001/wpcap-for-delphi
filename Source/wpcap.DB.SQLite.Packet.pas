@@ -16,6 +16,9 @@ uses
     FFDQueryInsert     : TFDQuery;
     FDQuerySession     : TFDQuery;
     FDQueryInsertLabel : TFDQuery;
+    FInsertToArchive   : SmallInt;
+    FMaxInsertCache    : SmallInt;
+    procedure SetMaxInsertCache(const Value: SmallInt);
   protected
     function GetSQLScriptDatabaseSchema: String;override;
     procedure InitConnection;override;
@@ -58,7 +61,9 @@ uses
     procedure InsertLabelByLevel(const aListLabelByLevel: TListLabelByLevel);
     Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
     function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
-    
+    procedure FlushArrayInsert;
+    procedure ResetCounterIntsert;
+    property MaxInsertCache: SmallInt read FMaxInsertCache write SetMaxInsertCache;
   End;
 implementation
 
@@ -231,7 +236,8 @@ begin
   FDQueryInsertLabel.ParamByName('pLabelName').DataType     := ftString;
   FDQueryInsertLabel.ParamByName('pDescription').DataType   := ftString;
   FDQueryInsertLabel.ParamByName('pLevel').DataType         := ftInteger; 
-  FDQueryInsertLabel.ParamByName('pIdParent').DataType      := ftInteger;     
+  FDQueryInsertLabel.ParamByName('pIdParent').DataType      := ftInteger;    
+  FMaxInsertCache                                           := 2000; 
 end; 
 
 procedure TWPcapDBSqLitePacket.InsertLabelByLevel(const aListLabelByLevel : TListLabelByLevel);
@@ -284,81 +290,101 @@ begin
   FDQueryInsertLabel.Execute(FDQueryInsertLabel.Params.ArraySize); // esegue la batch insert        
 end;
 
+
+procedure TWPcapDBSqLitePacket.FlushArrayInsert;
+begin
+  if FInsertToArchive > -1 then
+    FFDQueryInsert.Execute(FInsertToArchive);
+  ResetCounterIntsert;
+end;
+
+
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
 begin
   {TODO use Batch insert}
   if not FFDQueryInsert.Prepared then
+  begin
     FFDQueryInsert.Prepare;
+    FFDQueryInsert.Params.ArraySize := FMaxInsertCache;    
+  end;
+
+  Inc(FInsertToArchive);
+
+  if FInsertToArchive > FMaxInsertCache -1 then
+  begin
+    FlushArrayInsert;
+    Inc(FInsertToArchive);
+  end;
   {Packet}
-  FFDQueryInsert.ParamByName('pLen').AsInteger         := aInternalPacket.PacketSize;
-  FFDQueryInsert.ParamByName('pDate').AsString         := DateTimeToStr(aInternalPacket.PacketDate);
+  FFDQueryInsert.ParamByName('pLen').AsIntegers[FInsertToArchive]         := aInternalPacket.PacketSize;
+  FFDQueryInsert.ParamByName('pDate').AsStrings[FInsertToArchive]         := DateTimeToStr(aInternalPacket.PacketDate);
   {EThernet}
-  FFDQueryInsert.ParamByName('pEthType').AsInteger     := aInternalPacket.Eth.EtherType;
-  FFDQueryInsert.ParamByName('pEthAcr').AsString       := aInternalPacket.Eth.Acronym.Trim;
-  FFDQueryInsert.ParamByName('pMacSrc').AsString       := ifthen(aInternalPacket.Eth.SrcAddr=SRC_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.SrcAddr);
-  FFDQueryInsert.ParamByName('pMacDst').AsString       := ifthen(aInternalPacket.Eth.DestAddr=DST_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.DestAddr);
-  FFDQueryInsert.ParamByName('pIsIPV6').AsInteger      := ifthen(aInternalPacket.IP.IsIPv6,1,0);  
+  FFDQueryInsert.ParamByName('pEthType').AsIntegers[FInsertToArchive]     := aInternalPacket.Eth.EtherType;
+  FFDQueryInsert.ParamByName('pEthAcr').AsStrings[FInsertToArchive]       := aInternalPacket.Eth.Acronym.Trim;
+  FFDQueryInsert.ParamByName('pMacSrc').AsStrings[FInsertToArchive]       := ifthen(aInternalPacket.Eth.SrcAddr=SRC_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.SrcAddr);
+  FFDQueryInsert.ParamByName('pMacDst').AsStrings[FInsertToArchive]       := ifthen(aInternalPacket.Eth.DestAddr=DST_MAC_RAW_DATA,String.Empty,aInternalPacket.Eth.DestAddr);
+  FFDQueryInsert.ParamByName('pIsIPV6').AsIntegers[FInsertToArchive]      := ifthen(aInternalPacket.IP.IsIPv6,1,0);  
   {IP Protocol} 
-  FFDQueryInsert.ParamByName('pProtoDetect').AsInteger := aInternalPacket.IP.DetectedIPProto;  
-  FFDQueryInsert.ParamByName('pIpProto').AsInteger     := aInternalPacket.IP.IpProto;    
+  FFDQueryInsert.ParamByName('pProtoDetect').AsIntegers[FInsertToArchive] := aInternalPacket.IP.DetectedIPProto;  
+  FFDQueryInsert.ParamByName('pIpProto').AsIntegers[FInsertToArchive]     := aInternalPacket.IP.IpProto;    
 
   if aInternalPacket.IP.ProtoAcronym.Trim.IsEmpty then
-    FFDQueryInsert.ParamByName('pProto').Clear
+    FFDQueryInsert.ParamByName('pProto').Clear(FInsertToArchive)
   else
-    FFDQueryInsert.ParamByName('pProto').AsString := aInternalPacket.IP.ProtoAcronym;
+    FFDQueryInsert.ParamByName('pProto').AsStrings[FInsertToArchive] := aInternalPacket.IP.ProtoAcronym;
 
   if aInternalPacket.IP.IpPrototr.Trim.IsEmpty then
-    FFDQueryInsert.ParamByName('pIpProtoStr').Clear
+    FFDQueryInsert.ParamByName('pIpProtoStr').Clear(FInsertToArchive)
   else
-    FFDQueryInsert.ParamByName('pIpProtoStr').AsString := aInternalPacket.IP.IpPrototr;  
+    FFDQueryInsert.ParamByName('pIpProtoStr').AsStrings[FInsertToArchive] := aInternalPacket.IP.IpPrototr;  
     
   if aInternalPacket.IP.Src.Trim.IsEmpty then
-    FFDQueryInsert.ParamByName('pIpSrc').Clear
+    FFDQueryInsert.ParamByName('pIpSrc').Clear(FInsertToArchive)
   else
-    FFDQueryInsert.ParamByName('pIpSrc').AsString := aInternalPacket.IP.Src;  
+    FFDQueryInsert.ParamByName('pIpSrc').AsStrings[FInsertToArchive] := aInternalPacket.IP.Src;  
 
   if aInternalPacket.IP.Dst.Trim.IsEmpty then
-    FFDQueryInsert.ParamByName('pIpDst').Clear
+    FFDQueryInsert.ParamByName('pIpDst').Clear(FInsertToArchive)
   else
-    FFDQueryInsert.ParamByName('pIpDst').AsString := aInternalPacket.IP.Dst;      
+    FFDQueryInsert.ParamByName('pIpDst').AsStrings[FInsertToArchive] := aInternalPacket.IP.Dst;      
   
   {TCP/UDP}      
   if aInternalPacket.IP.PortSrc > 0 then  
-    FFDQueryInsert.ParamByName('pPortSrc').AsInteger := aInternalPacket.IP.PortSrc
+    FFDQueryInsert.ParamByName('pPortSrc').AsIntegers[FInsertToArchive] := aInternalPacket.IP.PortSrc
   else
-    FFDQueryInsert.ParamByName('pPortSrc').Clear;
+    FFDQueryInsert.ParamByName('pPortSrc').Clear(FInsertToArchive);
 
   if aInternalPacket.IP.PortDst > 0 then  
-    FFDQueryInsert.ParamByName('pPortDst').AsInteger := aInternalPacket.IP.PortDst
+    FFDQueryInsert.ParamByName('pPortDst').AsIntegers[FInsertToArchive] := aInternalPacket.IP.PortDst
   else
-    FFDQueryInsert.ParamByName('pPortDst').Clear;
+    FFDQueryInsert.ParamByName('pPortDst').Clear(FInsertToArchive);
   
   {IANA} 
-  FFDQueryInsert.ParamByName('pProtoIANA').AsString    := aInternalPacket.IP.IANAProtoStr;   
+  FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.IP.IANAProtoStr;   
         
   {GEOIP SRC}
-  FFDQueryInsert.ParamByName('pSrcLoc').AsString       := aInternalPacket.IP.SrcGeoIP.Location;
-  FFDQueryInsert.ParamByName('pSrcOrg').AsString       := aInternalPacket.IP.SrcGeoIP.ASOrganization;  
-  FFDQueryInsert.ParamByName('pSrcAsn').AsString       := aInternalPacket.IP.SrcGeoIP.ASNumber;    
-  FFDQueryInsert.ParamByName('pSrcLat').AsFloat        := aInternalPacket.IP.SrcGeoIP.Latitude;
-  FFDQueryInsert.ParamByName('pSrcLong').AsFloat       := aInternalPacket.IP.SrcGeoIP.Longitude;
+  FFDQueryInsert.ParamByName('pSrcLoc').AsStrings[FInsertToArchive]        := aInternalPacket.IP.SrcGeoIP.Location;
+  FFDQueryInsert.ParamByName('pSrcOrg').AsStrings[FInsertToArchive]        := aInternalPacket.IP.SrcGeoIP.ASOrganization;  
+  FFDQueryInsert.ParamByName('pSrcAsn').AsStrings[FInsertToArchive]        := aInternalPacket.IP.SrcGeoIP.ASNumber;    
+  FFDQueryInsert.ParamByName('pSrcLat').AsFloats[FInsertToArchive]         := aInternalPacket.IP.SrcGeoIP.Latitude;
+  FFDQueryInsert.ParamByName('pSrcLong').AsFloats[FInsertToArchive]        := aInternalPacket.IP.SrcGeoIP.Longitude;
   {GEOIP DST}
-  FFDQueryInsert.ParamByName('pDstLoc').AsString       := aInternalPacket.IP.DestGeoIP.Location;
-  FFDQueryInsert.ParamByName('pDstOrg').AsString       := aInternalPacket.IP.DestGeoIP.ASOrganization;  
-  FFDQueryInsert.ParamByName('pDstAsn').AsString       := aInternalPacket.IP.DestGeoIP.ASNumber;    
-  FFDQueryInsert.ParamByName('pDstLat').AsFloat        := aInternalPacket.IP.DestGeoIP.Latitude;
-  FFDQueryInsert.ParamByName('pDstLong').AsFloat       := aInternalPacket.IP.DestGeoIP.Longitude;
-  FFDQueryInsert.ParamByName('pXMLInfo').AsString      := aInternalPacket.XML_Detail;
-  FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiString := aInternalPacket.RAW_Text;
+  FFDQueryInsert.ParamByName('pDstLoc').AsStrings[FInsertToArchive]        := aInternalPacket.IP.DestGeoIP.Location;
+  FFDQueryInsert.ParamByName('pDstOrg').AsStrings[FInsertToArchive]        := aInternalPacket.IP.DestGeoIP.ASOrganization;  
+  FFDQueryInsert.ParamByName('pDstAsn').AsStrings[FInsertToArchive]        := aInternalPacket.IP.DestGeoIP.ASNumber;    
+  FFDQueryInsert.ParamByName('pDstLat').AsFloats[FInsertToArchive]         := aInternalPacket.IP.DestGeoIP.Latitude;
+  FFDQueryInsert.ParamByName('pDstLong').AsFloats[FInsertToArchive]        := aInternalPacket.IP.DestGeoIP.Longitude;
+  FFDQueryInsert.ParamByName('pXMLInfo').AsStrings[FInsertToArchive]       := aInternalPacket.XML_Detail;
+  FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiStrings[FInsertToArchive] := aInternalPacket.RAW_Text;
 
 
   LMemoryStream := TMemoryStream.Create; 
   Try
     LMemoryStream.WriteBuffer(aInternalPacket.PacketData^,aInternalPacket.PacketSize);
 
-    FFDQueryInsert.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob);
-    FFDQueryInsert.ExecSQL;
+    FFDQueryInsert.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob,FInsertToArchive);
+
   Finally
     FreeAndNil(LMemoryStream);
   End;  
@@ -448,7 +474,7 @@ begin
            IPPROTO_TCP :  
               begin
                 if not TWPcapProtocolBaseTCP.HeaderTCP(LPacketData,LPacketSize,LTCPHdr) then exit;
-                LPayLoad    := TWPcapProtocolBaseTCP.GetTCPPayLoad(LPacketData,LPacketSize);
+                LPayLoad     := TWPcapProtocolBaseTCP.GetTCPPayLoad(LPacketData,LPacketSize);
                 LPayloadSize := TWPcapProtocolBaseTCP.TCPPayLoadLength(LTCPHdr,LPacketData,LPacketSize)
               end;
            IPPROTO_UDP :
@@ -567,6 +593,17 @@ begin
   FFDQueryTmp.ParamByName('pName').AsString  := aName;
   FFDQueryTmp.ParamByName('pValue').AsString := aValue;  
   FFDQueryTmp.ExecSQL;
+end;
+
+procedure TWPcapDBSqLitePacket.SetMaxInsertCache(const Value: SmallInt);
+begin
+  FMaxInsertCache                 := Value;
+  FFDQueryInsert.Params.ArraySize := FMaxInsertCache;  
+end;
+
+procedure TWPcapDBSqLitePacket.ResetCounterIntsert;
+begin
+  FInsertToArchive := -1;
 end;
 
 end.

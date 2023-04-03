@@ -69,6 +69,7 @@ end;
 
 procedure TPCAP2SQLite.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
 begin
+  FWPcapDBSqLite.FlushArrayInsert;
   FWPcapDBSqLite.InsertLabelByLevel(aListLabelByLevel);
   FWPcapDBSqLite.CommitAndClose;
   FPCAPCallBackEnd(aFileName)
@@ -107,6 +108,7 @@ begin
   FWPcapDBSqLite := TWPcapDBSqLitePacket.Create;
   Try
     FWPcapDBSqLite.CreateDatabase(aFilenameDB);
+    FWPcapDBSqLite.ResetCounterIntsert;
     Try
       FWPcapDBSqLite.Connection.StartTransaction;
       

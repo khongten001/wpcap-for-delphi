@@ -412,12 +412,18 @@ var LColor     : TColor;
     LFontColor : TColor;
 begin
   if AViewInfo.GridRecord.Selected then Exit;
+  Try
+    if VarIsNull(AViewInfo.GridRecord.Values[GridPcapDBTableView1ETH_TYPE.Index]) then  Exit;
+    
   if not GetProtocolColor(AViewInfo.GridRecord.Values[GridPcapDBTableView1ETH_TYPE.Index],
                           AViewInfo.GridRecord.Values[GridPcapDBTableView1IPPROTO.Index],
                           AViewInfo.GridRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index],LColor,LFontColor) then exit;
-
   ACanvas.Brush.Color := LColor;
   ACanvas.Font.Color  := LFontColor;
+  Except
+
+  End;
+
 end;
 
 procedure TFormMain.BSavePacketClick(Sender: TObject);

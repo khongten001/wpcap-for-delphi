@@ -402,7 +402,7 @@ begin
     
     LPayLoad := GetPayLoadRTP(aPacket,aPacketSize,LSizePayLoad);
     Try
-      Result := ( LSizePayLoad > 100) or (LInternalHeader.PayloadType <= PT_iLBC) ;
+      Result :=  ( LInternalHeader.SequenceNumber > 0) and ( LSizePayLoad > 10) and ( ( LSizePayLoad > 100) or ( (LInternalHeader.PayloadType <= PT_H263) or (LInternalHeader.PayloadType = PT_iLBC)) )  ;
     Finally
       FreeMem(LPayLoad);
     End;
