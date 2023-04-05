@@ -284,7 +284,7 @@ begin
       begin
 
         aSize  := UDPPayLoadLength(LPUDPHdr)- HeaderLength(0) - (LInternalHeader.CountCSRC*SizeOf(cardinal))-8;
-        if aSize > 0 then
+        if ( aSize > 0 ) and (aSize < aPacketSize) then
         begin
           Result := AllocMem(aSize);
           Move(LUDPPayLoad[HeaderLength(0) + (LInternalHeader.CountCSRC * SizeOf(Cardinal))], Result^, ASize);
@@ -293,9 +293,12 @@ begin
       end
       else
       begin
-        aSize  := UDPPayLoadLength(LPUDPHdr)- HeaderLength(0)-8 ;        
-        Result := AllocMem(aSize);
-        Move(LUDPPayLoad[HeaderLength(0)], Result^, ASize);
+        aSize  := UDPPayLoadLength(LPUDPHdr)- HeaderLength(0)-8 ; 
+        if ( aSize > 0 ) and (aSize < aPacketSize) then
+        begin
+          Result := AllocMem(aSize);
+          Move(LUDPPayLoad[HeaderLength(0)], Result^, ASize);
+        end;
       end;
     end;
     
@@ -377,9 +380,12 @@ begin
   Result.Timestamp      := wpcapntohl(LHeaderRTP.timestamp);
   Result.SSRC           := wpcapntohl(LHeaderRTP.SSRC);
 
-  SetLength(Result.CSRC,Result.CountCSRC );
-  for I := 0 to Result.CountCSRC -1 do
-    Result.CSRC[i] := wpcapntohl(PCardinal(LUDPPayLoad + HeaderLength(0) + (I*SizeOf(Cardinal)))^);        
+  if Result.CountCSRC > 0 then
+  begin
+    SetLength(Result.CSRC,Result.CountCSRC );
+    for I := 0 to Result.CountCSRC -1 do
+      Result.CSRC[i] := wpcapntohl(PCardinal(LUDPPayLoad + HeaderLength(0) + (I*SizeOf(Cardinal)))^);        
+  end;
 end;
 
 class function TWPcapProtocolRTP.IsValid(const aPacket: PByte;aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;

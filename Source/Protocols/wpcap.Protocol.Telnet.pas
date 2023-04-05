@@ -99,6 +99,7 @@ type
     class function LFlowOptionToString(Option: Byte): string; static;
     class procedure ExtractDataFromLTCPPayload(const LTCPPayLoad: PByte;
       const LDataSize,aStartLevel: Integer; AListDetail: TListHeaderString); static;
+    class function CommandStatusToString(const aStatus: Uint8): string;
   protected
   public
     /// <summary>
@@ -259,6 +260,16 @@ begin
   end;
 end;
 
+class function TWPcapProtocolTelnet.CommandStatusToString(const aStatus: Uint8): string;
+begin
+  case aStatus of
+    0 : Result := 'Disable';
+    1 : Result := 'Active';
+  else
+    Result := 'Unknown'
+  end;
+end;
+
 class function TWPcapProtocolTelnet.SendISOptionDataToString(const aOptionValue: byte;SubCommand:String): string;
 CONST TELNET_TTYPE_IS   = 0;
       TELNET_TTYPE_SEND = 1;
@@ -382,12 +393,8 @@ begin
       case LSubCommand of
         TELNET_OPT_NAWS :
           begin  
-            LValueWord := PWord(LTCPPayLoad+LCurrentPos);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Command.Height',[AcronymName]), 'Height:', wpcapntohs(LValueWord^), @LValueWord, SizeOf(word)));   
-            Inc(LCurrentPos,2);                             
-            LValueWord := PWord(LTCPPayLoad+LCurrentPos);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Command.Width',[AcronymName]), 'Width:',wpcapntohs(LValueWord^), @LValueWord, SizeOf(word)));  
-            Inc(LCurrentPos,2);                               
+            ParserUint16Value(LTCPPayLoad,aStartLevel+2,LDataSize,Format('%s.Command.Height',[AcronymName]), 'Height:',AListDetail,nil,True,LCurrentPos);          
+            ParserUint16Value(LTCPPayLoad,aStartLevel+2,LDataSize,Format('%s.Command.Width',[AcronymName]), 'Width:',AListDetail,nil,True,LCurrentPos);          
           end;
         TELNET_OPT_TTYPE,
         TELNET_OPT_LFLOW,
@@ -400,6 +407,7 @@ begin
              else
                AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Command.OptionData',[AcronymName]), 'Option data:', SendISOptionDataToString(LValueByte,TelnetOptionToString(LSubCommand)),@LValueByte,SizeOf(LValueByte), LValueByte ));    
              inc(LCurrentPos);
+             
              LBckCurrentPos := LCurrentPos;
              if LTCPPayLoad[LBckCurrentPos] <> TELNET_CMD_IAC then
              begin
@@ -419,25 +427,23 @@ begin
         TELNET_OPT_ECHO,
         TELNET_OPT_SGA:
           begin
-             LValueByte := LTCPPayLoad[LCurrentPos];
-               
-             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Command.Status',[AcronymName]), 'Status:', ifthen(LValueByte=0,'Disable,Enable'),@LValueByte,SizeOf(LValueByte), LValueByte ));
-             inc(LCurrentPos);
-             LBckCurrentPos := LCurrentPos;
-             if LTCPPayLoad[LBckCurrentPos] <> TELNET_CMD_IAC then
-             begin
-               {Found value string}
-                while (LCurrentPos < LDataSize) and (LTCPPayLoad[LCurrentPos] <> TELNET_CMD_IAC) do
-                  inc(LCurrentPos);               
+            ParserUint8Value(LTCPPayLoad,aStartLevel+2,LDataSize,Format('%s.Command.Status',[AcronymName]), 'Status:',AListDetail,CommandStatusToString,True,LCurrentPos);   
 
-                GetMem(LValueBuffer,LCurrentPos-LBckCurrentPos);
-                Try                          
-                  Move(LTCPPayLoad[LBckCurrentPos],LValueBuffer^,LCurrentPos-LBckCurrentPos);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Command.Status.Value',[AcronymName]), 'Value:',AnsiString(PAnsiChar(LValueBuffer)),LValueBuffer,LCurrentPos-LBckCurrentPos));   
-                Finally                                                                                         
-                  FreeMem(LValueBuffer);
-                End;                
-             end;               
+            LBckCurrentPos := LCurrentPos;
+            if LTCPPayLoad[LBckCurrentPos] <> TELNET_CMD_IAC then
+            begin
+             {Found value string}
+              while (LCurrentPos < LDataSize) and (LTCPPayLoad[LCurrentPos] <> TELNET_CMD_IAC) do
+                inc(LCurrentPos);               
+
+              GetMem(LValueBuffer,LCurrentPos-LBckCurrentPos);
+              Try                          
+                Move(LTCPPayLoad[LBckCurrentPos],LValueBuffer^,LCurrentPos-LBckCurrentPos);
+                AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Command.Status.Value',[AcronymName]), 'Value:',AnsiString(PAnsiChar(LValueBuffer)),LValueBuffer,LCurrentPos-LBckCurrentPos));   
+              Finally                                                                                         
+                FreeMem(LValueBuffer);
+              End;                
+            end;               
           end
       else
           begin   
@@ -459,6 +465,8 @@ begin
   end;  
   Result := True;
 end;
+
+
 
 end.
                                                  

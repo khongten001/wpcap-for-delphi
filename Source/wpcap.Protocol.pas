@@ -6,7 +6,7 @@ uses
   wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2,wpcap.Protocol.Telnet,
   wpcap.Protocol.Base, wpcap.Protocol.TCP, wpcap.Protocol.POP3, vcl.Graphics,wpcap.Protocol.MQTT,
   wpcap.Graphics, wpcap.Protocol.DNS, wpcap.Protocol.UDP,wpcap.Protocol.FTP,wpcap.Protocol.QUIC,
-  System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP, wpcap.Protocol.SIP,
+  System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP, wpcap.Protocol.SIP, wpcap.Protocol.SSDP,
   wpcap.Protocol.NTP, wpcap.Protocol.MDNS, wpcap.Protocol.LLMNR,wpcap.Protocol.TFTP,wpcap.Protocol.GTP,
   wpcap.Protocol.TLS, wpcap.Protocol.NBNS,wpcap.Protocol.RTP,wpcap.Protocol.DHCP;
 
@@ -193,6 +193,7 @@ begin
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolQUIC>);      
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolDHCP>);        
   FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolGTP>);        
+  FListProtolsUDPDetected.Add(TProtocolFactoryUPD.CreateInstance<TWPcapProtocolSSDP>);        
   {TCP}  
   FListProtolsTCPDetected := TListProtolsTCPDetected.Create;  
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolTLS>);

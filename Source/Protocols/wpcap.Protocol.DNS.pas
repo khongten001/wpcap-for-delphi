@@ -497,7 +497,8 @@ class function TWPcapProtocolDNS.ParseDNSName(const aPacket: TBytes;aMaxLen:Inte
 var LLen        : integer;
     LCompressPos: integer;
     LCompressed : boolean;
-    LastOffset  : Integer;    
+    LastOffset  : Integer;  
+    LNewLen     : Integer;  
 begin
   Result        := String.Empty;
   LCompressed   := False;
@@ -536,10 +537,12 @@ begin
     
     if not Trim(String(Result)).IsEmpty then
       Result := AnsiString(Format('%s.',[Result]));
-
-      
-    SetLength(Result, Length(Result) + LLen);  
-    Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
+    LNewLen := Length(Result) + LLen;
+    if isValidLen(aOffset,aMaxLen,LNewLen) then
+    begin
+      SetLength(Result,LNewLen);  
+      Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
+    end;
     
     Inc(aOffset, LLen);
     inc(aTotalNameLen,LLen);
@@ -574,7 +577,7 @@ var LPUDPHdr        : PUDPHdr;
     LQType          : Word;    
     LQName          : string; 
     i               : Integer;    
-    LCountQuestion  : Word;  
+    LCountQuestion  : Integer;  
     LTotalNameLen   : Integer;
     LLenQuestion    : Integer;
 begin
@@ -611,12 +614,17 @@ begin
   LHeaderDNS     := Header(LUDPPayLoad);
   LCountQuestion := wpcapntohs(LHeaderDNS.Questions);
   LLenQuestion   := UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags);
+  if LLenQuestion <= 0 then  exit;
+  if not isValidLen(aOffSetQuestion,LLenQuestion,LCountQuestion)  then exit;
+  
   SetLength(LDataQuestions,LLenQuestion);
   LDataQuestions := TBytes(LUDPPayLoad+HeaderLength(LHeaderDNS.Flags));
 
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Questions.Query',[AcronymName]), 'Query',NULL,Pbyte(@LDataQuestions),Length(LDataQuestions)));              
   for i := 0 to LCountQuestion -1 do
   begin
+    if aOffSetQuestion > LLenQuestion then  break;
+
     {
         QNAME  a domain name represented as a sequence of labels, where
                each label consists of a length octet followed by that
@@ -805,7 +813,7 @@ begin
 
           LIPAddr  := PLongword(@LDataRss[LInternalOffset])^;
           LCaption := 'A address';
-          LRssName := AnsiString(intToIPV4(LIPAddr));
+          LRssName := AnsiString(MakeDWordIntoIPv4AddressInternal(LIPAddr));
           Inc(LInternalOffset, SizeOf(LIPAddr));
         end;
         
@@ -823,7 +831,6 @@ begin
         
         TYPE_DNS_QUESTION_AAAA:
         begin
-          LRssName   := '';
           LIPv6Addr  := PTIPv6AddrBytes(@LDataRss[LInternalOffset])^;
           LCaption   := 'AAAA address';
           LRssName   := AnsiString(IPv6AddressToString(LIPv6Addr));

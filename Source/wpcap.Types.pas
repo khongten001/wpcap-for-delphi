@@ -266,7 +266,7 @@ type
   TIPAddress = record
       case Integer of
         0: (Bytes: TIPAddrBytes);
-        1: (Addr: Cardinal);
+        1: (Addr: Uint32);
     end;  
 
   /// <summary>
@@ -400,9 +400,11 @@ type
   /// The callback procedure is responsible for any post-processing that may be required, such as closing files or displaying a message to the user. 
   /// The name of the file that was processed is passed to the callback procedure as a parameter.
   ///</remarks>  
-  TPCAPCallBackEnd           = procedure(const aFileName:String) of object;
- 
-  
+  TPCAPCallBackEnd       = procedure(const aFileName:String) of object;
+  TWpcapUint8ToString     = function(const aValue:Uint8):String of object;
+  TWpcapUint16ToString   = function(const aValue:Uint16):String of object;  
+  TWpcapUint32ToString   = function(const aValue:Uint32):String of object;    
+  TWpcapUint64ToString   = function(const aValue:Uint64):String of object;     
 implementation
 
 end.

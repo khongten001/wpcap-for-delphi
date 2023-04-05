@@ -85,7 +85,7 @@ type
   /// </summary>
   TWPcapProtocolNBNS = class(TWPcapProtocolDNS)
   private  
-    class function NBNSNameToString(const aName:String): string;
+    class function NBNSNameToString(const aName:AnsiString): Ansistring;
     class procedure ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString);static;
     class function OwnerNodeTypeToStr(aFlags: Byte): String; static;
   protected
@@ -168,10 +168,10 @@ begin
   Result := 'NBNS';
 end;
 
-class function TWPcapProtocolNBNS.NBNSNameToString(const aName:String): string;
+class function TWPcapProtocolNBNS.NBNSNameToString(const aName:AnsiString): Ansistring;
 var i          : Integer;
-    LFirstChar : Char;
-    LSecondChar: Char;
+    LFirstChar : AnsiChar;
+    LSecondChar: AnsiChar;
 begin
   (*
     The algorithm used to encode NetBIOS names is as follows:
@@ -265,7 +265,7 @@ begin
       ~            HO            48 4F
   *)
 
-  Result := String.Empty;
+  Result := '';
   i      := 1;
   while i <= Length(aName) do
   begin
@@ -712,7 +712,7 @@ begin
   Inc(aOffset,2);
   Inc(aTotalNameLen,2);
   Move(aPacket[aOffset], LCardinalTmp, SizeOf(cardinal));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',intToIPV4(LCardinalTmp), @LCardinalTmp,SizeOf(LCardinalTmp)));     
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',MakeDWordIntoIPv4AddressInternal(wpcapntohl( LCardinalTmp)), @LCardinalTmp,SizeOf(LCardinalTmp)));     
   Inc(aOffset,2);
   Inc(aTotalNameLen,2); 
 end;

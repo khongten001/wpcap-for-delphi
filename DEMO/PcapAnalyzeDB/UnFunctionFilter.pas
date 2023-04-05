@@ -13,7 +13,7 @@ Function GetCriteriaNodeFilter(aRootFilter:TcxFilterCriteriaItemList;aOperator:T
 procedure FilterFlowSelected(aGridView: TcxGridDBTableView);
 procedure FilterCellValueSelected(aGridView : TcxGridDBTableView);
 function GetCellValueSelected(aGridView : TcxGridDBTableView;var Value, DislayValue: Variant): Boolean;
-procedure FilterColumn(aColumn:TcxGridDBColumn;aGridView:TcxGridDBTableView;aOperator:TcxFilterOperatorKind;aValue:Variant;aDislayValue:String='');
+procedure FilterColumn(aColumn:TcxGridDBColumn;aGridView:TcxGridDBTableView;aOperator:TcxFilterOperatorKind;aValue:Variant;aDislayValue:String='';aClear:Boolean=False);
 
 implementation
 
@@ -54,14 +54,19 @@ begin
   end;
 end;
 
-procedure FilterColumn(aColumn:TcxGridDBColumn;aGridView : TcxGridDBTableView;aOperator:TcxFilterOperatorKind;aValue:Variant;aDislayValue:String='');
+procedure FilterColumn(aColumn:TcxGridDBColumn;aGridView : TcxGridDBTableView;aOperator:TcxFilterOperatorKind;aValue:Variant;aDislayValue:String='';aClear:Boolean=False);
 var LGroupItems : TcxFilterCriteriaItemList;
 begin
   aGridView.DataController.Filter.BeginUpdate;
   Try
+    if aClear then
+      aGridView.DataController.Filter.Root.Clear;
     LGroupItems  := GetCriteriaNodeFilter(aGridView.DataController.Filter.Root,fboAnd);
 
-    LGroupItems.AddItem(aColumn, aOperator, aValue, ifthen(Trim(aDislayValue) = '',VarToStrDef(aValue,''),aDislayValue) );
+    if ( aOperator = foInList) or ( aOperator = foNotInList) then
+      LGroupItems.AddItem(aColumn, aOperator, aValue, aDislayValue )     
+    else
+      LGroupItems.AddItem(aColumn, aOperator, aValue, ifthen(Trim(aDislayValue) = '',VarToStrDef(aValue,''),aDislayValue) );
     aGridView.DataController.Filter.Active := True;
   Finally
     aGridView.DataController.Filter.EndUpdate

@@ -55,16 +55,16 @@ type
     HLen          : Byte;                 // Len address hardware
     Hops          : Byte;                 // Number of hops
     TransactionID : DWORD;                // ID transaction
-    SecondsElapsed: Word;                 // Second elapsed
-    Flags         : Word;                 // Flag
-    ClientIP      : LongWord;             // IP client
-    YourIP        : LongWord;             // IP assigned to client
-    ServerIP      : LongWord;             // IP server DHCP
-    RelayAgentIP  : LongWord;             // IP relay agent
+    SecondsElapsed: Uint16;                 // Second elapsed
+    Flags         : Uint16;                 // Flag
+    ClientIP      : Uint32;             // IP client
+    YourIP        : Uint32;             // IP assigned to client
+    ServerIP      : Uint32;             // IP server DHCP
+    RelayAgentIP  : Uint32;             // IP relay agent
     ClientMAC     : array[0..15] of Byte; // MAC of client with padding
     ServerName    : array[0..63] of Byte;
     BootFileName  : array[0..127] of Byte;
-    MagicCookie   : LongWord;  
+    MagicCookie   : Uint32;  
   end;  
   PTDHCPHeader = ^TDHCPHeader; 
 
@@ -239,18 +239,20 @@ type
     OPTION_SUBNET_ALLOCATION_OPTION                 =	220;
     OPTION_END                                      = 255;
 
-    class function OptionToString(const aOption: Byte;AddOptionNumber:Boolean=True): String; static;
-    class function OptionValueToCaption(const aOption: Byte): String; static;
-    class function GetNetBIOSNodeTypeString(aNodeType: Byte): string; static;
-    class function GetOptionOverloadTypeString(aOverloadType: Byte): string; static;
-    class function GetDHCPMessageTypeString(aMessageType: Byte): string; static;
-    class function GetNetWareSubOptionString(asubOption: Byte): string; static;
-    class function GetDHCPSubOptionDescription(asubOptionCode: Integer): string; static;
-    class function DHCPStatusCodeToStr(aCode: Integer): string; static;
-    class function DecimalToDHCPState(aValue: Integer): string; static;
-    class function DecimalToAuthenticationSuboption(avalue: Integer): string; static;
-    class function DecToDhcpOptionStr(avalue: Integer): string; static;
-    class function GetLabelOptions(const aOptions:Byte): String; static;
+    class function OptionToString(const aOption: Byte;AddOptionNumber:Boolean=True): String;
+    class function OptionToStringInternal(const aOption: Byte): String;
+    class function OptionValueToCaption(const aOption: Byte): String; 
+    class function GetNetBIOSNodeTypeString(const aNodeType: Byte): string; 
+    class function GetOptionOverloadTypeString(const aOverloadType: Byte): string; 
+    class function GetDHCPMessageTypeString(const aMessageType: Byte): string; 
+    class function GetNetWareSubOptionString(const asubOption: Byte): string; 
+    class function GetDHCPSubOptionDescription(const asubOptionCode: byte): string; 
+    class function DHCPStatusCodeToStr(const aCode: byte): string; 
+    class function DecimalToDHCPState(const aValue: byte): string; 
+    class function DecimalToAuthenticationSuboption(avalue: Integer): string; 
+    class function DecToDhcpOptionStr(Const avalue: byte): string; 
+    class function GetLabelOptions(const aOptions:Byte): String;
+    class function DhcpOptionToString(const aValue: Byte): String;
   protected
   public
     /// <summary>
@@ -394,18 +396,18 @@ begin
   { ciaddr  4  Client IP address; only filled in if client is in
                BOUND, RENEW or REBINDING state and can respond
                to ARP requests.}  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:', intToIPV4(LHeaderDHCP.ClientIP), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ClientIP)), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
 
   { yiaddr  4  'your' (client) IP address.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', intToIPV4(LHeaderDHCP.YourIP), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.YourIP)), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
 
   { siaddr  4  IP address of next server to use in bootstrap;
                returned in DHCPOFFER, DHCPACK by server.      }
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:', intToIPV4(LHeaderDHCP.ServerIP), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.ServerIP)), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
 
  { giaddr   4  Relay agent IP address, used in booting via a
                relay agent.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:', intToIPV4(LHeaderDHCP.RelayAgentIP), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.RelayAgentIP)), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
 
   {chaddr   16  Client hardware address.  }
   SetLength(LBytesTmp,LHeaderDHCP.HLen);
@@ -434,24 +436,15 @@ begin
 
   while LCurrentPos < LPayLoadLen do
   begin
-    {TODO }
-    LOption := PByte(LUDPPayLoad + LCurrentPos)^; 
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1,GetLabelOptions(LOption), 'Options', OptionToString(LOption), @LOption,sizeOf(LOption),LOption));       
 
-    if LOption = OPTION_PAD then
-    begin
-      Inc(LCurrentPos);
-      Continue;      
-    end;
+    LOption := ParserUint8Value(LUDPPayLoad, aStartLevel+1,LPayLoadLen,GetLabelOptions(LOption), 'Options',AListDetail, OptionToStringInternal, True, LCurrentPos);
+
+    if LOption = OPTION_PAD then Continue;      
     
     if ( LOption <> OPTION_END) then
     begin
-
-      
-      Inc(LCurrentPos);
-      LLen :=  PByte(LUDPPayLoad + LCurrentPos)^;
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.Len',[GetLabelOptions(LOption)]), 'Length', LLen, @LLen,sizeOf(LLen)));    
-      inc(LCurrentPos);    
+  
+      LLen := ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.Len',[GetLabelOptions(LOption)]), 'Length',AListDetail, nil, False, LCurrentPos);
                       {90,82 KO}
       case LOption of
         {IPv4}
@@ -473,11 +466,8 @@ begin
         OPTION_SUB_NETMASK :
           begin
             for I := 0 to (LLen div 4 ) -1 do
-            begin
-              LLongWordValue :=  PLongWord(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), IntToIPV4(LLongWordValue), @LLongWordValue,sizeOf(LLongWordValue)));              
-              inc(LCurrentPos,4);
-            end;
+              ParserUint32Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),
+                              AListDetail, MakeDWordIntoIPv4AddressInternal, True, LCurrentPos);
           end;
 
         {String}  
@@ -552,38 +542,43 @@ begin
         OPTION_SUBNET_ALLOCATION_OPTION,        
         OPTION_HOSTNAME:
           begin
-            SetLength(LBytesTmp, LLen);
-            Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen);
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));            
-            inc(LCurrentPos,LLen);
+            if isValidLen(LCurrentPos,LPayLoadLen,LLen) then            
+            begin
+              SetLength(LBytesTmp, LLen);
+              Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen);
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));
+              inc(LCurrentPos,LLen);
+            end;
           end;
 
         OPTION_CLIENT_ID:
           begin 
-            LByteValue := PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.HwType',[GetLabelOptions(LOption)]), 'Hardaware type:', LByteValue, @LByteValue,SizeOf(LByteValue) ));            
-            inc(LCurrentPos);    
-            SetLength(LBytesTmp, LLen-1);
-            Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
-            if LByteValue = 1 then
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ClientID',[GetLabelOptions(LOption)]), 'ClientID:' , MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
-            else
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ClientID',[GetLabelOptions(LOption)]), 'ClientID:' , BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
-            inc(LCurrentPos,LLen-1);
+            LByteValue :=  ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,  Format('%s.HwType',[GetLabelOptions(LOption)]), 'Hardaware type:',AListDetail, nil, True, LCurrentPos);
+            if isValidLen(LCurrentPos,LPayLoadLen,LLen-1) then
+            begin
+              SetLength(LBytesTmp, LLen-1);
+              Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
+              if LByteValue = 1 then
+                AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ClientID',[GetLabelOptions(LOption)]), 'ClientID:' , MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
+              else
+                AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ClientID',[GetLabelOptions(LOption)]), 'ClientID:' , BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
+              inc(LCurrentPos,LLen-1);
+            end;
           end;
 
         OPTION_SIP_SERVERS_DHCP_OPTION:
           begin 
-            LByteValue := PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Encoding',[GetLabelOptions(LOption)]) ,'Encoding:', ifthen(LByteValue=1,'Ipv4','Ipv6'), @LByteValue,SizeOf(LByteValue),LByteValue ));
-            inc(LCurrentPos);    
-            SetLength(LBytesTmp, LLen-1);
-            Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
-            if LByteValue = 1 then            
-               AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToIPv4Str(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
-            else
-               AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), IPv6AddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
-            inc(LCurrentPos,LLen-1);            
+            LByteValue :=  ParserUint8Value(LUDPPayLoad, aStartLevel+2,LLen, Format('%s.Encoding',[GetLabelOptions(LOption)]) ,'Encoding:',AListDetail, DhcpOptionToString, True, LCurrentPos);
+            if isValidLen(LCurrentPos,LPayLoadLen,LLen-1) then
+            begin
+              SetLength(LBytesTmp, LLen-1);
+              Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
+              if LByteValue = 1 then            
+                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToIPv4Str(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
+              else
+                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), IPv6AddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
+              inc(LCurrentPos,LLen-1);            
+            end;
           end;
             
         {Booolean}
@@ -598,93 +593,47 @@ begin
         OPTION_DEFAULT_TCP_TTL,
         OPTION_KEEPALIVE_DATA,        
         OPTION_SRCRTE_ON_OFF:
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), LByteValue=1, @LByteValue,sizeOf(LByteValue),LByteValue));    
-            inc(LCurrentPos);          
-          end;
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, ByteToBooleanStr, True, LCurrentPos);
 
         {Enumerate} 
         OPTION_NETBIOS_NODE_TYPE         :
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]) ,Format('%s:',[OptionValueToCaption(LOption)]), GetNetBIOSNodeTypeString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
-            inc(LCurrentPos);          
-          end;
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, GetNetBIOSNodeTypeString, True, LCurrentPos);
           
         OPTION_OVERLOAD                  :
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetOptionOverloadTypeString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
-            inc(LCurrentPos);          
-          end;
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, GetOptionOverloadTypeString, True, LCurrentPos);
           
         OPTION_DHCP_MSG_TYPE             :
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetDHCPMessageTypeString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
-            inc(LCurrentPos);
-          end;
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, GetDHCPMessageTypeString, True, LCurrentPos);
           
+        OPTION_DATASOURCE, 
         OPTION_FORCERENEW_NONCE_CAPABLE  :
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), LByteValue, @LByteValue,sizeOf(LByteValue)));    
-            inc(LCurrentPos);          
-          end;
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, nil, True, LCurrentPos);
           
         OPTION_DHCPSTATE                 :
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), DecimalToDHCPState(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));    
-            inc(LCurrentPos);          
-          end;
-          
-        OPTION_DATASOURCE                :
-          begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), LByteValue, @LByteValue,sizeOf(LByteValue)));    
-            inc(LCurrentPos);          
-          end;
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, DecimalToDHCPState, True, LCurrentPos);
 
         OPTION_NETWARE_IP_OPTION:
           begin
             for I := 0 to (LLen ) -1 do
-            begin
-              LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s.SubOption',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetNetWareSubOptionString(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));              
-              inc(LCurrentPos);
-            end;          
+              ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, GetNetWareSubOptionString, True, LCurrentPos);
           end;
 
         OPTION_PARAMETER_LIST:
           begin
             for I := 0 to (LLen ) -1 do
-            begin
-              LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), 'Parameter list:', OptionToString(LByteValue), @LByteValue,sizeOf(LByteValue)));              
-              inc(LCurrentPos);
-            end;              
+              ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, OptionToStringInternal, True, LCurrentPos);
           end;
           
         OPTION_CCC:
           begin            
             for I := 0 to (LLen ) -1 do
-            begin
-              LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), GetDHCPSubOptionDescription(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));              
-              inc(LCurrentPos);
-            end;             
+              ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, GetDHCPSubOptionDescription, True, LCurrentPos);
           end;
 
         OPTION_STATUS_CODE:
           begin
             for I := 0 to (LLen ) -1 do
-            begin
-              LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), DHCPStatusCodeToStr(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));              
-              inc(LCurrentPos);
-            end;            
+              ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, DHCPStatusCodeToStr, True, LCurrentPos);
           end;
 
         OPTION_AUTHENTICATION:
@@ -695,6 +644,7 @@ begin
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.RDM',[GetLabelOptions(LOption)]), 'Replay Detection Method:',ifthen(LDHCPAuthentication.RDM=0,'use of a monotonically increasing counter value','Reserved'), @LDHCPAuthentication.RDM,sizeOf(LDHCPAuthentication.RDM),LDHCPAuthentication.RDM));
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ReplayDetection',[GetLabelOptions(LOption)]), 'Replay Detection value:', ntohl(LDHCPAuthentication.ReplayDetection), @LDHCPAuthentication.ReplayDetection,sizeOf(LDHCPAuthentication.ReplayDetection)));                                                                 
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SecretID',[GetLabelOptions(LOption)]), 'Secret ID:', wpcapntohl(LDHCPAuthentication.SecretID), @LDHCPAuthentication.SecretID,sizeOf(LDHCPAuthentication.SecretID)));                 
+
             SetLength(LBytesTmp, SizeOf(LDHCPAuthentication.AuthenticationInfo));
             Move(LDHCPAuthentication.AuthenticationInfo[0], LBytesTmp[0], SizeOf(LDHCPAuthentication.AuthenticationInfo));              
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.HMACMD5Hash',[GetLabelOptions(LOption)]), 'HMAC MD5 Hash:',ToHex(LBytesTmp), @LDHCPAuthentication.AuthenticationInfo,sizeOf(LDHCPAuthentication.AuthenticationInfo)));                 
@@ -717,30 +667,17 @@ begin
         OPTION_QUERY_END_TIME,
         OPTION_V4_PORTPARAMS,
         OPTION_REBOOT_TIME:
-          begin
-            LLongWordValue := wpcapntohl(PLongWord(LUDPPayLoad + LCurrentPos)^);
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),Format('%d sec',[LLongWordValue]), @LLongWordValue,sizeOf(LLongWordValue),LLongWordValue));
-            inc(LCurrentPos,SizeOf(LLongWordValue));            
-          end;
+            ParserUint32Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, nil, True, LCurrentPos);
           
-        OPTION_PXELINUX_MAGIC:
-          begin
-             {magic string = F1:00:74:7E}
-            LLongWordValue := wpcapntohl(PLongWord(LUDPPayLoad + LCurrentPos)^);
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[LongWordToString(LOption)]),LLongWordValue, @LLongWordValue,sizeOf(LLongWordValue)));
-            inc(LCurrentPos,SizeOf(LLongWordValue));                
-          end;
+        OPTION_PXELINUX_MAGIC:            {magic string = F1:00:74:7E}
+           ParserUint32Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, nil, True, LCurrentPos);
 
         {Numeric}
         OPTION_BOOT_FILE_SIZE,
         OPTION_MAX_DG_ASSEMBLY,
         OPTION_MTU_INTERFACE,
         OPTION_DHCP_MAX_MSG_SIZE :
-          begin
-            LWordValue := wpcapntohs(PWord(LUDPPayLoad + LCurrentPos)^);
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),SizeToStr(LWordValue), @LByteValue,sizeOf(LByteValue),LWordValue));                    
-            inc(LCurrentPos,SizeOf(LWordValue));
-          end;
+            ParserUint16Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail, SizeWordToStr, True, LCurrentPos);                      
 
         OPTION_V4_PCP_SERVER :
           begin
@@ -814,18 +751,17 @@ begin
 
         OPTION_RELAY_AGENT_INFORMATION  :
           begin
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SubOption',[GetLabelOptions(LOption)]), 'SubOption', DecToDhcpOptionStr(LByteValue), @LByteValue,sizeOf(LByteValue),LByteValue));
-            inc(LCurrentPos);
-
-            LByteValue :=  PByte(LUDPPayLoad + LCurrentPos)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Len',[GetLabelOptions(LOption)]), 'Length', LByteValue, @LByteValue,sizeOf(LByteValue)));              
-            inc(LCurrentPos);
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.SubOption',[GetLabelOptions(LOption)]), 'SubOption',AListDetail, DecToDhcpOptionStr, True, LCurrentPos);
+  
+            LByteValue := ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.Len',[GetLabelOptions(LOption)]), 'Length',AListDetail, nil, True, LCurrentPos);
             
-            SetLength(LBytesTmp, LByteValue);
-            Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0], LByteValue);              
-             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Value',[GetLabelOptions(LOption)]), 'Value:',ToHex(LBytesTmp), @LBytesTmp,sizeOf(LBytesTmp)));                 
-            inc(LCurrentPos,LByteValue);
+            if isValidLen(LCurrentPos,LPayLoadLen,LByteValue) then
+            begin
+              SetLength(LBytesTmp, LByteValue);
+              Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0], LByteValue);              
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Value',[GetLabelOptions(LOption)]), 'Value:',ToHex(LBytesTmp), @LBytesTmp,sizeOf(LBytesTmp)));                 
+              inc(LCurrentPos,LByteValue);
+            end;
                             
           end
                       
@@ -1035,7 +971,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetNetBIOSNodeTypeString(aNodeType: Byte): string;
+class function TWPcapProtocolDHCP.GetNetBIOSNodeTypeString(const aNodeType: Byte): string;
 begin
   case aNodeType of
     1: Result := 'B-node';
@@ -1046,7 +982,7 @@ begin
   end;     
 end;
 
-class function TWPcapProtocolDHCP.GetOptionOverloadTypeString(aOverloadType: Byte): string;
+class function TWPcapProtocolDHCP.GetOptionOverloadTypeString(const aOverloadType: Byte): string;
 begin
   case aOverloadType of
     1: Result := 'file';
@@ -1056,7 +992,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetDHCPMessageTypeString(aMessageType: Byte): string;
+class function TWPcapProtocolDHCP.GetDHCPMessageTypeString(const aMessageType: Byte): string;
 begin
   case aMessageType of
     1 : Result := 'DHCPDISCOVER';
@@ -1081,7 +1017,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetNetWareSubOptionString(asubOption: Byte): string;
+class function TWPcapProtocolDHCP.GetNetWareSubOptionString(const asubOption: Byte): string;
 begin
   case asubOption of
     1 : Result := 'NWIP_DOES_NOT_EXIST';
@@ -1099,7 +1035,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetDHCPSubOptionDescription(asubOptionCode: Integer): string;
+class function TWPcapProtocolDHCP.GetDHCPSubOptionDescription(const asubOptionCode: byte): string;
 begin
   case asubOptionCode of
     1: Result := 'TSP''s Primary DHCP Server Address';
@@ -1116,7 +1052,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.DHCPStatusCodeToStr(aCode: Integer): string;
+class function TWPcapProtocolDHCP.DHCPStatusCodeToStr(const aCode: byte): string;
 begin
   case aCode of
     0: Result := 'Success';
@@ -1132,7 +1068,7 @@ begin
   end;  
 end;
 
-class function TWPcapProtocolDHCP.DecimalToDHCPState(aValue: Integer): string;
+class function TWPcapProtocolDHCP.DecimalToDHCPState(const aValue: byte): string;
 const
   StateNames: array[0..8] of string = (
     'Reserved', 'AVAILABLE', 'ACTIVE', 'EXPIRED', 'RELEASED', 'ABANDONED', 'RESET',
@@ -1162,7 +1098,7 @@ begin
   end;     
 end;
 
-class function TWPcapProtocolDHCP.DecToDhcpOptionStr(avalue: Integer): string;
+class function TWPcapProtocolDHCP.DecToDhcpOptionStr(const avalue: Byte): string;
 begin
   case avalue of
     1: Result := 'Agent Circuit ID Sub-option [RFC3046]';
@@ -1191,9 +1127,23 @@ begin
   end;     
 end;
 
+class function TWPcapProtocolDHCP.DhcpOptionToString(const aValue:Byte):String;
+begin
+  case aValue of
+    1 : Result := 'IPv4';
+    2 : Result := 'IPv6';
+    else Result := 'Unknown';
+  end;
+end;
+
 class function TWPcapProtocolDHCP.HeaderLength(aFlag: Byte): word;
 begin
   Result:= SizeOf(TDHCPHeader);
+end;
+
+class function TWPcapProtocolDHCP.OptionToStringInternal(const aOption: Byte): String;
+begin
+  Result := OptionToString(aOption,True);
 end;
 
 end.

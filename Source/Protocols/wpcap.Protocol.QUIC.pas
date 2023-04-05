@@ -105,6 +105,7 @@ var LUDPPayLoad      : PByte;
     LDestConnectionID: TIdBytes;
     Linitial_salt    : TBytes;
     Lpayload         : PByte;
+    LCurrentPos      : Integer;
 begin
   Result := False;
 
@@ -114,7 +115,8 @@ begin
   LUDPPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
   FIsFilterMode  := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
-  TtmpByte         := PByte(LUDPPayLoad)^;
+  LCurrentPos      := 0;
+  TtmpByte         := ParserUint8Value(LUDPPayLoad,aStartLevel+1,LUDPPayLoadLen,Format('%s.Flags',[AcronymName]), 'Flags:',AListDetail,ByteToBinaryStringInternal,True,LCurrentPos);       
   LFirst_byte_bit1 := GetBitValue(TtmpByte,1)=1;
   LFirst_byte_bit2 := GetBitValue(TtmpByte,2)=1;
   LFirst_byte_bit3 := GetBitValue(TtmpByte,3)=1;
@@ -124,7 +126,6 @@ begin
   LFirst_byte_bit7 := GetBitValue(TtmpByte,7)=1;
   LFirst_byte_bit8 := GetBitValue(TtmpByte,8)=1;
 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags', ByteToBinaryString(TtmpByte), @TtmpByte,SizeOf(TtmpByte) ,TtmpByte));  
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.HeaderForm',[AcronymName]), 'Header Form:', LFirst_byte_bit1, @LFirst_byte_bit1,SizeOf(LFirst_byte_bit1), GetBitValue(TtmpByte,1) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.FixedBit',[AcronymName]), 'Fixed bit:', LFirst_byte_bit2, @LFirst_byte_bit1,SizeOf(LFirst_byte_bit1), GetBitValue(TtmpByte,2) ));  
 
@@ -176,9 +177,12 @@ begin
   begin 
     TtmpByte := PByte(LUDPPayLoad+5)^;
     AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', TtmpByte, @TtmpByte,SizeOf(TtmpByte)));    
-    SetLength(LDestConnectionID,TtmpByte);
-    Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));        
+    if TtmpByte > 0 then
+    begin
+      SetLength(LDestConnectionID,TtmpByte);
+      Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));        
+    end;
   end;
 
 

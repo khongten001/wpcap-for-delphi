@@ -23,7 +23,7 @@ uses
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
   cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
   cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons, dxStatusBar,
-  dxCalloutPopup, cxImageComboBox;
+  dxCalloutPopup, cxImageComboBox, cxMaskEdit;
 
 type
   TFormMain = class(TForm)
@@ -106,6 +106,7 @@ type
     BFilterByLabel: TdxBarButton;
     ListPacketDetailEnrichment: TcxTreeListColumn;
     BLoadSQLLiteDatabase: TdxBarButton;
+    BFilterByLabelForm: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -140,6 +141,7 @@ type
     procedure BFilterByLabelClick(Sender: TObject);
     procedure ListPacketDetailClick(Sender: TObject);
     procedure BLoadSQLLiteDatabaseClick(Sender: TObject);
+    procedure BFilterByLabelFormClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -159,6 +161,8 @@ type
     function GetTmpPath: String;
     function GetPathUtils: String;
     procedure OpenDatabase(const aFileName: String;aCheckVersion:Boolean);
+    procedure SetButtonGrid(aValue: Boolean);
+    procedure FilterByLabel(const aLabel: String);
   public
     { Public declarations }
   end;
@@ -168,7 +172,10 @@ var
 
 implementation
 
-uses UnFormRecording,UnFormImportGeoLite,UnFormPlayerWave,UnFunctionFilter,UnitCustomOpenDialog;
+uses
+  UnFormRecording, UnFormImportGeoLite, UnFormPlayerWave, UnFunctionFilter,
+  UnitCustomOpenDialog, UnitFormLabelFilter;
+
 
 {$R *.dfm}
 
@@ -199,6 +206,7 @@ end;
 procedure TFormMain.DoPCAPOfflineCallBackEnd(const aFileName:String);
 begin
   OpenDatabase(aFileName,false);
+
 end;
 
 Procedure TFormMain.OpenDatabase(Const aFileName:String;aCheckVersion:Boolean);
@@ -220,9 +228,7 @@ begin
 
     DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
     FWPcapDBSqLite.FDQueryGrid.Open;
-    BSavePCAP.Enabled := True;
-    BSaevGrid.Enabled := True;    
-      
+    SetButtonGrid(True);    
   end
   else
     MessageDlg(Format('Database %s: unable open database',[aFileName]),mtError,[mbOK],0);
@@ -395,14 +401,20 @@ begin
         begin
           DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
           FWPcapDBSqLite.FDQueryGrid.Open;
-          BSavePCAP.Enabled := True;
-          BSaevGrid.Enabled := True;
+          SetButtonGrid(True);
         end;    
       end;
       
    Finally
      FreeAndNil(aFormRecording);
    End;
+end;
+
+Procedure TFormMain.SetButtonGrid(aValue:Boolean);
+begin
+  BSavePCAP.Enabled          := aValue;
+  BSaevGrid.Enabled          := aValue;
+  BFilterByLabelForm.Enabled := aValue;  
 end;
 
 procedure TFormMain.GridPcapDBTableView1CustomDrawCell(
@@ -687,35 +699,23 @@ begin
 
       pProgressImport.Visible := True;  
 
-      BSavePCAP.Enabled       := False;
-      BSaevGrid.Enabled       := False;
+      SetButtonGrid(False);
       FWPcapDBSqLite.Connection.Close;
       FWPcapDBSqLite.FDQueryGrid.Close;
       SetPositionProgressBar(0);
       FLastFileOpened := LFormOpenDialog.Filename;
       FInitialDir     := ExtractFilePath(FLastFileOpened);
       Caption         := Format('PCAP Analisys %s - %s',[ExtractFileName(FLastFileOpened),PacketGetVersion]);      
-      {TODO 
-
-        Query bulder 
-        Packet detail [TreeView Like wireshark with syncronize with memo ???? HOW ?]
-        ChartStatistics by protocol
-      
-      }
-
       DeleteFile(ChangeFileExt(FLastFileOpened,'.db'));
-
       if Boolean(TActiveGEOIP.EditValue ) and FileExists(GetGeoLiteDatabaseName) then
         FWpcapGeoLite.OpenDatabase(GetGeoLiteDatabaseName)
       else
         FWPcapDBSqLite.Connection.Connected := False;
 
-
       BMap.Enabled := FWPcapDBSqLite.Connection.Connected;    
       if not Assigned(FPcapImport) then
         FPcapImport := TPCAP2SQLite.Create;
       FPcapImport.PCAP2SQLite(FLastFileOpened,ChangeFileExt(FLastFileOpened,'.db'),LFormOpenDialog.EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
-
     end;
   Finally
     FreeAndNil(LFormOpenDialog);
@@ -744,14 +744,23 @@ end;
 procedure TFormMain.BCopyTreeListClick(Sender: TObject);
 begin
   ListPacketDetail.CopySelectedToClipboard(True);
-
 end;
 
 procedure TFormMain.BFilterByLabelClick(Sender: TObject);
 begin
   if not Assigned(ListPacketDetail.FocusedNode) then Exit;
   
-  FilterColumn(GridPcapDBTableView1XML_PACKET_DETAIL,GridPcapDBTableView1,foContains,ListPacketDetail.FocusedNode.Values[ListPacketDetailLabel.Position.ColIndex]);
+  FilterByLabel(ListPacketDetail.FocusedNode.Values[ListPacketDetailLabel.Position.ColIndex])
+end;
+
+Procedure TFormMain.FilterByLabel(const aLabel:String);
+var aFrameNumber : variant;
+    aDescription : String;
+begin
+  if aLabel.Trim.IsEmpty then exit;
+  
+  if FWPcapDBSqLite.GetFrameNumberByLabel(aFrameNumber,aLabel,aDescription) then
+    FilterColumn(GridPcapDBTableView1NPACKET,GridPcapDBTableView1,foInList,aFrameNumber,aDescription,True);  
 end;
 
 procedure TFormMain.ListPacketDetailClick(Sender: TObject);
@@ -786,6 +795,23 @@ begin
   OpenDialog1.Filter := 'SQLite database(*.db)|*.db';
   if OpenDialog1.Execute then
     OpenDatabase(OpenDialog1.FileName,True);
+end;
+
+procedure TFormMain.BFilterByLabelFormClick(Sender: TObject);
+var aFormLabelFilter : TFormLabelFilter;
+begin
+  aFormLabelFilter := TFormLabelFilter.Create(nil);
+  Try
+    aFormLabelFilter.DsList.DataSet := FWPcapDBSqLite.FDQueryLabelList;
+    FWPcapDBSqLite.FDQueryLabelList.Open();
+    aFormLabelFilter.ShowModal;
+    if aFormLabelFilter.ModalResult = mrOK then
+    begin
+       FilterByLabel(aFormLabelFilter.SelectLabel);
+    end;
+  Finally
+    FreeAndNil(aFormLabelFilter);
+  End;
 end;
 
 end.

@@ -4,7 +4,7 @@ interface
 
 uses
   System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,wpcap.Protocol.ICMP,wpcap.Protocol.IGMP,
-  wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,wpcap.IpUtils,
+  wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,wpcap.IpUtils,idGlobal,
   wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2;
 
 
@@ -763,8 +763,8 @@ begin
         
         aInternalIP.IpPrototr      := GetIPv4ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.ProtoAcronym   := GetIPv4ProtocolName(aInternalIP.IpProto);
-        aInternalIP.Src            := intToIPV4(LheaderIpV4.SrcIP.Addr);
-        aInternalIP.Dst            := intToIPV4(LheaderIpV4.DestIP.Addr);
+        aInternalIP.Src            := MakeUInt32IntoIPv4Address(wpcapntohl(LheaderIpV4.SrcIP.Addr));
+        aInternalIP.Dst            := MakeUInt32IntoIPv4Address(wpcapntohl(LheaderIpV4.DestIP.Addr));
         AnalyzeIPProtocol(aPacketData,aPacketSize,aInternalIP);         
         Result := True;
       end;

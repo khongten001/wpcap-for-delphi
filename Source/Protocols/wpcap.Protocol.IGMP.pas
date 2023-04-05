@@ -134,7 +134,6 @@ var LHeader        : PTIGMPHeader;
     I              : Integer;
     X              : Integer;
     LCurrentPos    : Integer;
-    LLongWordValue : LongWord;
 begin
   Result := False;
   FisFilterMode := aisFilterMode;
@@ -160,19 +159,15 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.Type',[AcronymName]), 'Type:',RecordTypeToString(LGroupRec.RecType),@LGroupRec.RecType,sizeOf(LGroupRec.RecType), LGroupRec.RecType ));            
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.AudLen',[AcronymName]), 'Aux Data Len:',LGroupRec.DataLen,@LGroupRec.DataLen,sizeOf(LGroupRec.DataLen) ));    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.NSrc',[AcronymName]), 'Num src:',wpcapntohs(LGroupRec.NumSrc),@LGroupRec.NumSrc,sizeOf(LGroupRec.NumSrc) ));   
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',intToIPV4(LGroupRec.Ipaddr),@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',MakeDWordIntoIPv4AddressInternal(wpcapntohl(LGroupRec.Ipaddr)),@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
     Inc(LCurrentPos,SizeOf(TIGMPGroupRecord));
 
     if LCurrentPos > aPacketSize then break;
-    
-    
-    
+
     for X := 0 to wpcapntohs(LGroupRec.NumSrc) -1 do
     begin
-      LLongWordValue := PLongWord(aPacketData+LCurrentPos)^ ;
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.SrcAddr',[AcronymName]), 'Source Address:',intToIPV4(LLongWordValue),@LLongWordValue,sizeOf(LLongWordValue) ));
-      Inc(LCurrentPos,SizeOf(LLongWordValue));
-      if LCurrentPos > aPacketSize then break;      
+      ParserUint32Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.GroupRecord.SrcAddr',[AcronymName]), 'Source Address:',AListDetail,MakeDWordIntoIPv4AddressInternal,True,LCurrentPos);
+      if LCurrentPos > aPacketSize then break;
     end;
     
     INC(LCurrentPos,LGroupRec.DataLen);  

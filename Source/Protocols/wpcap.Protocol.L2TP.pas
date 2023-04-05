@@ -895,7 +895,7 @@ Class function TWPcapProtocolL2TP.ReadAVPValueFromPacket(aPayloadData: PByte; aC
 var ByteValue         : Byte;
     IntValue          : Integer;
     Int64Value        : Int64;
-    UIntValue         : Cardinal;
+    UIntValue         : Uint32;
     LongValue         : LongWord;
     UInt64Value       : UInt64;
     RawValue          : TBytes;
@@ -930,7 +930,7 @@ begin
     2,44,118,120,121, 72,74,75: // Unsigned32 AVP
       begin
         UIntValue   := PCardinal(aPayloadData + aCurrentPos)^;
-        Result      := TValue.From<Cardinal>(UIntValue);
+        Result      := TValue.From<Uint32>(UIntValue);
       end;
          
     3,45: // Unsigned64 AVP
@@ -973,7 +973,7 @@ begin
     16: // Unsigned32 AVP (IPv4Address)
       begin
         UIntValue    := PCardinal(aPayloadData + aCurrentPos)^;        
-        AddressValue := intToIPV4(UIntValue);
+        AddressValue := MakeDWordIntoIPv4AddressInternal(wpcapntohl(UIntValue));
         Result       := TValue.From<string>(AddressValue);
       end;
     17: // Unsigned64 AVP (IPv6Address)
@@ -1058,6 +1058,7 @@ begin
       
     41: // EUI64 AVP
       begin
+        
         SetLength(RawValue, 8);
         Move((aPayloadData+aCurrentPos+8)^, RawValue[0], 8);        
         Result := TValue.From<TBytes>(RawValue);
@@ -1140,9 +1141,12 @@ begin
       
     106,117: //IPFilterRule AVP
       begin
-        SetLength(RawValue, aAvpLength - 8);
-        Move((aPayloadData+aCurrentPos)^, RawValue[0], aAvpLength - 8);        
-        Result      := TValue.From<TBytes>(RawValue);
+        if aAvpLength - 8 > 0 then
+        begin
+          SetLength(RawValue, aAvpLength - 8);
+          Move((aPayloadData+aCurrentPos)^, RawValue[0], aAvpLength - 8);        
+          Result      := TValue.From<TBytes>(RawValue);
+        end;
       end;   
 
     125,137: // FailedAVP AVP
@@ -1281,7 +1285,6 @@ var LAvpHeader      : TAVPHeader;
     LCurrentPos     : Integer;
     LByte0          : Byte;
     LByte1          : Byte;    
-    LResultStr      : string;   
     LTypeStr        : string; 
     LLabel          : String;
 begin
@@ -1298,8 +1301,6 @@ begin
                        [until Length is reached]...                |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
   }
-  Try
-  LResultStr := String.Empty;
   // Start from the beginning of the payload
   LCurrentPos := 0;
   // Loop through the payload data until the end is reached
@@ -1372,10 +1373,6 @@ begin
     {Attribute Type: A 2 octet value with a unique interpretation across
      all AVPs defined under a given Vendor ID.}    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Type',[LLabel]), 'Type:',L2TPAVPTypeToString(LAvpType),@LAvpHeader.AttrType,sizeOf(LAvpHeader.AttrType), LAvpType ));       
-
-
-    // Add AVP type and length to the result string
-    LResultStr := LResultStr + Format('AVP Type: %d, Length: %d'#13#10, [LAvpType, LAvpLength]);
     
     // Check if the AVP has a value
 
@@ -1386,13 +1383,13 @@ begin
        Type field, and runs for the remaining octets indicated in the Length
        (i.e., Length minus 6 octets of header). This field is absent if the
        Length is 6.}
-      LResultStr := LResultStr + 'Value: ';
+
       Inc(LCurrentPos, SizeOf(TAVPHeader));       
       
       LAvpValue := wpcapntohs(Pcardinal(PayloadData + LCurrentPos)^);
       LAvpValue := ReadAVPValueFromPacket(PayloadData,LCurrentPos,LAvpLength,LAvpType,aVendorID);
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:',LAvpValue.ToString, @LAvpValue,SizeOF(LAvpValue) ));
-      LResultStr :=Format('%s %s',[LResultStr,LAvpValue.ToString])  + #13#10;
+
 
       {TODO message by AVP Type}
       // Move to the next AVP
@@ -1406,9 +1403,6 @@ begin
       Inc(LCurrentPos, SizeOf(TAVPHeader));
     end;
   end;
-  except
-
-  End;
 
 end;
 

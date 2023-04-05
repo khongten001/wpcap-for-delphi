@@ -189,7 +189,7 @@ begin
     TFTP_WRQ  :
       begin
         LTFTPHeaderRRQ_WRQ := PTTFTPHeaderRRQ_WRQ(LUDPPayLoad);  
-        LFileLen  :=  StrLen(LTFTPHeaderRRQ_WRQ.Filename);    
+        LFileLen           :=  StrLen(LTFTPHeaderRRQ_WRQ.Filename);    
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SourceName',[AcronymName]), 'Source name:', StrPas(LTFTPHeaderRRQ_WRQ.Filename), @LTFTPHeaderRRQ_WRQ.Filename,LFileLen));
 
         Move(LUDPPayLoad[SizeOf(LOpCode)+LFileLen+1],LType,SizeOf(LType));

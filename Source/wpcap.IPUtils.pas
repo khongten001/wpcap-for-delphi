@@ -11,17 +11,6 @@ uses WinApi.Windows,System.Classes,System.SysUtils,IdGlobal,System.Math,IdGlobal
 /// </summary>
 function IPv6AddressToString(const Address: array of Byte): string;
 
-/// <summary>
-/// The function "intToIPV4" takes a 32-bit unsigned integer value, which represents an IPv4 address in binary format, 
-/// and converts it into a string in dotted decimal notation.
-/// 
-/// In IPv4, an address is represented by a 32-bit binary number, which is divided into four 8-bit sections. 
-/// Each section is then converted into a decimal number and separated by a dot. This notation is called dotted decimal notation.
-
-/// The function accomplishes this by first extracting the four sections of the 32-bit integer using bit masking and bit shifting operations, 
-/// and then converting each section into a string using the IntToStr function. The four strings are then concatenated with dots in between to form the final dotted decimal string.
-/// </summary>
-function intToIPV4(ip: LongWord): string;
 function IPv6ToUInt64(const AIPAddress: string): UInt64;
 
 Function IsValidPublicIP(Const aIP : String):Boolean;
@@ -149,15 +138,6 @@ begin
   Result := StringReplace(HexStr, ':0:', '::', [rfReplaceAll, rfIgnoreCase]);
   Result := StringReplace(Result, '::0', '::', [rfReplaceAll, rfIgnoreCase]);
   Result := StringReplace(Result, '0::', '::', [rfReplaceAll, rfIgnoreCase]);
-end;
-
-
-function IntToIPV4(ip: LongWord): string;
-begin
-  Result := IntToStr(ip and $FF) + '.' +
-            IntToStr((ip shr 8) and $FF) + '.' +
-            IntToStr((ip shr 16) and $FF) + '.' +
-            IntToStr((ip shr 24) and $FF); 
 end;
 
 

@@ -137,10 +137,9 @@ begin
   LTCPPayLoad    := GetTCPPayLoad(aPacketData,aPacketSize);
   LTpcPayLoadLen := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LTpcPayLoadLen));
+  LPos      := 0;
+  LtmpByte  := ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Flags',[AcronymName]), 'Flags:',AListDetail,ByteToBinaryStringInternal,True,LPos);
 
-  LtmpByte  := PByte(LTCPPayLoad)^;
-
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:', ByteToBinaryString(LtmpByte), @LtmpByte,sizeOF(LtmpByte), LtmpByte )); 
   LMsgType := LtmpByte shr 4;
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.MsgType',[AcronymName]), 'Message Type:',MQTTMessageType(LMsgType), @LMsgType,sizeOF(LMsgType), LMsgType)); 
 
@@ -153,29 +152,24 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s.Flags.QoSLevel',[AcronymName,MQTTMessageType(LMsgType).ToLower]), 'QoS level:', LtmpByte shr 5, @LtmpByte,sizeOF(LtmpByte)));    
      end;
   end; 
-  
-  LtmpByte  := PByte(LTCPPayLoad+1)^;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.MsgLen',[AcronymName]), 'Message len:',LtmpByte, @LtmpByte,sizeOF(LtmpByte)));   
 
-  LPos := 2;  
+  ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.MsgLen',[AcronymName]), 'Message len:',AListDetail,SizeaUint8ToStr,True,LPos);
+ 
   case LMsgType of
   
     MQTT_CONNECT:
       begin
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.ProtoNameLen',[AcronymName]), 'Protocol Name Length:',AListDetail,SizeWordToStr,True,LPos);
 
-        LWordValue := wpcapntohs( PWord(LTCPPayLoad+LPos)^ );
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.ProtoNameLen',[AcronymName]), 'Protocol Name Length:', LWordValue, @LWordValue,sizeOF(LWordValue)));
-        Inc(LPos,SizeOf(LWordValue));  
-        
-        SetLength(LBytes,LWordValue);
-        Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.ProtoName',[AcronymName]), 'Protocol Name:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));          
-        inc(LPos,LWordValue);        
+        if LWordValue > 0 then
+        begin
+          SetLength(LBytes,LWordValue);
+          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.ProtoName',[AcronymName]), 'Protocol Name:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));          
+          inc(LPos,LWordValue);        
+        end;
 
-
-        LtmpByte := PByte(LTCPPayLoad + LPos)^;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.Version',[AcronymName]),  'Version:',LtmpByte, @LBytes,SizeOf(LBytes)));  
-        Inc(LPos);
+        ParserUint8Value(LTCPPayLoad,aStartLevel+2,LTpcPayLoadLen,Format('%s.Connect.Version',[AcronymName]), 'Version:',AListDetail,nil,True,LPos);
                      
         LtmpByte := PByte(LTCPPayLoad + LPos)^;
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.Flags',[AcronymName]),  'Flags:',ByteToBinaryString(LtmpByte), @LtmpByte,sizeOF(LtmpByte),LtmpByte ));
@@ -187,78 +181,62 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Connect.Flags.CleanSession',[AcronymName]),  'Clean session:',GetBitValue(LtmpByte,7)=1, @LtmpByte,sizeOF(LtmpByte)));        
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Connect.Flags.Reserved',[AcronymName]),  'Reserved:',GetBitValue(LtmpByte,8)=1, @LtmpByte,sizeOF(LtmpByte)));
         Inc(LPos);
+
+        ParserUint16Value(aPacketData,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.KeepAlive',[AcronymName]), 'Keep alive:',AListDetail,nil,True,LPos);
         
-        LWordValue := wpcapntohs(PWord(LTCPPayLoad + LPos)^);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.KeepAlive',[AcronymName]), 'Keep alive:',LWordValue, @LWordValue,SizeOf(LWordValue)));    
-        Inc(LPos,SizeOf(LWordValue));
-        
-        LWordValue := wpcapntohs( PWord(LTCPPayLoad+LPos)^ );        
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.CliendIDLen',[AcronymName]), 'Client ID Length:', LWordValue, @LWordValue,sizeOF(LWordValue)));    
-        Inc(LPos,SizeOf(LWordValue));
-        
-        SetLength(LBytes,LWordValue);
-        Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.CliendID',[AcronymName]), 'Client ID:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));      
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.CliendIDLen',[AcronymName]), 'Client ID Length:',AListDetail,SizeWordToStr,True,LPos);
+        if LWordValue > 0 then
+        begin
+          SetLength(LBytes,LWordValue);
+          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.CliendID',[AcronymName]), 'Client ID:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));      
+        end;
                               
       end;
 
     MQTT_CONNACK:
       begin     
-
-        LtmpByte := PByte(LTCPPayLoad + LPos)^;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ConnectACK.Reserved',[AcronymName]), 'Reserved:',LtmpByte=1, @LtmpByte,sizeOF(LtmpByte)));   
-        Inc(LPos);
-        
-        LtmpByte := PByte(LTCPPayLoad + LPos)^; 
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ConnectACK.ReturnCode',[AcronymName]), 'Return code:',LtmpByte, @LtmpByte,sizeOF(LtmpByte)));           
+        ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.ConnectACK.Reserved',[AcronymName]), 'Reserved:',AListDetail,ByteToBooleanStr,True,LPos);        
+        ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.ConnectACK.ReturnCode',[AcronymName]), 'Return code:',AListDetail,nil,True,LPos);        
       end;
 
     MQTT_PUBLISH:
       begin  
-        LWordValue := wpcapntohs(PWord(LTCPPayLoad + LPos)^);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Length',[AcronymName]), 'Topic Length:',LWordValue, @LWordValue,SizeOf(LWordValue)));    
-        Inc(LPos,SizeOf(LWordValue));
-
-        SetLength(LBytes,LWordValue);
-        Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Topic',[AcronymName]), 'Topic:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));    
-        Inc(LPos,LWordValue);        
-
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Publish.Length',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
+        if LWordValue > 0 then
+        begin        
+          SetLength(LBytes,LWordValue);
+          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Topic',[AcronymName]), 'Topic:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));    
+          Inc(LPos,LWordValue);        
+        end;
               
-        SetLength(LBytes,LTpcPayLoadLen- LPos);
-        Move((LTCPPayLoad + LPos)^, LBytes[0],LTpcPayLoadLen- LPos );      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Message',[AcronymName]), 'Message:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));       
+        if LTpcPayLoadLen- LPos > 0 then
+        begin
+          SetLength(LBytes,LTpcPayLoadLen- LPos);
+          Move((LTCPPayLoad + LPos)^, LBytes[0],LTpcPayLoadLen- LPos );      
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Message',[AcronymName]), 'Message:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));       
+        end;
       end;
-      
+
     MQTT_SUBSCRIBE  :
       begin
-        LWordValue := wpcapntohs(PWord(LTCPPayLoad + LPos)^);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Subscribe.MessageIdentifier',[AcronymName]), 'Message Identifier:',LWordValue, @LWordValue,SizeOf(LWordValue)));    
-        Inc(LPos,SizeOf(LWordValue));  
-
-        LWordValue := wpcapntohs(PWord(LTCPPayLoad + LPos)^);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Subscribe.TopicLen',[AcronymName]), 'Topic Length:',LWordValue, @LWordValue,SizeOf(LWordValue)));    
-        Inc(LPos,SizeOf(LWordValue));      
-
-        SetLength(LBytes,LWordValue);
-        Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Subscribe.Topic',[AcronymName]), 'Topic:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));    
-        Inc(LPos,LWordValue);    
-
-        LtmpByte := PByte(LTCPPayLoad + LPos)^;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Subscribe.RequestedQoS',[AcronymName]), 'Requested QoS:',LtmpByte, @LBytes,SizeOf(LBytes)));
-        Inc(LPos);                          
+        ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.MessageIdentifier',[AcronymName]), 'Message Identifier:',AListDetail,nil,True,LPos);
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.TopicLen',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
+        if LWordValue > 0 then
+        begin                
+          SetLength(LBytes,LWordValue);
+          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Subscribe.Topic',[AcronymName]), 'Topic:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));    
+          Inc(LPos,LWordValue);    
+        end;
+        ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.RequestedQoS',[AcronymName]), 'Requested QoS:',AListDetail,nil,True,LPos);        
       end;
       
     MQTT_SUBACK    :
       begin
-        LWordValue := wpcapntohs(PWord(LTCPPayLoad + LPos)^);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SubscribeACK.MessageIdentifier',[AcronymName]), 'Message Identifier:',LWordValue, @LWordValue,SizeOf(LWordValue)));    
-        Inc(LPos,SizeOf(LWordValue));  
-
-        LtmpByte := PByte(LTCPPayLoad + LPos)^;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SubscribeACK.GrantedQoS',[AcronymName]), 'Granted QoS:',LtmpByte, @LBytes,SizeOf(LBytes)));  
-        Inc(LPos);                          
+        ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.SubscribeACK.MessageIdentifier',[AcronymName]), 'Message Identifier:',AListDetail,nil,True,LPos);
+        ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.SubscribeACK.GrantedQoS',[AcronymName]), 'Granted QoS:',AListDetail,nil,True,LPos);                                 
       end;
     
   end;

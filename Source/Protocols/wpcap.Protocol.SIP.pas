@@ -61,7 +61,6 @@ end;
 
 class function TWPcapProtocolSIP.IsValid(const aPacket: PByte;
   aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
-var LUDPPPtr: PUDPHdr;
 begin
   Result  := inherited IsValid(aPacket,aPacketSize,aAcronymName,aIdProtoDetected);  
 end;

@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, Wpcap.protocol.TCP, wpcap.StrUtils,system.Variants,idGlobal,
+  wpcap.Protocol.Base, wpcap.Conts, Wpcap.protocol.TCP, wpcap.StrUtils,system.Variants,idGlobal,System.Math,
   wpcap.Types, Vcl.Dialogs, System.StrUtils, System.Classes,system.SysUtils,wpcap.BufferUtils;
   
 type
@@ -80,9 +80,9 @@ type
     class function TLSVersionToString(aVersion: Word): string; static;
     class function Header(const aUDPPayLoad: PByte): PTTLSRecordHeader; static;
     class function KnowVersion(aVersion: Word): Boolean; static;
-    class function ChipherToString(aChipher: Word): string; static;
-    class function HandShakeTypeToString(aRecodType: Byte): string; static;
-    class function CompressionToString(const aCompression: Byte): String; static;
+    class function ChipherToString(const aChipher: Uint16): string;
+    class function HandShakeTypeToString(const aRecodType: Uint8): string;
+    class function CompressionToString(const aCompression: Uint8): String;
   public
     /// <summary>
     ///  Returns the default port number for the TLS protocol (443).
@@ -129,26 +129,28 @@ var LTCPHdr       : PTCPHdr;
     LTCPPayLoad   : PByte;
     LRecord       : PTTLSRecordHeader;
     LTCPPayLoadLen: Integer;
+    LContectLen   : Integer;
 begin
   Result := False;
   if not HeaderTCP(aPacket,aPacketSize,LTCPHdr) then exit;
   
-  LTCPPayLoad    := GetTCPPayLoad(aPacket,aPacketSize);
-  LRecord        := Header(LTCPPayLoad);
-
-  if not KnowVersion(LRecord.ProtocolVersion) then
-  begin
-    Result           := False;
+  LTCPPayLoad     := GetTCPPayLoad(aPacket,aPacketSize);
+  LRecord         := Header(LTCPPayLoad);
+  LTCPPayLoadLen  := TCPPayLoadLength(LTCPHdr,aPacket,aPacketSize);
+  LContectLen     := wpcapntohs(LRecord.Length);
+  if KnowVersion(LRecord.ProtocolVersion) then
+    Result := (LContectLen > 0)  and ( LContectLen <= LTCPPayLoadLen ) and InRange(LRecord.ContentType,TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC,TLS_CONTENT_TYPE_ID_TLS12_CID);
+    
+  if not Result then 
+  begin  
     aAcronymName     := inherited AcronymName; 
     aIdProtoDetected := inherited IDDetectProto;
-    Exit;
-  end
-  else
-    Result := True;
-    
+    Exit;  
+  end;
+  
   aAcronymName     := TLSVersionToString(LRecord.ProtocolVersion);
   aIdProtoDetected := IDDetectProto;
-  LTCPPayLoadLen   := TCPPayLoadLength(LTCPHdr,aPacket,aPacketSize);
+ 
 
   if wpcapntohs(LRecord.Length) > LTCPPayLoadLen then
     aAcronymName := 'SSL';
@@ -179,7 +181,7 @@ begin
   Result := SizeOF(TTLSRecordHeader)
 end;
 
-class function TWPcapProtocolTLS.HandShakeTypeToString(aRecodType: Byte): string;
+class function TWPcapProtocolTLS.HandShakeTypeToString(const aRecodType: Uint8): string;
 begin
   case aRecodType of
     TLS_HANDSHAKE_TYPE_HELLO_VERIFY_REQUEST   : Result := 'Hello verifty request';
@@ -223,7 +225,7 @@ begin
   end;
 end;       
 
-class function TWPcapProtocolTLS.CompressionToString(const aCompression : Byte):String;
+class function TWPcapProtocolTLS.CompressionToString(const aCompression : Uint8):String;
 begin
   case aCompression of
       0 : Result := 'null';
@@ -235,7 +237,7 @@ begin
 end;
 
 
-class function TWPcapProtocolTLS.ChipherToString(aChipher: Word): string;
+class function TWPcapProtocolTLS.ChipherToString(const aChipher: Uint16): string;
 begin
   case aChipher of
     $000000 : Result := 'TLS_NULL_WITH_NULL_NULL';
@@ -639,6 +641,7 @@ var LOffset         : Integer;
         AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.%s.Version',[aContentType,AcronymName]), 'Version:', TLSVersionToString(LWordValue), @LWordValue, SizeOf(LWordValue), LWordValue ));
         Inc(LOffset,SizeOf(LWordValue));
 
+
         SetLength(LBytes,32);
         Move(LTCPPayLoad[LOffset],LBytes[0],32);                 
         AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.%s.Random',[aContentType,AcronymName]), 'Random:',ToHex(LBytes), @LBytes, Length(LBytes) ));
@@ -649,7 +652,7 @@ var LOffset         : Integer;
         AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.%s.SessionIDLen',[aContentType,AcronymName]), 'Session ID length:', LByteValue, @LByteValue, SizeOf(LByteValue) ));
         Inc(LOffset,SizeOf(LByteValue));
             
-        if LByteValue > 0 then
+        if isValidLen(LOffset,LTCPPayLoadLen,LByteValue)  then 
         begin
           SetLength(LBytes,LByteValue);
           Move(LTCPPayLoad[LOffset],LBytes[0],LByteValue);                 
@@ -665,7 +668,6 @@ begin
   if not HeaderTCP(aPacketData,aPacketSize,LTCPHdr) then exit;
   
   LTCPPayLoad    := GetTCPPayLoad(aPacketData,aPacketSize);
-  LRecord        := Header(LTCPPayLoad);
   LTCPPayLoadLen := TCPPayLoadLength(LTCPHdr,aPacketData,aPacketSize);
   LOffset     := 0;
 
@@ -682,6 +684,8 @@ begin
 
     LContectLen :=  wpcapntohs(LRecord.Length);
 
+    if LContectLen <= 0 then exit;
+
     if LContectLen > LTCPPayLoadLen then exit;
         
     SetLength(LBytes,LContectLen);
@@ -695,11 +699,8 @@ begin
       case LRecord.ContentType of
 
         TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC   :
-          begin
-            LByteValue := PByte(LTCPPayLoad+LOffset)^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ChangeCipherr.Type',[AcronymName]), 'Change cipher:', ChipherToString(LByteValue), @LByteValue, SizeOf(LByteValue), LByteValue ));
-            Inc(LOffset,SizeOf(LByteValue));
-          end;
+            ParserUint16Value(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,Format('%s.ChangeCipherr.Type',[AcronymName]), 'Change cipher:',AListDetail,ChipherToString,True,LOffset);   
+
         TLS_CONTENT_TYPE_ALERT                : 
           begin
             SetLength(LBytes,LContectLen);
@@ -714,8 +715,7 @@ begin
             LTypeRecord := PByte(LTCPPayLoad+LOffset)^;
           
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake',[AcronymName]), Format('Handshake: %s',[HandShakeTypeToString(LTypeRecord)]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
-            AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.Type',[AcronymName]), 'Handshake type:', HandShakeTypeToString(LTypeRecord), @LTypeRecord, SizeOf(LTypeRecord), LTypeRecord ));
-            Inc(LOffset,SizeOf(LTypeRecord));
+            ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.Type',[AcronymName]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   
 
             SetLength(LBytes,3);
             Move(LTCPPayLoad[LOffset],LBytes[0],3);             
@@ -723,7 +723,9 @@ begin
             AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.Len',[AcronymName]), 'Length:',LHandShakeLen, @LBytes, Length(LBytes) ));
             Inc(LOffset,3);
 
-
+           if LHandShakeLen <= 0 then  continue;
+           if LHandShakeLen > 16384  then Break;
+           
 
             case LTypeRecord of
               TLS_HANDSHAKE_TYPE_HELLO_REQUEST,
@@ -733,46 +735,41 @@ begin
               TLS_HANDSHAKE_TYPE_CLIENT_HELLO :
                 begin
                   LoadCommonFieldHello('ClientHello');
+                  LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CipherSuites.Len',[AcronymName]), 'Cipher Suites length:',AListDetail,SizeWordToStr,True,LOffset);   
 
-                  LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.CipherSuitesLen',[AcronymName]), 'Cipher Suites length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                  Inc(LOffset,SizeOf(LWordValue));        
-
-                  SetLength(LBytes,LWordValue);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                   
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.CipherSuites',[AcronymName]), 'Cipher Suites',null,@LBytes,Length(LBytes) ));  
+                  if isValidLen(LOffset,LTCPPayLoadLen,LWordValue)  then
+                  begin
+                    SetLength(LBytes,LWordValue);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                   
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.CipherSuites',[AcronymName]), 'Cipher Suites',null,@LBytes,Length(LBytes) ));  
+                  end;
 
                   for I := 0 to (LWordValue div 2) - 1 do
                   begin
                     if LOffset > LTCPPayLoadLen then Exit;
                     
-                    LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ClientHello.CipherSuitesLen',[AcronymName]), 'Cipher Suites:', ChipherToString(LWordValue), @LWordValue, SizeOf(LWordValue), LWordValue ));            
-                    Inc(LOffset,SizeOf(LWordValue));                  
+                    ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CipherSuites.value',[AcronymName]), 'Cipher Suites:',AListDetail,ChipherToString,True,LOffset);   
                   end;
 
-                  LByteValue2 := (PWord(LTCPPayLoad+LOffset)^);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.CompressionMethodsLen',[AcronymName]),'Compression Methods Length:', LByteValue2, @LByteValue2, SizeOf(LByteValue2) ));            
-                  Inc(LOffset,SizeOf(LByteValue2));       
+                  LByteValue2 := ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CompressionMethods.Len',[AcronymName]), 'Compression Methods Length:',AListDetail,SizeaUint8ToStr,True,LOffset);                     
 
-                  SetLength(LBytes,LByteValue2);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LByteValue2);                   
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.CompressionMethods',[AcronymName]), 'Compression Methods',null,@LBytes,Length(LBytes) ));              
+                  if isValidLen(LOffset,LTCPPayLoadLen,LByteValue2)  then
+                  begin
+                    SetLength(LBytes,LByteValue2);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LByteValue2);                   
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.CompressionMethods',[AcronymName]), 'Compression Methods',null,@LBytes,Length(LBytes) ));   
+                  end;           
                           
                   for I := 0 to LByteValue2 - 1 do
                   begin
                     if LOffset > LTCPPayLoadLen then Exit;
 
-                    LByteValue := PByte(LTCPPayLoad+LOffset)^;
-                    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.ClientHello.CompressionMethods.value',[AcronymName]), 'Compression method:', CompressionToString(LByteValue), @LByteValue, SizeOf(LByteValue), LByteValue ));
-                    Inc(LOffset,SizeOf(LByteValue));                    
+                    ParserUint8Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CompressionMethods.value',[AcronymName]), 'Compression Methods:',AListDetail,CompressionToString,True,LOffset);                     
                   end;
 
                   if LOffset < LTCPPayLoadLen then
                   begin
-                    LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.ExtensionsLen',[AcronymName]), 'Extensions Length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                    Inc(LOffset,SizeOf(LWordValue));
+                    LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.Extensions.Len',[AcronymName]), 'Extensions length:',AListDetail,SizeWordToStr,True,LOffset);   
                     {//TODO Extens}    
                     Inc(LOffset,LWordValue);                               
                   end;                
@@ -782,19 +779,13 @@ begin
                 begin
                   LoadCommonFieldHello('ServerHello');
 
-                  LWordValue := (PWord(LTCPPayLoad+LOffset)^);                  
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ServerHello.CipherSuites',[AcronymName]), 'Cipher Suites',ChipherToString(LWordValue),@LWordValue,SizeOf(LWordValue), LWordValue ));  
-                  Inc(LOffset,SizeOf(LWordValue));
-
-                  LByteValue := PByte(LTCPPayLoad+LOffset)^;              
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ServerHello.CompressionMethods',[AcronymName]), 'Compression Methods',CompressionToString(LByteValue),@LByteValue,SizeOf(LByteValue),LByteValue ));              
-                  Inc(LOffset,SizeOf(LByteValue));                          
+                  ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.CipherSuites',[AcronymName]), 'Cipher Suites:',AListDetail,ChipherToString,True,LOffset); 
+                  ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.CompressionMethods.value',[AcronymName]), 'Compression Methods:',AListDetail,CompressionToString,True,LOffset);                     
+      
                   
                   if LOffset < LTCPPayLoadLen then
                   begin
-                    LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientHello.ExtensionsLen',[AcronymName]), 'Extensions Length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                    Inc(LOffset,SizeOf(LWordValue));
+                    LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.ExtensionsLen',[AcronymName]), 'Extensions length:',AListDetail,SizeWordToStr,True,LOffset);   
                     {Extens}    
                     Inc(LOffset,LWordValue);                               
                   end;                
@@ -803,10 +794,14 @@ begin
                 
               TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE:
                 begin
+
+
                   SetLength(LBytes,LHandShakeLen);
                   Move(LTCPPayLoad[LOffset],LBytes[0],LHandShakeLen);                 
                   AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ClientKeyExChange.Record',[AcronymName]), 'Diffie-Hellman Server Params',null, @LBytes, Length(LBytes) ));
-                  ParserByteValue(LTCPPayLoad,aStartLevel+4,Format('%s.Handshake.ClientKeyExChange.PubkeyLen',[AcronymName]),'Pubkey Length:',AListDetail,LOffset);
+                  
+                  ParserUint16Value(LTCPPayLoad,aStartLevel+4,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.PubkeyLen',[AcronymName]),'Pubkey Length:',AListDetail,nil,True,LOffset);
+
                   SetLength(LBytes,LHandShakeLen-1);
                   Move(LTCPPayLoad[LOffset],LBytes[0],LHandShakeLen-1);                 
                   AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ClientKeyExChange.Pubkey',[AcronymName]), 'Pubkey:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
@@ -819,41 +814,46 @@ begin
                   Move(LTCPPayLoad[LOffset],LBytes[0],LHandShakeLen);                 
                   AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.ServerKeyExChange.Record',[AcronymName]), 'EC Diffie-Hellman Client Params',null, @LBytes, Length(LBytes) ));
 
-                  LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.p.len',[AcronymName]), 'p Length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                  Inc(LOffset,SizeOf(LWordValue));            
-                     
-                  SetLength(LBytes,LWordValue);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.p',[AcronymName]), 'p:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
-                  Inc(LOffset,LWordValue);   
+                  LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.p.Len',[AcronymName]), 'p Length:',AListDetail,SizeWordToStr,True,LOffset);             
 
-                  LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.g.len',[AcronymName]), 'g Length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                  Inc(LOffset,SizeOf(LWordValue));                      
-                
-                  SetLength(LBytes,LWordValue);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.g',[AcronymName]), 'g:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
-                  Inc(LOffset,LWordValue);   
+                  if isValidLen(LOffset,LTCPPayLoadLen,LWordValue)  then
+                  begin
+                    SetLength(LBytes,LWordValue);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.p',[AcronymName]), 'p:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
+                    Inc(LOffset,LWordValue); 
+                  end;  
 
-                  LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.PublicKey.len',[AcronymName]), 'PublicKey Length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                  Inc(LOffset,SizeOf(LWordValue));                      
+                  LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.g.Len',[AcronymName]), 'g Length:',AListDetail,SizeWordToStr,True,LOffset);             
                 
-                  SetLength(LBytes,LWordValue);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.PublicKey',[AcronymName]), 'PublicKey:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
-                  Inc(LOffset,LWordValue);                  
+                  if isValidLen(LOffset,LTCPPayLoadLen,LWordValue)  then
+                  begin                   
+                    SetLength(LBytes,LWordValue);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.g',[AcronymName]), 'g:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
+                    Inc(LOffset,LWordValue);  
+                  end; 
 
-                  LWordValue := wpcapntohs(PWord(LTCPPayLoad+LOffset)^);
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.Signature.len',[AcronymName]), 'Signature Length:', LWordValue, @LWordValue, SizeOf(LWordValue) ));            
-                  Inc(LOffset,SizeOf(LWordValue));                      
-                
-                  SetLength(LBytes,LWordValue);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.Signature',[AcronymName]), 'Signature:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
-                  Inc(LOffset,LWordValue);                                       
+                  LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.PublicKey.Len',[AcronymName]), 'PublicKey Length:',AListDetail,SizeWordToStr,True,LOffset);             
+
+                  if isValidLen(LOffset,LTCPPayLoadLen,LWordValue)  then
+                  begin                   
+                    SetLength(LBytes,LWordValue);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.PublicKey',[AcronymName]), 'PublicKey:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
+                    Inc(LOffset,LWordValue);     
+                  end;             
+
+
+                  LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.Signature.Len',[AcronymName]), 'Signature Length:',AListDetail,SizeWordToStr,True,LOffset);             
+                                  
+                  if isValidLen(LOffset,LTCPPayLoadLen,LWordValue)  then
+                  begin                   
+                    SetLength(LBytes,LWordValue);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LWordValue);                 
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.ServerKeyExChange.Signature',[AcronymName]), 'Signature:',ToHex(LBytes), @LBytes, Length(LBytes) ));                  
+                    Inc(LOffset,LWordValue); 
+                  end;                                      
                 end;  
 
               TLS_HANDSHAKE_TYPE_CERTIFICATE :
@@ -863,25 +863,29 @@ begin
                   LtmpVaue := wpcapntohl(BytesToInt32(LBytes));     
                   AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.Certificate.len',[AcronymName]), 'Certificate length:',LtmpVaue, @LBytes, Length(LBytes) ));
                   Inc(LOffset,3);                  
-
-                  SetLength(LBytes,LtmpVaue);
-                  Move(LTCPPayLoad[LOffset],LBytes[0],LtmpVaue);   
-                  AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificates:',Null, @LBytes, Length(LBytes) ));                                        
-                  while LOffset < LHandShakeLen do
+                  if isValidLen(LOffset,LTCPPayLoadLen,LtmpVaue)  then
                   begin
-                    SetLength(LBytes,3);
-                    Move(LTCPPayLoad[LOffset],LBytes[0],3);         
-                    LtmpVaue2 := wpcapntohl(BytesToInt32(LBytes));     
-                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.Certificate.Certificate.len',[AcronymName]), 'Certificate length:',LtmpVaue2, @LBytes, Length(LBytes) ));
-                    Inc(LOffset,3);     
+                    SetLength(LBytes,LtmpVaue);
+                    Move(LTCPPayLoad[LOffset],LBytes[0],LtmpVaue);   
+                    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificates:',Null, @LBytes, Length(LBytes) ));                                        
+                    while LOffset < LHandShakeLen do
+                    begin
+                      SetLength(LBytes,3);
+                      Move(LTCPPayLoad[LOffset],LBytes[0],3);         
+                      LtmpVaue2 := wpcapntohl(BytesToInt32(LBytes));     
+                      AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.Certificate.Certificate.len',[AcronymName]), 'Certificate length:',LtmpVaue2, @LBytes, Length(LBytes) ));
+                      Inc(LOffset,3);     
+                      if isValidLen(LOffset,LTCPPayLoadLen,LtmpVaue2)  then
+                      begin
+                        SetLength(LBytes,LtmpVaue2);
+                        Move(LTCPPayLoad[LOffset],LBytes[0],LtmpVaue2);   
+                        AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificate:',Null, @LBytes, Length(LBytes) ));                        
 
-                    SetLength(LBytes,LtmpVaue2);
-                    Move(LTCPPayLoad[LOffset],LBytes[0],LtmpVaue2);   
-                    AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificate:',Null, @LBytes, Length(LBytes) ));                        
-
-                    {TODO info certificate}
-                    Inc(LOffset,LtmpVaue2);                    
-                  end;                  
+                        {TODO info certificate}
+                        Inc(LOffset,LtmpVaue2);        
+                      end;            
+                    end;                  
+                  end;
                 end;
                       
                 TLS_HANDSHAKE_TYPE_NEWSESSION_TICKET      ,

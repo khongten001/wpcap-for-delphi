@@ -72,7 +72,7 @@ begin
       LDescription := aHeaderStrings[I].Description.Trim;
       LValue       := VarToStrDef(aHeaderStrings[I].Value,'');
       LRawValue    := VarToStrDef(aHeaderStrings[I].RawValue,'');
-
+      Inc(I);
       if not LLabelName.Trim.IsEmpty then
       begin
         LStringBuilder.Append(Format('<Item Level="%d" LabelName="%s" Description="%s" Value="%s" RawValue="%s">', 
@@ -85,7 +85,6 @@ begin
         LLabelByLevel.Description := LDescription.Trim;
         aListLabel.TryAdd(LLabelByLevelID,LLabelByLevel);          
         
-        Inc(I);
         while I < aHeaderStrings.Count - 1 do
         begin
           if aHeaderStrings[I].Level = 0 then
@@ -112,9 +111,7 @@ begin
         end;
 
         LStringBuilder.Append('</Item>');
-      end
-      else
-        Inc(I);
+      end;
     end;
 
     LStringBuilder.Append('</HeaderStrings>');

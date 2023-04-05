@@ -36,10 +36,7 @@ type
     Sender Protocol Address (lunghezza variabile): l'indirizzo di protocollo del mittente
     Target Hardware Address (lunghezza variabile): l'indirizzo fisico del destinatario
     Target Protocol Address (lunghezza variabile): l'indirizzo di protocollo del destinatario.
-
 }
-
-
   TARPHeader = packed record
     HardwareType: Word;
     ProtocolType: Word;
@@ -48,9 +45,7 @@ type
     OpCode      : Word;
   end;
   PTARPHeader = ^TARPHeader;
-  
-
-  
+    
   /// <summary>
   /// The ICMP protocol implementation class.
   /// </summary>

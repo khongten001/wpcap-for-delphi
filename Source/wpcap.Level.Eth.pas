@@ -210,7 +210,6 @@ begin
         ETH_P_ARP:  TWPcapProtocolARP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aIsFilterMode);     
 
         ETH_P_BPQ,
-        ETH_P_IEEEPUP,  
         ETH_P_DEC,      
         ETH_P_DNA_DL,   
         ETH_P_DNA_RC,   
@@ -308,7 +307,6 @@ begin
     ETH_P_X25,      
     ETH_P_ARP,      
     ETH_P_BPQ,
-    ETH_P_IEEEPUP,  
     ETH_P_DEC,      
     ETH_P_DNA_DL,   
     ETH_P_DNA_RC,   

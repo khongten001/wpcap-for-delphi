@@ -58,7 +58,9 @@ uses
   wpcap.Protocol.DHCP in '..\..\Source\Protocols\wpcap.Protocol.DHCP.pas',
   UnFunctionFilter in 'UnFunctionFilter.pas',
   UnitCustomOpenDialog in 'UnitCustomOpenDialog.pas' {FormOpenDialog},
-  wpcap.MCC in '..\..\Source\wpcap.MCC.pas';
+  wpcap.MCC in '..\..\Source\wpcap.MCC.pas',
+  wpcap.Protocol.SSDP in '..\..\Source\Protocols\wpcap.Protocol.SSDP.pas',
+  UnitFormLabelFilter in 'UnitFormLabelFilter.pas' {FormLabelFilter};
 
 {$R *.res}
 

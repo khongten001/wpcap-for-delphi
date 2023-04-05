@@ -64,19 +64,81 @@ end;
 
 class function TWPcapProtocolHTTP.IsValid(const aPacket: PByte;
   aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
-var LTCPPtr: PTCPHdr;
+CONST
+METHOD_LIS : Array [0..12]of string = (
+		    'GET',
+		    'POST',
+        'OPTIONS',
+		    'HEAD',
+ 		    'HTTP',
+		    'PUT',
+		    'PATCH',
+		    'DELETE',
+		    'CONNECT',
+		    'PROPFIND',
+		    'REPORT',
+		    'RPC_IN_DATA', 
+        'RPC_OUT_DATA');  
+        
+var LTCPPayLoad    : PByte;
+    LTCPPayLoadLen : Integer;
+    LTCPPHdr       : PTCPHdr;
+    LOffset        : Integer;
+    LCopYStart     : Integer;
+    LTmpStr        : String;
+    LtmpLen        : Integer;
+    LBytes         : TIdBytes;
+    LTmpResult     : Boolean;
+    I              : Integer;
 begin
-  Result  := inherited IsValid(aPacket,aPacketSize,aAcronymName,aIdProtoDetected);  
-  if not Result then
-  begin
-    if not HeaderTCP(aPacket,aPacketSize,LTCPPtr) then exit;   
-    if not PayLoadLengthIsValid(LTCPPtr,aPacket,aPacketSize) then  Exit;
+  if not HeaderTCP(aPacket,aPacketSize,LTCPPHdr) then exit;   
+  if not PayLoadLengthIsValid(LTCPPHdr,aPacket,aPacketSize) then  Exit;
   
+  if not Result then
+    Result := IsValidByPort(PROTO_HTTP_PORT_1,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);
+    
+  if not Result then
+    Result := IsValidByPort(PROTO_HTTP_PORT_2,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);   
+
+  if Result then
+  begin
+    LTmpResult      := False;
+    LTCPPayLoad     := GetTCPPayLoad(aPacket,aPacketSize);
+    LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacket,aPacketSize);
+    LOffset         := 0;  
+    LCopYStart      := 0;
+    while LOffset+1 < LTCPPayLoadLen do
+    begin
+      if (LTCPPayLoad[LOffset+1] = $0A )  then     
+      begin
+        Inc(LOffset); 
+        LtmpLen := LOffset-LCopYStart;
+
+        if isValidLen(LCopYStart,LTCPPayLoadLen,LtmpLen)  then 
+        begin
+          SetLength(LBytes,LtmpLen);
+          Move(LTCPPayLoad[LCopYStart],LBytes[0],LtmpLen);          
+          LTmpStr  := BytesToString(LBytes).ToUpper;
+          for I := Low(METHOD_LIS) to High(METHOD_LIS) do
+          begin
+            LTmpResult := LTmpStr.Contains(METHOD_LIS[I]);
+            if LTmpResult then  break;
+          end;
+        end;        
+        break;
+      end;
+
+      inc(LOffset);
+      if LOffset > 1000 then break;
+    end;
+    Result := LTmpResult;
     if not Result then
-      Result := IsValidByPort(DefaultPort,DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected);
-    if not Result then
-      Result := IsValidByPort(PROTO_HTTP_PORT_2,DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected);         
+    begin
+      aAcronymName     := inherited AcronymName;
+      aIdProtoDetected := inherited IDDetectProto;
+    end;
   end;
+  
 end;
 
 class function TWPcapProtocolHTTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
@@ -84,10 +146,6 @@ var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
     LTCPPHdr       : PTCPHdr;
     LOffset        : Integer;
-    LCopYStart     : Integer;
-    aValue         : String;
-    LBytes         : TIdBytes;
-    aValueArray    : Tarray<String>;
 begin
   Result := False;
 

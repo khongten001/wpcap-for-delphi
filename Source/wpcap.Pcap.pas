@@ -7,7 +7,7 @@ uses
   System.Threading, WinApi.Windows, wpcap.Packet, wpcap.IOUtils, System.SysUtils,
   System.DateUtils, System.Classes, Winsock, wpcap.Level.Eth, wpcap.BufferUtils,
   Forms, System.Math, System.Types, System.Generics.Collections, System.Variants,
-  wpcap.GEOLite2, wpcap.IPUtils,wpcap.Filter;
+  wpcap.GEOLite2, wpcap.IPUtils,wpcap.Filter,System.SyncObjs;
 
 type
 
@@ -220,11 +220,13 @@ begin
     Result.PacketSize  := LLen;
   end;
   
-  Result.RAW_Text    := BufferToASCII(aPacketData,LLen);
-  LListDetail := TListHeaderString.Create;
+  Result.RAW_Text := BufferToASCII(aPacketData,LLen);
+  LListDetail     := TListHeaderString.Create;
   Try
-    if TWpcapEthHeader.HeaderToString(aPacketData,LLen,0,LListDetail,True) then          
+   if TWpcapEthHeader.HeaderToString(aPacketData,LLen,0,LListDetail,True) then          
+   begin 
       Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
+   end
    else
       Result.XML_Detail := String.empty;
   Finally
@@ -611,83 +613,102 @@ var LHandlePcap      : Ppcap_t;
     LTolSizePcap     : Int64;
     LTInternalPacket : PTInternalPacket;
     LListLabelByLevel: TListLabelByLevel;
+    LIndex           : Integer;
+   // Tasks            : array of ITask;
+
 begin
   FAbort               := False;
   LTolSizePcap         := FileGetSize(FFileName);  
   LLenAnalyze          := 0;
+  LIndex               := 0;
   DoProgress(LTolSizePcap,0);
-  
+ 
   LHandlePcap := pcap_open_offline(PAnsiChar(AnsiString(FFileName)), LErrbuf);
   
   if LHandlePcap = nil then
   begin
-    FOnPCAPCallBackError(FFileName,string(LErrbuf));
+    DoError(FFileName,string(LErrbuf));
     Exit;
   end;
-  
-  try
-    if not CheckWPcapFilter(LHandlePcap,FFileName,FFilter,String.Empty,FOnPCAPCallBackError) then exit;
-    // Loop over packets in PCAP file
-    LListLabelByLevel := TListLabelByLevel.Create;
-    Try
-      while True do
-      begin
-        if Terminated then exit;
-      
-        // Read the next packet
-        LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
-        case LResultPcapNext of
-          1:  // packet read correctly
-            begin      
-              LTInternalPacket := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel);              
-              if Assigned(LTInternalPacket) then
-              begin
-                Try
-                  DoPacket(LTInternalPacket);
-                finally
-                  Dispose(LTInternalPacket)
-                end; 
-              end;   
-              Inc(LLenAnalyze,LHeader^.Len);
-              DoProgress(LTolSizePcap,LLenAnalyze);
 
-              if FAbort then break;
+  Try
+    try
+      if not CheckWPcapFilter(LHandlePcap,FFileName,FFilter,String.Empty,FOnPCAPCallBackError) then exit;
+
+      LListLabelByLevel := TListLabelByLevel.Create;
+      try
+        while True do
+        begin      
+           if Terminated then exit;
+          // Read the next packet
+          LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
+          case LResultPcapNext of
+            1:  // packet read correctly
+              begin     
+                try
+                  Inc(LIndex);    
+                  Inc(LLenAnalyze,LHeader^.Len);
+                  {Does using parallel to parse pcap make the management of TCP retransmissions and sequence numbers complicated?}
+                  LTInternalPacket  := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel);    
+                  if Assigned(LTInternalPacket) then
+                  begin
+                    Try
+                      DoPacket(LTInternalPacket);
+                    finally
+                      Dispose(LTInternalPacket)
+                    end; 
+                  end;   
+                        
+                  DoProgress(LTolSizePcap,LLenAnalyze);
+
+                Except on E :Exception do
+                  begin
+                    DoError(FFileName,Format('Exception %s Index packet %d',[e.message,LIndex]));
+                    Break;
+                  end;
+                End;
+                
+                if FAbort then Break;
             
-            end;
-          0: 
-            begin
-              // No packets available at the moment
-              Continue;
-            end;
-          -1: 
-            begin
-              // Error reading packet
-              DoError(FFileName,string(pcap_geterr(LHandlePcap)));
-              Break;
-            end;
-          -2:
-            begin
-              // No packets available, the pcap file instance has been closed
-              DoProgress(LTolSizePcap,LTolSizePcap);
+              end;
+            0: 
+              begin
+                // No packets available at the moment
+                Continue;
+              end;
+            -1: 
+              begin
 
-              TThread.Synchronize(nil,
-                procedure
-                begin  
+                // Error reading packet
+                DoError(FFileName,string(pcap_geterr(LHandlePcap)));
+                Break;
+              end;
+            -2:
+              begin
+                // No packets available, the pcap file instance has been closed
+                DoProgress(LTolSizePcap,LTolSizePcap);
+
+                TThread.Synchronize(nil,
+                  procedure
+                  begin  
                                
-                   FOnPCAPCallBeforeBackEnd(FFileName,LListLabelByLevel);
-                end);
-              Break;
-            end;
-        end;
-      end;
+                     FOnPCAPCallBeforeBackEnd(FFileName,LListLabelByLevel);
+                  end);
+                Break;
+              end;
+          end;
+        end;    
 
+      finally
+        FreeAndNil(LListLabelByLevel);
+      end;
     finally
-      FreeAndNil(LListLabelByLevel);
+      // Close PCAP file
+      pcap_close(LHandlePcap);
     end;
-  finally
-    // Close PCAP file
-    pcap_close(LHandlePcap);
-  end;
+  Except on E :Exception do
+    DoError(FFileName,Format('Genesic exception %s',[e.message]));
+  End;
 end;
 
 

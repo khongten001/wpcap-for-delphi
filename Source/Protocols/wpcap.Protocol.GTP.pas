@@ -292,20 +292,20 @@ type
                                                                                 /* 220 to 254    Spare. For future use.    */
     *)
     
-    class function ProtoTypeToString(const aProtoType: Byte): String; static;
-    class function MessageTypeToString(aMsgType: Byte): String; static;
-    class function IETypeToString(aIEType: Byte): string; static;
+    class function ProtoTypeToString(const aProtoType: Uint8): String;
+    class function MessageTypeToString(const  aMsgType: Uint8): String;
+    class function IETypeToString(const  aIEType: Uint8): string;
     class procedure ParserIEType(var aCurrentPos: Integer; aMaxLen,aStartLevel: Integer; const aPayload: PByte;AListDetail: TListHeaderString); static;
-    class function IETypeToLabel(aIEType: Byte): string; static;
-    class function CauseToString(const aCause: Byte): String; static;
-    class function CauseToString_vals(const aCause: Byte): String; static;
-    class function RatToString(const aRat: Byte): String; static;
-    class function InterfaceTypeToString(const aType: Byte): String; static;
-    class function PdnTypeToString(const aType: Byte): String; static;
-    class function SelectModeToString(const aMode: Byte): String; static;
-    class function APNrestrictionToString(const aRest: Byte): String; static;
-    class function MessageTypeV2ToString(const aMsgType: Byte): String; static;
-    class function TimeZoneTypeToString(const aRest: Byte): String; static;
+    class function IETypeToLabel(const aIEType: Uint8): string;
+    class function CauseToString(const aCause: Uint8): String;
+    class function CauseToString_vals(const aCause: Uint8): String;
+    class function RatToString(const aRat: Uint8): String;
+    class function InterfaceTypeToString(const aType: Uint8): String;
+    class function PdnTypeToString(const aType: Uint8): String;
+    class function SelectModeToString(const aMode: Uint8): String;
+    class function APNrestrictionToString(const aRest: Uint8): String;
+    class function MessageTypeV2ToString(const aMsgType: Uint8): String;
+    class function TimeZoneTypeToString(const aRest: Uint8): String;
   protected
   public
     /// <summary>
@@ -383,11 +383,7 @@ var LUDPPayLoad        : PByte;
     LVersion           : Byte;
     LGTPHeaderV1       : PTGTPHeaderV1;
     LGTPHeaderV2       : PTGTPHeaderV2;
-    LGTPHeaderV3       : PTGTPHeaderV3;  
-    LCurrentPos        : Integer;    
-    LByteValue         : Byte;
-    LWordValue         : Word;
-    LCardinalValue     : Cardinal;          
+    LCurrentPos        : Integer;            
     LIn64Value         : UInt64;
     LMessageType       : Byte;
     LPayLoadLen        : Integer;
@@ -403,7 +399,7 @@ begin
   LVersion      := ( PByte(LUDPPayLoad)^ shr 5);  
   FIsFilterMode := aIsFilterMode;
   
- AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LPayLoadLen));
+  AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LPayLoadLen));
 
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Version',[AcronymName]), 'Version:', LVersion, @LVersion,sizeOf(LVersion)));  
   case LVersion of
@@ -423,7 +419,7 @@ begin
          
         LCurrentPos := SizeOf(TGTPHeaderV1);      
         if GetBitValue(LGTPHeaderV1.Flags,7)=1 then      
-          ParserWordValue(LUDPPayLoad,aStartLevel+1,Format('%s.SequenceNumber',[AcronymName]), 'Sequence number:',AListDetail,LCurrentPos);;
+          ParserUint16Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.SequenceNumber',[AcronymName]), 'Sequence number:',AListDetail,nil,True,LCurrentPos);
           
         if GetBitValue(LGTPHeaderV1.Flags,8)=1 then
         begin
@@ -467,7 +463,7 @@ begin
         {64 (32 if TEID not present)	Sequence number}    
         if GetBitValue(LGTPHeaderV2.Flags,5) = 1 then
         begin
-          ParserCardinalValue(LUDPPayLoad,aStartLevel+1,Format('%s.TEID',[AcronymName]), 'TEID:',AListDetail,LCurrentPos);
+          ParserUint32Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.TEID',[AcronymName]), 'TEID:',AListDetail,nil,True,LCurrentPos);
 
           SetLength(LBytes,3); 
           Move((LUDPPayLoad+LCurrentPos )^,LBytes[0],3);
@@ -481,7 +477,7 @@ begin
           Inc(LCurrentPos,SizeOf(LIn64Value));            
         end;
         
-        ParserByteValue(LUDPPayLoad,aStartLevel+1,Format('%s.Spare',[AcronymName]), 'Spare:',AListDetail,LCurrentPos);
+        ParserUint8Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.Spare',[AcronymName]), 'Spare:',AListDetail,nil,True,LCurrentPos);
         ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail);        
       end;
       
@@ -550,21 +546,24 @@ var LBytes         : TidBytes;
         LIndex     : Integer;
         LMCCImsi   : String;
     begin
-      SetLength(LIMSI,LLenIE);
-      Move(PByte(aPayload+aCurrentPos)^, LIMSI[0], LLenIE);
-      LIMSIString := String.Empty;
-      for LIndex := Low(LIMSI) to High(LIMSI) do
+      if isValidLen(aCurrentPos,aMaxLen,LLenIE) then
       begin
-        if (LIMSI[LIndex] and $0f) <= 9 then        
-          LIMSIString := Format('%s%d',[LIMSIString,(LIMSI[LIndex] and $0f)]);
+        SetLength(LIMSI,LLenIE);
+        Move(PByte(aPayload+aCurrentPos)^, LIMSI[0], LLenIE);
+        LIMSIString := String.Empty;
+        for LIndex := Low(LIMSI) to High(LIMSI) do
+        begin
+          if (LIMSI[LIndex] and $0f) <= 9 then        
+            LIMSIString := Format('%s%d',[LIMSIString,(LIMSI[LIndex] and $0f)]);
           
-        if (LIMSI[LIndex] shr 4) <= 9 then
-          LIMSIString := Format('%s%d',[LIMSIString,(LIMSI[LIndex] shr 4)]);
+          if (LIMSI[LIndex] shr 4) <= 9 then
+            LIMSIString := Format('%s%d',[LIMSIString,(LIMSI[LIndex] shr 4)]);
+        end;
+        LMCCImsi := Copy(LIMSIString,1,3);
+        AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.IMSI', [aLabelIEType]), 'IMSI:',LIMSIString,@LIMSI,sizeOf(LIMSI)));
+        AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger, wetMcc ));      
+        Inc(aCurrentPos,LLenIE);
       end;
-      LMCCImsi := Copy(LIMSIString,1,3);
-      AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.IMSI', [aLabelIEType]), 'IMSI:',LIMSIString,@LIMSI,sizeOf(LIMSI)));
-      AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger, wetMcc ));      
-      Inc(aCurrentPos,LLenIE);
     end;
 
     procedure AddMSISDN(const aLabelIEType: string; aLevel: Integer);
@@ -572,19 +571,22 @@ var LBytes         : TidBytes;
         LMSISDNString: String;
         LIndex       : Integer;
     begin
-      SetLength(LMSISDN,LLenIE);
-      Move(PByte(aPayload+aCurrentPos)^, LMSISDN[0], LLenIE);
-      LMSISDNString := String.Empty;
-      for LIndex := Low(LMSISDN) to High(LMSISDN) do
+      if isValidLen(aCurrentPos,aMaxLen,LLenIE) then
       begin
-        if (LMSISDN[LIndex] and $0f) <= 9 then        
-          LMSISDNString := Format('%s%d',[LMSISDNString,(LMSISDN[LIndex] and $0f)]);
-        if (LMSISDN[LIndex] shr 4) <= 9 then
-          LMSISDNString := Format('%s%d',[LMSISDNString,(LMSISDN[LIndex] shr 4)]);        
-      end;
+        SetLength(LMSISDN,LLenIE);
+        Move(PByte(aPayload+aCurrentPos)^, LMSISDN[0], LLenIE);
+        LMSISDNString := String.Empty;
+        for LIndex := Low(LMSISDN) to High(LMSISDN) do
+        begin
+          if (LMSISDN[LIndex] and $0f) <= 9 then        
+            LMSISDNString := Format('%s%d',[LMSISDNString,(LMSISDN[LIndex] and $0f)]);
+          if (LMSISDN[LIndex] shr 4) <= 9 then
+            LMSISDNString := Format('%s%d',[LMSISDNString,(LMSISDN[LIndex] shr 4)]);        
+        end;
               
-      AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MSISDN', [aLabelIEType]), 'MSISDN:', LMSISDNString,@LMSISDN,sizeOf(LMSISDN)));
-      Inc(aCurrentPos,LLenIE);
+        AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MSISDN', [aLabelIEType]), 'MSISDN:', LMSISDNString,@LMSISDN,sizeOf(LMSISDN)));
+        Inc(aCurrentPos,LLenIE);
+      end;
     end;    
 
     procedure IncResidualLen;
@@ -600,16 +602,12 @@ begin
     while aCurrentPos < aMaxLen do
     begin
       LIEType := PByte(aPayload+aCurrentPos )^; 
-      LLabel  := Format('%s.%s',[AcronymName,IETypeToLabel(LIEType)]);  
+      LLabel  := Format('%s.%s',[AcronymName,IETypeToLabel(LIEType)]);        
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, LLabel ,IETypeToString(LIEType), null, nil,0,LIEType));
 
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IEType',[LLabel]), 'IE Type:', IETypeToString(LIEType), @LIEType,sizeOf(LIEType), LIEType ));
-      Inc(aCurrentPos,SizeOf(LIEType)); 
-
+      ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.IEType',[LLabel]), 'IE Type:',AListDetail,IETypeToString,True,aCurrentPos);      
       
-      LLenIE := wpcapntohs(PWord(aPayload+aCurrentPos )^);
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IELen',[LLabel]), 'IE Length:',LLenIE, @LLenIE,sizeOf(LLenIE)));
-      Inc(aCurrentPos,SizeOf(LLenIE));  
+      LLenIE := ParserUint16Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.IELen',[LLabel]), 'IE Length:',AListDetail,SizeWordToStr,True,aCurrentPos);      
 
       LByteValue := PByte(aPayload+aCurrentPos )^;
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.CR',[LLabel]), 'CR:', LByteValue shr 4, @LByteValue,sizeOf(LByteValue), LByteValue shr 4 ));
@@ -622,10 +620,8 @@ begin
         GTP_IEI_IMSI : AddIMSI(LLabel,aStartLevel+2);
           
         GTP_IEI_CAUSE                    :
-          begin            
-            LByteValue := PByte(aPayload+aCurrentPos )^; 
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Cause',[LLabel]), 'Cause:',CauseToString( LByteValue), @LByteValue,sizeOf(LByteValue) , LByteValue ));
-            Inc(aCurrentPos,SizeOf(LByteValue));         
+          begin           
+            ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.Cause',[LLabel]), 'Cause:',AListDetail,CauseToString,True,aCurrentPos);      
 
             LByteValue := PByte(aPayload+aCurrentPos )^; 
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SpareBits',[LLabel]), 'Spare bits:', LByteValue shr 3, @LByteValue,sizeOf(LByteValue), LByteValue shr 3));
@@ -639,7 +635,7 @@ begin
           begin
             LTmpLen :=  LLenIE - (aCurrentPos-LStartPos);
 
-            if LTmpLen > 0 then
+            if isValidLen(aCurrentPos,aMaxLen,LTmpLen) then    
             begin
               SetLength(LBytes,LTmpLen); 
               Move((aPayload+aCurrentPos )^,LBytes[0],LTmpLen);
@@ -650,8 +646,8 @@ begin
         
         GTP_IEI_AMBR                     :
           begin
-            ParserCardinalValue(aPayload,aStartLevel+2,Format('%s.AMBRUpLink',[LLabel]), 'AMBR UpLink(Max bit rate):',AListDetail,aCurrentPos);            
-            ParserCardinalValue(aPayload,aStartLevel+2,Format('%s.AMBRDownLink',[LLabel]), 'AMBR DownLink(Max Bit rate):',AListDetail,aCurrentPos);            
+            ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.AMBRUpLink',[LLabel]), 'AMBR UpLink(Max bit rate):',AListDetail,nil,True,aCurrentPos);            
+            ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.AMBRDownLink',[LLabel]), 'AMBR DownLink(Max Bit rate):',AListDetail,nil,True,aCurrentPos);            
           end;
 
         GTP_EPS_BEARER_ID:
@@ -664,6 +660,8 @@ begin
           
         GTP_IEI_MEI :
           begin
+            if isValidLen(aCurrentPos,aMaxLen,LLenIE) then    
+            begin
               SetLength(LBytes,LLenIE);
               Move(PByte(aPayload+aCurrentPos)^, LBytes[0], LLenIE);
               LTmpStr := String.Empty;
@@ -677,6 +675,7 @@ begin
               end;
               AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.MEI', [LLabel]), 'MEI:',LTmpStr,@LBytes,sizeOf(LBytes)));
               Inc(aCurrentPos,LLenIE);
+            end;
           end;
           
         GTP_IEI_MSISDN                   : AddMSISDN(LLabelIEType,aStartLevel+2);
@@ -728,21 +727,15 @@ begin
         
         GTP_IEI_PAA                      :
           begin
-            LByteValue := PByte(aPayload+aCurrentPos )^;      
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.PDNType',[LLabel]), 'PDN Type:', ifthen((LByteValue and $07)=1,'IPv4','Ipv6'), @LByteValue,sizeOf(LByteValue), LByteValue and $07 ));   
-            Inc(aCurrentPos,SizeOf(LByteValue)); 
-
-            if (LByteValue and $07)=1 then
-            begin
-              LCardinalValue :=  PCardinal(aPayload+aCurrentPos )^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.PDNAddrAndPrefix',[LLabel]), 'PDN Address and Prefix(IPv4):', intToIPV4( LCardinalValue ), @LCardinalValue,sizeOf(LCardinalValue)));          
-              Inc(aCurrentPos,SizeOf(LCardinalValue));
-            end
+            LByteValue := ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PDNType',[LLabel]), 'PDN Type:',AListDetail,PdnTypeToString,True,aCurrentPos); 
+            
+            if (LByteValue and $07) =1 then
+              ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PDNAddrAndPrefix',[LLabel]), 'PDN Address and Prefix(IPv4):',AListDetail,MakeDWordIntoIPv4AddressInternal,True,aCurrentPos)
             else
             begin
               LTmpLen :=  LLenIE - (aCurrentPos-LStartPos);
 
-              if LTmpLen > 0 then
+            if isValidLen(aCurrentPos,aMaxLen,LTmpLen) then    
               begin
                 SetLength(LBytes,LTmpLen); 
                 Move((aPayload+aCurrentPos )^,LBytes[0],LTmpLen);
@@ -761,11 +754,11 @@ begin
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.PVI',[LLabel]), 'PVI (Pre-emption Vulnerability): Enabled', GetBitValue(LByteValue,8)=1, @LByteValue,sizeOf(LByteValue), GetBitValue(LByteValue,8) ));           
             Inc(aCurrentPos,SizeOf(LByteValue));        
 
-            ParserByteValue(aPayload,aStartLevel+2,Format('%s.LabelQCI',[LLabel]), 'Label (QCI):',AListDetail,aCurrentPos);  
+            ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.LabelQCI',[LLabel]), 'Label (QCI):',AListDetail,nil,True,aCurrentPos);  
             
             LTmpLen := 5;
 
-            if LTmpLen <= aMaxLen - aCurrentPos then
+            if LTmpLen <= aMaxLen - aCurrentPos  then
             begin
               SetLength(LBytes,LTmpLen); 
               Move(PByte(aPayload+aCurrentPos)^, LBytes[0], LTmpLen);
@@ -799,11 +792,7 @@ begin
           end;
           
         GTP_IEI_RAT_TYPE                 :
-          begin
-            LByteValue := PByte(aPayload+aCurrentPos )^; 
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.RATType',[LLabel]), 'RAT type:',RatToString(LByteValue), @LByteValue,sizeOf(LByteValue) ,LByteValue));
-            Inc(aCurrentPos,SizeOf(LByteValue));            
-          end;
+            ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.RATType',[LLabel]), 'RAT type:',AListDetail,RatToString,True,aCurrentPos);           
           
         GTP_IEI_SERVING_NETWORK          :
           begin
@@ -829,18 +818,10 @@ begin
               AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.PacketFilter.ID',[LLabel]), 'Packet filter identifier:',LByteValue and $F, @LByteValue,sizeOf(LByteValue) )); 
               inc(aCurrentPos,SizeOf(LByteValue)); 
               
-              ParserByteValue(aPayload,aStartLevel+2,Format('%s.PacketFilter.EvalPre',[LLabel]), 'Packet evaluation precedence:',AListDetail,aCurrentPos);  
-  
-              LByteValue := PByte(aPayload+aCurrentPos )^; 
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.PacketFilter.Len  ',[LLabel]), 'Packet filter length:',LByteValue, @LByteValue,sizeOf(LByteValue)));
-              inc(aCurrentPos,SizeOf(LByteValue)); 
-
-              LCardinalValue := LByteValue;
-
-              ParserByteValue(aPayload,aStartLevel+2,Format('%s.PacketFilter.ComponentTypeID',[LLabel]), 'Packet filter component type identifier:',AListDetail,aCurrentPos);  
-          
-              Inc(aCurrentPos,LByteValue-1);
-                                         
+              ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PacketFilter.EvalPre',[LLabel]), 'Packet evaluation precedence:',AListDetail,nil,true,aCurrentPos);    
+              LByteValue := ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PacketFilter.Len',[LLabel]), 'Packet filter length:',AListDetail,nil,true,aCurrentPos);        
+              ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PacketFilter.ComponentTypeID',[LLabel]), 'Packet filter component type identifier:',AListDetail,nil,true,aCurrentPos);            
+              Inc(aCurrentPos,LByteValue-1);                                         
             end;
           end;    
           
@@ -868,9 +849,7 @@ begin
               AddMCC(LLabelIEType,aStartLevel+3);
               AddMNC(LLabelIEType,aStartLevel+3);   
 
-              LWordValue := PWord(aPayload+aCurrentPos )^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%S.TAC',[LLabelIEType]),  'Tracking Area Code:', ( LWordValue ), @LWordValue,sizeOf(LWordValue),-1,wetMNC));
-              Inc(aCurrentPos,SizeOf(LWordValue))                             
+              ParserUint16Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.TAC',[LLabelIEType]), 'Tracking Area Code:',AListDetail,nil,true,aCurrentPos);                      
             end;   
             
             if GetBitValue(LByteValue,4) = 1 then
@@ -883,15 +862,17 @@ begin
               AddMCC(LLabelIEType,aStartLevel+3);
               AddMNC(LLabelIEType,aStartLevel+3);    
 
+              
               LByteValue := PByte(aPayload+aCurrentPos )^;      
               AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Spare',[LLabelIEType]), 'Spare:',LByteValue, @LByteValue,sizeOf(LByteValue)));
 
+              {?? no change pos ??}
               LCardinalValue :=  PCardinal(aPayload+aCurrentPos )^;
               AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.ECI',[LLabelIEType]), 'ECI (E-UTRAN Cell Identifier):', LCardinalValue , @LCardinalValue,sizeOf(LCardinalValue)));  
               Inc(aCurrentPos,2);     
                   
-              ParserByteValue(aPayload,aStartLevel+4,Format('%s.ECI.eNodeBID',[LLabelIEType]), 'eNodeB ID:',AListDetail,aCurrentPos);      
-              ParserByteValue(aPayload,aStartLevel+4,Format('%s.ECI.CellID',[LLabelIEType]), 'CellID:',AListDetail,aCurrentPos);                                                                           
+              ParserUint8Value(aPayload,aStartLevel+4,aMaxLen,Format('%s.ECI.eNodeBID',[LLabelIEType]), 'eNodeB ID:',AListDetail,nil,true,aCurrentPos);      
+              ParserUint8Value(aPayload,aStartLevel+4,aMaxLen,Format('%s.ECI.CellID',[LLabelIEType]), 'CellID:',AListDetail,nil,true,aCurrentPos);                                                                           
             end;
     
             Inc(aCurrentPos,LlenIE-(aCurrentPos-LStartPos));                
@@ -905,20 +886,16 @@ begin
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.InfType',[LLabel]), 'Interface type:',InterfaceTypeToString( LByteValue and $3F), @LByteValue,sizeOf(LByteValue), LByteValue and $3F ));           
             Inc(aCurrentPos,SizeOf(LByteValue));  
 
-            ParserCardinalValue(aPayload,aStartLevel+2,Format('%s.TEIDGREKey',[LLabel]), 'TEID/GRE Key:',AListDetail,aCurrentPos);                  
+            ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.TEIDGREKey',[LLabel]), 'TEID/GRE Key:',AListDetail,nil,True,aCurrentPos);                  
 
             if GetBitValue(LByteValue,1)=1 then
-            begin
-              LCardinalValue :=  PCardinal(aPayload+aCurrentPos )^;
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.FTEID',[LLabel]), 'F-TEID IPv4:', intToIPV4( LCardinalValue ), @LCardinalValue,sizeOf(LCardinalValue) ));          
-              Inc(aCurrentPos,SizeOf(LCardinalValue));
-            end;
+              ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.FTEID',[LLabel]), 'F-TEID IPv4:',AListDetail,MakeDWordIntoIPv4AddressInternal,True,aCurrentPos);  
 
             if GetBitValue(LByteValue,2)=1 then
             begin
               LTmpLen :=  LLenIE - (aCurrentPos-LStartPos);
 
-              if LTmpLen > 0 then      
+              if isValidLen(aCurrentPos,aMaxLen,LTmpLen) then    
               begin      
                 SetLength(LBytes,LTmpLen); 
                 Move((aPayload+aCurrentPos )^,LBytes[0],LTmpLen);
@@ -929,13 +906,13 @@ begin
             
           end;
           
-        GTP_IEI_DELAY_VALUE       : ParserByteValue(aPayload,aStartLevel+2,Format('%s.DelayValue',[LLabel]), 'Delay value:',AListDetail,aCurrentPos);        
+        GTP_IEI_DELAY_VALUE       : ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.DelayValue',[LLabel]), 'Delay value:',AListDetail,nil,True,aCurrentPos);
         
         GTP_IEI_BEARER_CONTEXT    :; //nothing
 
-        GTP_IEI_CHARGING_ID       : ParserCardinalValue(aPayload,aStartLevel+2,Format('%s.ID',[LLabel]), 'Charging ID:',AListDetail,aCurrentPos);        
+        GTP_IEI_CHARGING_ID       : ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.ID',[LLabel]), 'Charging ID:',AListDetail,nil,True,aCurrentPos);
 
-        GTP_IEI_IPV6_ADDRESS      : ParserWordValue(aPayload,aStartLevel+2,Format('%s.CharginCharacteristicg',[LLabel]), 'Charging Characteristic:',AListDetail,aCurrentPos);  
+        GTP_IEI_IPV6_ADDRESS      : ParserUint16Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.CharginCharacteristicg',[LLabel]), 'Charging Characteristic:',AListDetail,nil,True,aCurrentPos);  
               
         GTP_IEI_PDN_TYPE          :
           begin
@@ -958,58 +935,51 @@ begin
             LWordValue := ((LByteValue shr 4) + ((LByteValue and $07) * 10));            
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Timezone',[LLabel]), 'Timezone:', Format('%s %d hours %d minutes',[LTmpStr,LWordValue div 4,(LWordValue mod 4) * 15]), @LByteValue,sizeOf(LByteValue), LByteValue ));                 
             Inc(aCurrentPos,SizeOf(LByteValue));  
+
             LByteValue := PByte(aPayload+aCurrentPos )^; 
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TimeZone.Type',[LLabel]), 'Type:',TimeZoneTypeToString(GetLastNBit(LByteValue,2)), @LByteValue,sizeOf(LByteValue),GetLastNBit(LByteValue,2)));                 
             Inc(aCurrentPos,SizeOf(LByteValue));              
           end;
 
-        GTP_IEI_UDP_PORT          : ParserWordValue(aPayload,aStartLevel+4,Format('%s.UdpPort',[LLabel]), 'UDP port:',AListDetail,aCurrentPos);  
+        GTP_IEI_UDP_PORT          : ParserUint16Value(aPayload,aStartLevel+4,aMaxLen,Format('%s.UdpPort',[LLabel]), 'UDP port:',AListDetail,nil,True,aCurrentPos);  
 
-        GTP_IEI_APN_RESTICTION    :
-          begin
-            LByteValue := PByte(aPayload+aCurrentPos )^; 
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.APNRestriction',[LLabel]), 'APN Restriction:',APNrestrictionToString(LByteValue), @LByteValue,sizeOf(LByteValue), LByteValue ));         
-            Inc(aCurrentPos,SizeOf(LByteValue));  
-          end;
+        GTP_IEI_APN_RESTICTION    : ParserUint8Value(aPayload,aStartLevel+4,aMaxLen,Format('%s.APNRestriction',[LLabel]), 'APN Restriction:',AListDetail,APNrestrictionToString,True,aCurrentPos);  
           
-        GTP_IEI_SELECTION_MODE           :
-          begin
-            LByteValue := PByte(aPayload+aCurrentPos )^; 
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SelectionMode',[LLabel]), 'Selection mode:',SelectModeToString( LByteValue  and $07), @LByteValue,sizeOf(LByteValue), LByteValue  and $07 ));       
-            Inc(aCurrentPos,SizeOf(LByteValue));  
-          end;
-          
+        GTP_IEI_SELECTION_MODE    : ParserUint8Value(aPayload,aStartLevel+4,aMaxLen,Format('%s.SelectionMode',[LLabel]), 'Selection mode:',AListDetail,SelectModeToString,True,aCurrentPos);  
 
         GTP_IEI_FQDN : 
         Begin
-          SetLength(LBytes,LLenIE);
-          Move(PByte(aPayload+aCurrentPos)^, LBytes[0], LLenIE);  
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SelectionMode',[LLabel]), 'FQDN:', BytesToString(LBytes), @LBytes,Length(LBytes)));                           
-          Inc(aCurrentPos,LlenIE);
+          if LLenIE > 0 then
+          begin
+            SetLength(LBytes,LLenIE);
+            Move(PByte(aPayload+aCurrentPos)^, LBytes[0], LLenIE);  
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SelectionMode',[LLabel]), 'FQDN:', BytesToString(LBytes), @LBytes,Length(LBytes)));                           
+            Inc(aCurrentPos,LlenIE);
+          end;
         end;
         
         
-        GTP_IEI_RECOVERY_RESTART         :  ParserWordValue(aPayload,aStartLevel+2,Format('%s.RestartCounter',[LLabel]), 'Restart counter:',AListDetail,aCurrentPos);  
+        GTP_IEI_RECOVERY_RESTART         :  ParserUint16Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.RestartCounter',[LLabel]), 'Restart counter:',AListDetail,nil,True,aCurrentPos);  
 
         GTP_IEI_PRIVATE : 
           begin
-            LWordValue := PWord(aPayload+aCurrentPos )^;
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SequenceNumber',[LLabel]), 'Enterprise ID:', wpcapntohs( LWordValue ), @LWordValue,sizeOf(LWordValue)));
-            
-            Inc(aCurrentPos,SizeOf(LWordValue));
-            SetLength(LBytes,LTmpLen-2); 
-            Move(PByte(aPayload+aCurrentPos)^, LBytes[0], LTmpLen-2);
-            LTmpStr := String.Empty;
-            for I := Low(LBytes) to High(LBytes) do
+            LWordValue := ParserUint16Value(aPayload,aStartLevel+4,aMaxLen,Format('%s.SequenceNumber',[LLabel]), 'Enterprise ID:',AListDetail,nil,True,aCurrentPos);  
+            if LTmpLen -2 > 0 then
             begin
-              if (LBytes[I] and $0f) <= 9 then        
-                LTmpStr := Format('%s%d',[LTmpStr,(LBytes[I] and $0f)]);
+              SetLength(LBytes,LTmpLen-2); 
+              Move(PByte(aPayload+aCurrentPos)^, LBytes[0], LTmpLen-2);
+              LTmpStr := String.Empty;
+              for I := Low(LBytes) to High(LBytes) do
+              begin
+                if (LBytes[I] and $0f) <= 9 then        
+                  LTmpStr := Format('%s%d',[LTmpStr,(LBytes[I] and $0f)]);
           
-              if (LBytes[I] shr 4) <= 9 then
-                LTmpStr := Format('%s%d',[LTmpStr,(LBytes[I] shr 4)]);
-            end;            
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ProprietaryValue',[LLabel]), 'Proprietary value:',  LTmpStr, @LBytes,sizeOf(LBytes)));          
-            Inc(aCurrentPos,LTmpLen-2);            
+                if (LBytes[I] shr 4) <= 9 then
+                  LTmpStr := Format('%s%d',[LTmpStr,(LBytes[I] shr 4)]);
+              end;            
+              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ProprietaryValue',[LLabel]), 'Proprietary value:',  LTmpStr, @LBytes,sizeOf(LBytes)));          
+              Inc(aCurrentPos,LTmpLen-2);   
+            end;         
           end;
 
         GTP_IEI_TFT          :Inc(aCurrentPos,LlenIE);
@@ -1036,7 +1006,7 @@ begin
 end;
 
 
-class function TWPcapProtocolGTP.IETypeToLabel(aIEType: Byte): string;
+class function TWPcapProtocolGTP.IETypeToLabel(const aIEType: Uint8): string;
 begin
   case aIEType of
     GTP_IEI_IMSI                      : Result := 'Imsi';
@@ -1076,7 +1046,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.IETypeToString(aIEType: Byte): string;
+class function TWPcapProtocolGTP.IETypeToString(const aIEType: Uint8): string;
 begin
   case aIEType of
     GTP_IEI_IMSI                      : Result := 'International Mobile Subscriber Identity (IMSI)';
@@ -1116,7 +1086,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.MessageTypeToString(aMsgType:Byte):String;
+class function TWPcapProtocolGTP.MessageTypeToString(Const aMsgType:Uint8):String;
 begin
  case aMsgType of  
     GTP_MSG_UNKNOWN            		    	: Result := 'For future use';
@@ -1197,7 +1167,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.ProtoTypeToString(const aProtoType:Byte): String;
+class function TWPcapProtocolGTP.ProtoTypeToString(const aProtoType:Uint8): String;
 begin
   case aProtoType of
     1 : Result := 'GTP-U';
@@ -1208,7 +1178,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.CauseToString(const aCause : Byte):String;
+class function TWPcapProtocolGTP.CauseToString(const aCause : Uint8):String;
 begin
   case aCause of
       0 : Result := 'Reserved';   
@@ -1348,7 +1318,7 @@ begin
   end; 
 end;
 
-class function TWPcapProtocolGTP.CauseToString_vals(const aCause : Byte):String;
+class function TWPcapProtocolGTP.CauseToString_vals(const aCause : Uint8):String;
 begin
   case aCause of
     0   : Result := 'Reserved';
@@ -1367,7 +1337,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.RatToString(const aRat : Byte):String;
+class function TWPcapProtocolGTP.RatToString(const aRat : Uint8):String;
 begin
   case aRat of
     0  : Result := 'Reserved';
@@ -1398,7 +1368,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.InterfaceTypeToString(const aType : Byte):String;
+class function TWPcapProtocolGTP.InterfaceTypeToString(const aType : Uint8):String;
 begin
   case aType of
      0 : Result := 'S1-U eNodeB GTP-U interface';
@@ -1448,9 +1418,9 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.PdnTypeToString(const aType : Byte):String;
+class function TWPcapProtocolGTP.PdnTypeToString(const aType : Uint8):String;
 begin
-  case aType of
+  case aType and $07 of
     1 : Result := 'IPv4';
     2 : Result := 'IPv6';
     3 : Result := 'IPv4/IPv6';
@@ -1461,9 +1431,9 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.SelectModeToString(const aMode : Byte):String;
+class function TWPcapProtocolGTP.SelectModeToString(const aMode : Uint8):String;
 begin
-  case aMode of
+  case aMode and $07 of
     0: Result := 'MS or network provided APN, subscribed verified';
     1: Result := 'MS provided APN, subscription not verified';
     2: Result := 'Network provided APN, subscription not verified';
@@ -1473,7 +1443,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.APNrestrictionToString(const aRest : Byte):String;
+class function TWPcapProtocolGTP.APNrestrictionToString(const aRest : Uint8):String;
 begin
   case aRest of
     0: Result := 'No Existing Contexts or Restriction';
@@ -1486,7 +1456,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.TimeZoneTypeToString(const aRest : Byte):String;
+class function TWPcapProtocolGTP.TimeZoneTypeToString(const aRest : Uint8):String;
 begin
   case aRest of
     0: Result := 'No Adjustments for Daylight Saving Time';
@@ -1498,7 +1468,8 @@ begin
   end;
 end;
 
-class function TWPcapProtocolGTP.MessageTypeV2ToString(const aMsgType : Byte):String;
+
+class function TWPcapProtocolGTP.MessageTypeV2ToString(const aMsgType : Uint8):String;
 begin
   case aMsgType of
       0 : Result := 'Reserved';

@@ -181,11 +181,15 @@ object FormMain: TFormMain
       object GridPcapDBTableView1PACKET_RAW_TEXT: TcxGridDBColumn
         Caption = 'Raw data'
         DataBinding.FieldName = 'PACKET_RAW_TEXT'
+        Visible = False
+        VisibleForCustomization = False
         Width = 150
       end
       object GridPcapDBTableView1XML_PACKET_DETAIL: TcxGridDBColumn
         Caption = 'Packet detail'
         DataBinding.FieldName = 'XML_PACKET_DETAIL'
+        Visible = False
+        VisibleForCustomization = False
         Width = 150
       end
     end
@@ -686,6 +690,10 @@ object FormMain: TFormMain
         item
           Visible = True
           ItemName = 'BFilterFlowSelected'
+        end
+        item
+          Visible = True
+          ItemName = 'BFilterByLabelForm'
         end>
     end
     object BFilterCellValue: TdxBarButton
@@ -731,6 +739,14 @@ object FormMain: TFormMain
       ImageIndex = 10
       PaintStyle = psCaptionGlyph
       OnClick = BLoadSQLLiteDatabaseClick
+    end
+    object BFilterByLabelForm: TdxBarButton
+      Caption = 'Label list filter'
+      Category = 0
+      Enabled = False
+      Hint = 'Label list filter'
+      Visible = ivAlways
+      OnClick = BFilterByLabelFormClick
     end
   end
   object cxImageList1: TcxImageList
