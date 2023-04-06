@@ -137,8 +137,7 @@ begin
       aAcronymName     := inherited AcronymName;
       aIdProtoDetected := inherited IDDetectProto;
     end;
-  end;
-  
+  end;  
 end;
 
 class function TWPcapProtocolHTTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
