@@ -81,6 +81,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  NPACKET INTEGER PRIMARY KEY AUTOINCREMENT,    '+sLineBreak+ {Packet}
                       '  PACKET_LEN INTEGER,                           '+sLineBreak+
                       '  PACKET_DATE TEXT,                             '+sLineBreak+
+                      '  IS_MALFORMED INTEGER,                         '+sLineBreak+                        
                       '  ETH_TYPE INTEGER,                             '+sLineBreak+ {EThernet}
                       '  ETH_ACRONYM TEXT,                             '+sLineBreak+
                       '  MAC_SRC TEXT,                                 '+sLineBreak+
@@ -93,7 +94,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  IP_SRC TEXT,                                  '+sLineBreak+ {IP IpAddress}   
                       '  IP_DST TEXT,                                  '+sLineBreak+
                       '  PORT_SRC INTEGER,                             '+sLineBreak+ {TCP/UDP}  
-                      '  PORT_DST NUMERIC,                             '+sLineBreak+
+                      '  PORT_DST INTEGER,                             '+sLineBreak+
                       '  IANA_PROTO TEXT,                              '+sLineBreak+ {IANA}                         
                       '  SRC_ASN TEXT,                                 '+sLineBreak+ {GEOIP SRC}      
                       '  SRC_ORGANIZZATION TEXT,                       '+sLineBreak+       
@@ -130,11 +131,11 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
 
            SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS                                                               ' +sLineBreak+ 
                        'SELECT                                                                                   ' +sLineBreak+ 
-                       '  NPACKET, PACKET_LEN, PACKET_DATE,PACKET_RAW_TEXT,XML_PACKET_DETAIL,                    ' +sLineBreak+   {Packet}
+                       '  NPACKET, PACKET_LEN, PACKET_DATE,PACKET_RAW_TEXT,XML_PACKET_DETAIL,IS_MALFORMED,       ' +sLineBreak+   {Packet}
                        '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                        '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                        '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
-                       '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
+                       '  PORT_SRC, PORT_DST ,                                                                   ' +sLineBreak+   {TCP/UDP}   
                        '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                        '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                        '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE                  ' +sLineBreak+   {GEOIP DST}   
@@ -154,7 +155,7 @@ end;
 procedure TWPcapDBSqLitePacket.InitConnection;
 {$REGION 'SQL insert}
 CONST SQL_INSERT = 'INSERT INTO PACKETS(                                                                     ' +slineBreak+
-                   '  PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL,                ' +sLineBreak+   {Packet}
+                   '  PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL, IS_MALFORMED,  ' +sLineBreak+   {Packet}
                    '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                    '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
                    '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
@@ -163,7 +164,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                    '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE )                ' +sLineBreak+   {GEOIP DST}   
                    'VALUES                                                                                   ' +slineBreak+
-                   ' (:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,                                           ' +sLineBreak+   {Packet}
+                   ' (:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,:pIsMalformed ,                            ' +sLineBreak+   {Packet}
                    '  :pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIsIPV6,                                         ' +sLineBreak+   {EThernet}
                    '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
                    '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
@@ -191,6 +192,7 @@ begin
   FFDQueryInsert.SQL.Text                                   := SQL_INSERT; 
   FFDQueryInsert.ParamByName('pLen').DataType               := ftInteger; {Packet}
   FFDQueryInsert.ParamByName('pDate').DataType              := ftString; 
+  FFDQueryInsert.ParamByName('pIsMalformed').DataType       := ftInteger; 
   FFDQueryInsert.ParamByName('pEthType').DataType           := ftInteger; {EThernet} 
   FFDQueryInsert.ParamByName('pEthAcr').DataType            := ftString;
   FFDQueryInsert.ParamByName('pMacSrc').DataType            := ftString;
@@ -221,7 +223,7 @@ begin
   FFDQueryInsert.CachedUpdates                              := True;   
   FFDQueryGrid.SQL.Text                                     := 
                                                                  'SELECT                                                                                 ' +sLineBreak+ 
-                                                               '  NPACKET, PACKET_LEN, PACKET_DATE,                                                      ' +sLineBreak+ 
+                                                               '  NPACKET, PACKET_LEN, PACKET_DATE,IS_MALFORMED,                                                      ' +sLineBreak+ 
                                                                '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                                                                '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                                                                '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
@@ -389,6 +391,7 @@ end;
 
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
+
 begin
   {TODO use Batch insert}
   if not FFDQueryInsert.Prepared then
@@ -406,7 +409,8 @@ begin
   end;
   {Packet}
   FFDQueryInsert.ParamByName('pLen').AsIntegers[FInsertToArchive]         := aInternalPacket.PacketSize;
-  FFDQueryInsert.ParamByName('pDate').AsStrings[FInsertToArchive]         := DateTimeToStr(aInternalPacket.PacketDate);
+  FFDQueryInsert.ParamByName('pDate').AsStrings[FInsertToArchive]         := DateTimeToStr(aInternalPacket.PacketDate);  
+  FFDQueryInsert.ParamByName('pIsMalformed').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.IsMalformed,1,0); 
   {EThernet}
   FFDQueryInsert.ParamByName('pEthType').AsIntegers[FInsertToArchive]     := aInternalPacket.Eth.EtherType;
   FFDQueryInsert.ParamByName('pEthAcr').AsStrings[FInsertToArchive]       := aInternalPacket.Eth.Acronym.Trim;

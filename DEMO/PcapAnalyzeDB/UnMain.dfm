@@ -110,6 +110,13 @@ object FormMain: TFormMain
         DataBinding.FieldName = 'PACKET_LEN'
         Width = 73
       end
+      object GridPcapDBTableView1IS_MALFORMED: TcxGridDBColumn
+        Caption = 'Malformed'
+        DataBinding.FieldName = 'IS_MALFORMED'
+        PropertiesClassName = 'TcxCheckBoxProperties'
+        Properties.ValueChecked = '1'
+        Properties.ValueUnchecked = '0'
+      end
       object GridPcapDBTableView1ETH_TYPE: TcxGridDBColumn
         DataBinding.FieldName = 'ETH_TYPE'
         Visible = False

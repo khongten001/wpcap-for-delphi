@@ -107,6 +107,7 @@ type
     ListPacketDetailEnrichment: TcxTreeListColumn;
     BLoadSQLLiteDatabase: TdxBarButton;
     BFilterByLabelForm: TdxBarButton;
+    GridPcapDBTableView1IS_MALFORMED: TcxGridDBColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);

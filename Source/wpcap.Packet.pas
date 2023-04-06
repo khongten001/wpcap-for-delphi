@@ -54,6 +54,7 @@ Type
     PacketData   : PByte;       // A pointer to the packet data.
     PacketSize   : Integer;     // The packet size.
     PacketDate   : TDateTime;   // The packet date.
+    IsMalformed  : Boolean;
     Eth          : TIntenalETH; // An Ethernet packet.
     IP           : TInternalIP; // An IP packet.  
     XML_Detail   : String;

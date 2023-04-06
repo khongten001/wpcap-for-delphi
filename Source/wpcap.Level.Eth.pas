@@ -4,7 +4,7 @@ interface
 
 uses
   System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,Windows,
-  wpcap.Conts, System.SysUtils,wpcap.Types,Variants,wpcap.IANA.Dbport,winsock2;
+  wpcap.Conts, System.SysUtils,wpcap.Types,Variants,wpcap.IANA.Dbport,winsock2,system.Classes;
 
 type  
 
@@ -33,7 +33,7 @@ type
     class function isValidSize(aPacketSize: Integer): Boolean; overload;
   protected
     class var FIsFilterMode : Boolean;  
-    class var aTest : Int64;
+    class var FisMalformed  : Boolean;
   public
 
     /// <summary>
@@ -73,8 +73,11 @@ type
     ///  If the protocol is not recognized, the string "<unknown>" is returned.
     /// </summary>
     class function GetEthAcronymName(protocol: Word): string;static; 
+    class procedure DoOnMalformedPacket(sendert: TObject);
+    {property}
+    class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
+    class property isMalformed            : Boolean        read FisMalformed;
 
-    class property IsFilterMode  : Boolean read FIsFilterMode write FIsFilterMode default false;
   end;
 
 implementation
@@ -154,8 +157,8 @@ var LInternalPacket   : PTInternalPacket;
     LTCPProtoDetected : TWPcapProtocolBaseTCP;	
     LLikLayersSize    : Integer;  
 begin
-  Result := False;
-
+  Result       := False;
+  FisMalformed := False;
   
   new(LInternalPacket);
   Try
@@ -191,12 +194,19 @@ begin
             begin
               LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
               if Assigned(LUDPProtoDetected) then
+              begin
+                LUDPProtoDetected.OnFoundMalformedPacket := DoOnMalformedPacket;
                 LUDPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode)
+              end
               else
               begin
+
                 LTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(LInternalPacket.IP.DetectedIPProto);
                 if Assigned(LTCPProtoDetected) then
+                begin
+                  LTCPProtoDetected.OnFoundMalformedPacket := DoOnMalformedPacket;
                   LTCPProtoDetected.HeaderToString(LInternalPacket.PacketData,LInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode);
+                end;
               end;
             end
 
@@ -267,6 +277,7 @@ begin
   Result                                      := False;
   aInternalPacket.PacketData                  := aPacketData;
   aInternalPacket.PacketSize                  := aPacketSize;
+  aInternalPacket.IsMalformed                 := False;
   aInternalPacket.IP.IpPrototr                := String.Empty;
   aInternalPacket.IP.ProtoAcronym             := String.Empty;
   aInternalPacket.IP.IpProto                  := 0;
@@ -420,6 +431,11 @@ begin
     Result.Hex := String.Empty
   else
     Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False));
+end;
+
+class procedure TWpcapEthHeader.DoOnMalformedPacket(sendert: TObject);
+begin
+  FisMalformed := True;
 end;
 
 end.

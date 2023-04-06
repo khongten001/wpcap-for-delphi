@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,idGlobal,
-  System.Variants,wpcap.Types,wpcap.BufferUtils;
+  System.Variants,wpcap.Types,wpcap.BufferUtils,System.Classes;
 
 Type
 
@@ -18,7 +18,8 @@ Type
 
 
   protected
-     class var FIsFilterMode : Boolean;
+     class var FIsFilterMode           : Boolean;
+     class var FOnFoundMalformedPacket : TNotifyEvent;
      class function SizeaUint8ToStr(const aUint8: UInt8): String;
      class function SizeCardinalToStr(const aCardinal: UInt32): String; 
      class function ByteToBinaryStringInternal(const AByte: UInt8): string;     
@@ -76,7 +77,12 @@ Type
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;overload; virtual;
-    class property IsFilterMode  : Boolean read FIsFilterMode write FIsFilterMode default false;
+    
+    {Property}
+    class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
+    
+    {Event}
+    class property OnFoundMalformedPacket : TNotifyEvent   read FOnFoundMalformedPacket write FOnFoundMalformedPacket;
   end;
   
 implementation
@@ -175,7 +181,7 @@ class Function TWPcapProtocolBase.ParserUint16Value(const aPacketData:PByte;aLev
           aToStringFunction:TWpcapUint16ToString;isBigIndian:Boolean;
           var aCurrentPos:Integer):Uint16;
 begin
-  if not isValidLen(aCurrentPos,aMaxLen,SizeOf(Result)) then Exit;
+  if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
   if isBigIndian then
      Result :=  wpcapntohs(PUint16(aPacketData+aCurrentPos )^)
@@ -195,7 +201,7 @@ class Function TWPcapProtocolBase.ParserUint32Value(const aPacketData:PByte;aLev
         var aCurrentPos:Integer):Uint32;
 
 begin
-  if not isValidLen(aCurrentPos,aMaxLen,SizeOf(Result)) then Exit;
+  if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
   if isBigIndian then  
      Result :=  wpcapntohl(PUint32(aPacketData+aCurrentPos )^)
@@ -216,7 +222,7 @@ class Function TWPcapProtocolBase.ParserUint64Value(const aPacketData:PByte;aLev
         var aCurrentPos:Integer):Uint64;
 
 begin
-  if not isValidLen(aCurrentPos,aMaxLen,SizeOf(Result)) then Exit;
+  if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
   if isBigIndian then  
      Result :=  wpcapntohl(PUint64(aPacketData+aCurrentPos )^)
@@ -236,6 +242,12 @@ begin
   Result := (aLen > 0);
   if Result then
     Result := aActualPos +  aLen <=  aMaxLen;
+    
+  if not Result and (aLen > 0) then
+  begin
+    if assigned(FOnFoundMalformedPacket) then
+      FOnFoundMalformedPacket(nil);
+  end;
 end;
                                                 
 class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,

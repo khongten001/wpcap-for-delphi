@@ -197,66 +197,76 @@ type
 
 implementation
 
+
+
 function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel) : PTInternalPacket;
 var LLen              : Integer;
     LListDetail       : TListHeaderString;
     LLikLayersSize    : Integer;
+    LEthParser        : TWpcapEthHeader;
 begin
   Result := nil;
   if not Assigned(aPacketData) then Exit;
-  
-  New(Result); 
-
-  Result.PacketDate       := UnixToDateTime(aHeader.ts.tv_sec,false);    
-  LLen                    := aHeader.len;
-  LLikLayersSize          := 0;
-  TWpcapEthHeader.InternalPacket(aPacketData,LLen,FIANADictionary,Result,LLikLayersSize); 
-
-  if LLikLayersSize > 0 then
-  begin
-    {Free Memory}
-    FreeMem(Result.PacketData,LLikLayersSize);
-    Result.PacketData  := aPacketData;
-    Result.PacketSize  := LLen;
-  end;
-  
-  Result.RAW_Text := BufferToASCII(aPacketData,LLen);
-  LListDetail     := TListHeaderString.Create;
+  LEthParser :=  TWpcapEthHeader.Create;
   Try
-   if TWpcapEthHeader.HeaderToString(aPacketData,LLen,0,LListDetail,True) then          
-   begin 
-      Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
-   end
-   else
-      Result.XML_Detail := String.empty;
-  Finally
-    FreeAndNil(LListDetail);
-  End;
-  
-  Result.IP.SrcGeoIP.ASNumber        := String.Empty;
-  Result.IP.SrcGeoIP.ASOrganization  := String.Empty;
-  Result.IP.SrcGeoIP.Location        := String.Empty;            
-  Result.IP.SrcGeoIP.Latitude        := 0;
-  Result.IP.SrcGeoIP.Longitude       := 0;
+    New(Result); 
 
-  Result.IP.DestGeoIP.ASNumber       := String.Empty;
-  Result.IP.DestGeoIP.ASOrganization := String.Empty;
-  Result.IP.DestGeoIP.Location       := String.Empty;            
-  Result.IP.DestGeoIP.Latitude       := 0;
-  Result.IP.DestGeoIP.Longitude      := 0;
-    
-  if Assigned(aGeoLiteDB) and aGeoLiteDB.Connection.Connected then
-  begin
-    if ( Result.Eth.EtherType = ETH_P_IP ) or
-       ( Result.Eth.EtherType = ETH_P_IPV6 ) 
-    then
+    Result.PacketDate                 := UnixToDateTime(aHeader.ts.tv_sec,false);    
+    LLen                              := aHeader.len;
+    LLikLayersSize                    := 0;
+    LEthParser.InternalPacket(aPacketData,LLen,FIANADictionary,Result,LLikLayersSize); 
+
+    if LLikLayersSize > 0 then
     begin
-      if IsValidPublicIP(Result.IP.Src) then        
-        aGeoLiteDB.GetGeoIPByIp(Result.IP.Src,@Result.IP.SrcGeoIP);
-      if IsValidPublicIP(Result.IP.Dst) then        
-        aGeoLiteDB.GetGeoIPByIp(Result.IP.Dst,@Result.IP.DestGeoIP);
+      {Free Memory}
+      FreeMem(Result.PacketData,LLikLayersSize);
+      Result.PacketData  := aPacketData;
+      Result.PacketSize  := LLen;
     end;
-  end;
+  
+    Result.RAW_Text := BufferToASCII(aPacketData,LLen);
+    LListDetail     := TListHeaderString.Create;
+    Try
+
+    
+     if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True) then 
+     begin         
+        Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
+     end
+     else
+        Result.XML_Detail := String.empty;
+    Finally
+      FreeAndNil(LListDetail);
+    End;
+
+    Result.IsMalformed                 := LEthParser.IsMalformed;
+    Result.IP.SrcGeoIP.ASNumber        := String.Empty;
+    Result.IP.SrcGeoIP.ASOrganization  := String.Empty;
+    Result.IP.SrcGeoIP.Location        := String.Empty;            
+    Result.IP.SrcGeoIP.Latitude        := 0;
+    Result.IP.SrcGeoIP.Longitude       := 0;
+
+    Result.IP.DestGeoIP.ASNumber       := String.Empty;
+    Result.IP.DestGeoIP.ASOrganization := String.Empty;
+    Result.IP.DestGeoIP.Location       := String.Empty;            
+    Result.IP.DestGeoIP.Latitude       := 0;
+    Result.IP.DestGeoIP.Longitude      := 0;
+    
+    if Assigned(aGeoLiteDB) and aGeoLiteDB.Connection.Connected then
+    begin
+      if ( Result.Eth.EtherType = ETH_P_IP ) or
+         ( Result.Eth.EtherType = ETH_P_IPV6 ) 
+      then
+      begin
+        if IsValidPublicIP(Result.IP.Src) then        
+          aGeoLiteDB.GetGeoIPByIp(Result.IP.Src,@Result.IP.SrcGeoIP);
+        if IsValidPublicIP(Result.IP.Dst) then        
+          aGeoLiteDB.GetGeoIPByIp(Result.IP.Dst,@Result.IP.DestGeoIP);
+      end;
+    end;
+  Finally
+    FreeAndNil(LEthParser);
+  End;
 end;
 
 procedure TPCAPUtils.SetAbort(const aValue: Boolean);

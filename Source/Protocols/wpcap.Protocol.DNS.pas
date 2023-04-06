@@ -528,20 +528,23 @@ begin
       LastOffset := aOffset;          
       LLen       := aPacket[aOffset];
     end;
+    
     Inc(aOffset);
     if LLen = 0 then 
     begin
       inc(aTotalNameLen,2);
       Break;
     end;
-    
+    if aOffset > aMaxLen then break;    
     if not Trim(String(Result)).IsEmpty then
       Result := AnsiString(Format('%s.',[Result]));
-    LNewLen := Length(Result) + LLen;
-    if isValidLen(aOffset,aMaxLen,LNewLen) then
+    LNewLen :=  Length(Result)+LLen -1;
+      
+    if (aOffset > 0) and (aOffset+LLen-1 <= aMaxLen) then
     begin
-      SetLength(Result,LNewLen);  
+      SetLength(Result,LNewLen+1);  
       Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
+      Result := StringReplace(Result,#0,'',[rfReplaceAll]) ;
     end;
     
     Inc(aOffset, LLen);
@@ -760,12 +763,12 @@ begin
   begin
     {
       NAME an owner name, i.e., the name of the node to which this
-           resource record pertains.
+           resource record pertains.                                            
     }
   
     LRssName := ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen);
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, aLabelForName, Format('%s.Name',[aLabelForName]), ifThen( System.AnsiStrings.Trim( LRssName) = '','<Root>',String(LRssName)), nil, Length(LRssName) ));
-    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Len',[aLabelForName]), 'Name length',LTotalNameLen,nil,0));    
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Name',[aLabelForName]),'Name:', ifThen( System.AnsiStrings.Trim( LRssName) = '','<Root>',String(LRssName) ), nil, Length(LRssName) ));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Len',[aLabelForName]), 'Name length:',LTotalNameLen,nil,0));    
 
     {TYPE  two octets containing one of the RR TYPE codes.}    
     LRssType       := Swap(PWord(@LDataRss[LInternalOffset])^);
