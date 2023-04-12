@@ -123,10 +123,9 @@ end;
 class function TWPcapProtocolMQTT.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LTCPPayLoad        : PByte;
     LTCPPHdr           : PTCPHdr;
-    LtmpByte           : Byte;
-    LMsgType           : Byte; 
-    LWordValue         : Word;
-    LBytes             : TIdBytes; 
+    LtmpByte           : Uint8;
+    LMsgType           : Uint8; 
+    LWordValue         : Uint16;
     LPos               : Integer;
     LTpcPayLoadLen     : Integer;
 begin
@@ -160,15 +159,7 @@ begin
     MQTT_CONNECT:
       begin
         LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.ProtoNameLen',[AcronymName]), 'Protocol Name Length:',AListDetail,SizeWordToStr,True,LPos);
-
-        if LWordValue > 0 then
-        begin
-          SetLength(LBytes,LWordValue);
-          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.ProtoName',[AcronymName]), 'Protocol Name:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));          
-          inc(LPos,LWordValue);        
-        end;
-
+        ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Connect.ProtoName.Len',[AcronymName]), 'Protocol name length:',AListDetail,BytesToStringRawInternal,True,LPos);               
         ParserUint8Value(LTCPPayLoad,aStartLevel+2,LTpcPayLoadLen,Format('%s.Connect.Version',[AcronymName]), 'Version:',AListDetail,nil,True,LPos);
                      
         LtmpByte := PByte(LTCPPayLoad + LPos)^;
@@ -184,14 +175,8 @@ begin
 
         ParserUint16Value(aPacketData,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.KeepAlive',[AcronymName]), 'Keep alive:',AListDetail,nil,True,LPos);
         
-        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.CliendIDLen',[AcronymName]), 'Client ID Length:',AListDetail,SizeWordToStr,True,LPos);
-        if LWordValue > 0 then
-        begin
-          SetLength(LBytes,LWordValue);
-          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Connect.CliendID',[AcronymName]), 'Client ID:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));      
-        end;
-                              
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Connect.CliendID.Len',[AcronymName]), 'Client ID Length:',AListDetail,SizeWordToStr,True,LPos);
+        ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Connect.CliendID',[AcronymName]), 'Client ID:',AListDetail,BytesToStringRawInternal,True,LPos);                                         
       end;
 
     MQTT_CONNACK:
@@ -202,34 +187,18 @@ begin
 
     MQTT_PUBLISH:
       begin  
-        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Publish.Length',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
-        if LWordValue > 0 then
-        begin        
-          SetLength(LBytes,LWordValue);
-          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Topic',[AcronymName]), 'Topic:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));    
-          Inc(LPos,LWordValue);        
-        end;
-              
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Publish.Len',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
+        ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Publish.Topic',[AcronymName]), 'Topic:',AListDetail,BytesToStringRawInternal,True,LPos);                                                 
+
         if LTpcPayLoadLen- LPos > 0 then
-        begin
-          SetLength(LBytes,LTpcPayLoadLen- LPos);
-          Move((LTCPPayLoad + LPos)^, LBytes[0],LTpcPayLoadLen- LPos );      
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Publish.Message',[AcronymName]), 'Message:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));       
-        end;
+          ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LTpcPayLoadLen- LPos,Format('%s.Publish.Message',[AcronymName]), 'Message:',AListDetail,BytesToStringRawInternal,True,LPos);    
       end;
 
     MQTT_SUBSCRIBE  :
       begin
         ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.MessageIdentifier',[AcronymName]), 'Message Identifier:',AListDetail,nil,True,LPos);
-        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.TopicLen',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
-        if LWordValue > 0 then
-        begin                
-          SetLength(LBytes,LWordValue);
-          Move((LTCPPayLoad + LPos)^, LBytes[0], LWordValue);      
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Subscribe.Topic',[AcronymName]), 'Topic:',BytesToStringRaw(LBytes) , @LBytes,SizeOf(LBytes)));    
-          Inc(LPos,LWordValue);    
-        end;
+        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.Topic.Len',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
+        ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Subscribe.Topic',[AcronymName]), 'Topic:',AListDetail,BytesToStringRawInternal,True,LPos);                                                 
         ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.RequestedQoS',[AcronymName]), 'Requested QoS:',AListDetail,nil,True,LPos);        
       end;
       

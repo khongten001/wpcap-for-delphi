@@ -15,9 +15,9 @@ type
   // EtherType: 16-bit field indicating the type of higher protocol (for example, IPv4 or ARP).
   PETHHdr = ^TETHHdr;
   TETHHdr =  record
-    DestAddr : array [0..5] of Byte;  // The destination MAC address.
-    SrcAddr  : array [0..5] of Byte;  // The source MAC address.
-    EtherType: Word;                  // The Ethernet type.
+    DestAddr : array [0..5] of Uint8;  // The destination MAC address.
+    SrcAddr  : array [0..5] of Uint8;  // The source MAC address.
+    EtherType: Uint16;                  // The Ethernet type.
   end;  
 
   /// <summary>
@@ -270,8 +270,8 @@ var LPETHHdr      : PETHHdr;
     I             : Integer;    
     LNewSize      : Integer;
     LNewData      : Pbyte;
-    LIpFlagVersion: Byte;
-    LEthType      : Word;
+    LIpFlagVersion: Uint8;
+    LEthType      : Uint16;
     LOffSet       : Integer;
 begin
   Result                                      := False;

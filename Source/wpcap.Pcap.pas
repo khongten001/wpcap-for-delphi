@@ -531,6 +531,7 @@ var Lerrbuf      : array[0..PCAP_ERRBUF_SIZE-1] of AnsiChar;
     LLoopResult  : Integer;
 begin
   inherited;
+  LPcapDumper   := nil;
   FTimeRecCheck := 0;
   if FTimeRecoStop > 0 then
   begin

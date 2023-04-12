@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, WinSock2, wpcap.Protocol.UDP, wpcap.Types,
+  wpcap.Protocol.Base, wpcap.Conts, WinSock2, wpcap.Protocol.UDP, wpcap.Types,idGlobal,
   System.StrUtils, System.Rtti, System.SysUtils, System.Variants, WinApi.Windows,
   wpcap.BufferUtils, System.Win.ScktComp, DateUtils,wpcap.IpUtils,System.Generics.Collections;
 
@@ -29,29 +29,29 @@ type
   /// </summary>
   PL2TPHdr = ^TL2TPHdr;
   TL2TPHdr = packed record
-    Flags     : byte;      // Flags for the L2TP header.
-    Version   : byte;
+    Flags     : Uint8;      // Flags for the L2TP header.
+    Version   : Uint8;
   end;
 
   TListVendorId = TDictionary<Integer, string>;
 
   PTL2TPHdrInternal = ^TL2TPHdrInternal;
   TL2TPHdrInternal = packed record
-    Flags     : byte;      // Flags for the L2TP header.
-    Version   : byte;
-    Length    : Word;      // Length of the L2TP header and payload.
-    TunnelId  : Word;      // Identifier for the L2TP tunnel.
-    SessionId : Word;      // Identifier for the L2TP session.
-    Ns        : Word;      // Next sequence number for this session.
-    Nr        : Word;      // Next received sequence number for this session.
-    OffsetSize: Word;      // Size of the optional offset field in the header.
-    OffsetPad: Word;       // Size of the optional offset field in the header.    
+    Flags     : Uint8;      // Flags for the L2TP header.
+    Version   : Uint8;
+    Length    : Uint16;      // Length of the L2TP header and payload.
+    TunnelId  : Uint16;      // Identifier for the L2TP tunnel.
+    SessionId : Uint16;      // Identifier for the L2TP session.
+    Ns        : Uint16;      // Next sequence number for this session.
+    Nr        : Uint16;      // Next received sequence number for this session.
+    OffsetSize: Uint16;      // Size of the optional offset field in the header.
+    OffsetPad : Uint16;      // Size of the optional offset field in the header.    
   end;
 
   TAVPHeader = packed record
-    AvtFlag   : Word;
-    VendorID  : Word;
-    AttrType  : Word;
+    AvtFlag   : Uint16;
+    VendorID  : Uint16;
+    AttrType  : Uint16;
   end;
   PAVPHeader = ^TAVPHeader;  
 
@@ -74,25 +74,25 @@ type
     L2TP_HDR_FLAG_F_BIT                = $0080; // Firmware-Version bit
     L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
       
-    class function GetL2TPFlag(aFlags: Word;aStartLevel:Integer;AListDetail: TListHeaderString): string; static;
-    class function ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aStartLevel:Integer;aVendorID: TListVendorId): string; static;
-    class function L2TPAVPTypeToString(AVPType: Word): string; static;
-    class function LenghtIsPresent(aFlags: Word): Boolean; static;
-    class function SequencePresent(aFlags: Word): Boolean; static;
-    class function OffSetIsPresent(aFlags: Word): Boolean; static;
-    class function AvtType0ValueToString(const aAvtValue: Word): String; static;
+    class function GetL2TPFlag(aFlags: Uint16;aStartLevel:Integer;AListDetail: TListHeaderString): string; static;
+    class function ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId): string; static;
+    class function L2TPAVPTypeToString(AVPType: Uint16): string; static;
+    class function LenghtIsPresent(aFlags: Uint16): Boolean; static;
+    class function SequencePresent(aFlags: Uint16): Boolean; static;
+    class function OffSetIsPresent(aFlags: Uint16): Boolean; static;
+    class function AvtType0ValueToString(const aAvtValue: Uint16): String; static;
     Class function InitVendorID: TListVendorID;Static;
     class function ReadAVPValueFromPacket(aPayloadData: PByte; aCurrentPos: Integer; aAvpLength, aAvpType: Integer;aVendorID: TListVendorId): TValue; static;
   public
     /// <summary>
     /// Returns the default port number used by the L2TP protocol (1701).
     /// </summary>
-    class Function DefaultPort: Word;override;
+    class Function DefaultPort: word;override;
 
     /// <summary>
     /// Return Intenal protocol ID
     /// </summary>
-    class function IDDetectProto: byte; override;
+    class function IDDetectProto: Byte; override;
     
     /// <summary>
     /// Returns the name of the protocol for the L2TP protocol
@@ -163,18 +163,18 @@ begin
   Result := 'L2TP';
 end;
 
-class function TWPcapProtocolL2TP.HeaderLength(aFlag:Byte): word;
+class function TWPcapProtocolL2TP.HeaderLength(aFlag:byte): word;
 begin
-  Result := SizeOf(TL2TPHdr)+ (SizeOf(word)*2); // lenght structure fixed
+  Result := SizeOf(TL2TPHdr)+ (SizeOf(Uint16)*2); // lenght structure fixed
 
   if LenghtIsPresent(aFlag) then
-    inc(Result,SizeOf(word));
+    inc(Result,SizeOf(Uint16));
   
   if SequencePresent(aFlag) then
-    inc(Result,SizeOf(word)*2);
+    inc(Result,SizeOf(Uint16)*2);
 
   if OffSetIsPresent(aFlag) then
-    inc(Result,SizeOf(word));  
+    inc(Result,SizeOf(Uint16));  
 end;
 
 class function TWPcapProtocolL2TP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
@@ -212,7 +212,7 @@ end;
 
 class function TWPcapProtocolL2TP.Header(const aUDPPayLoad: PByte): PTL2TPHdrInternal;
 var aBaseStructure : PL2TPHdr;
-    aCurrentPos    : Word;
+    aCurrentPos    : Uint16;
 begin
 
 {
@@ -237,35 +237,35 @@ begin
     
   if LenghtIsPresent(aBaseStructure.Flags) then
   begin
-    Result.Length := Pword(aUDPPayLoad +aCurrentPos)^; 
+    Result.Length := Puint16(aUDPPayLoad +aCurrentPos)^; 
     inc(aCurrentPos,SizeOf(Result.TunnelId));
   end;
 
-  Result.TunnelId := Pword(aUDPPayLoad +aCurrentPos)^; 
+  Result.TunnelId := Puint16(aUDPPayLoad +aCurrentPos)^; 
   inc(aCurrentPos,SizeOf(Result.SessionId));
 
-  Result.SessionId :=Pword(aUDPPayLoad +aCurrentPos)^; 
+  Result.SessionId :=Puint16(aUDPPayLoad +aCurrentPos)^; 
   inc(aCurrentPos,SizeOf(Result.Ns));
   
   if SequencePresent(aBaseStructure.Flags) then
   begin    
-    Result.Ns := Pword(aUDPPayLoad +aCurrentPos)^; 
+    Result.Ns := Puint16(aUDPPayLoad +aCurrentPos)^; 
     inc(aCurrentPos,SizeOf(Result.Nr));
-    Result.Nr := Pword(aUDPPayLoad +aCurrentPos)^; 
+    Result.Nr := Puint16(aUDPPayLoad +aCurrentPos)^; 
     inc(aCurrentPos,SizeOf(Result.Nr));
   end;
 
   if OffSetIsPresent(aBaseStructure.Flags) then
   begin    
-    Result.OffsetSize := Pword(aUDPPayLoad +aCurrentPos)^; 
+    Result.OffsetSize := Puint16(aUDPPayLoad +aCurrentPos)^; 
     inc(aCurrentPos,SizeOf(Result.OffsetPad));
-    Result.OffsetPad := Pword(aUDPPayLoad +aCurrentPos)^; 
+    Result.OffsetPad := Puint16(aUDPPayLoad +aCurrentPos)^; 
     
   end;
 
 end;
 
-class function TWPcapProtocolL2TP.L2TPAVPTypeToString(AVPType: Word): string;
+class function TWPcapProtocolL2TP.L2TPAVPTypeToString(AVPType: Uint16): string;
 begin
   case AVPType of
     0:   Result := 'Control message';
@@ -527,22 +527,22 @@ begin
   end;
 end;
 
-class function TWPcapProtocolL2TP.LenghtIsPresent(aFlags:Word):Boolean;
+class function TWPcapProtocolL2TP.LenghtIsPresent(aFlags:Uint16):Boolean;
 begin
   Result := GetBitValue(aFlags,2) =1;
 end;
 
-class function TWPcapProtocolL2TP.SequencePresent(aFlags:Word):Boolean;
+class function TWPcapProtocolL2TP.SequencePresent(aFlags:Uint16):Boolean;
 begin
   Result := GetBitValue(aFlags,5) =1;
 end;
 
-class function TWPcapProtocolL2TP.OffSetIsPresent(aFlags:Word):Boolean;
+class function TWPcapProtocolL2TP.OffSetIsPresent(aFlags:Uint16):Boolean;
 begin
   Result := GetBitValue(aFlags,7) =1;
 end;
 
-class function TWPcapProtocolL2TP.GetL2TPFlag(aFlags: Word;aStartLevel:Integer;AListDetail:TListHeaderString): string;
+class function TWPcapProtocolL2TP.GetL2TPFlag(aFlags: Uint16;aStartLevel:Integer;AListDetail:TListHeaderString): string;
 begin
 {
    |T|L|x|x|S|x|O|P|x|x|x|x|  Ver  |          Length (opt)         |
@@ -590,7 +590,7 @@ class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPack
 var LHeaderL2TP   : PTL2TPHdrInternal;
     LPUDPHdr      : PUDPHdr;
     LUDPPayLoad   : PByte;
-    Loffset       : Word;
+    Loffset       : Uint16;
     UDPPayLoadLen : Integer;
     LVendorID     : TListVendorId;
 begin
@@ -697,7 +697,7 @@ begin
   End;
 end;
 
-Class function TWPcapProtocolL2TP.AvtType0ValueToString(const aAvtValue:Word):String;
+Class function TWPcapProtocolL2TP.AvtType0ValueToString(const aAvtValue:Uint16):String;
 begin
   case aAvtValue of
 
@@ -892,9 +892,9 @@ begin
 end;
 
 Class function TWPcapProtocolL2TP.ReadAVPValueFromPacket(aPayloadData: PByte; aCurrentPos: Integer; aAvpLength: Integer; aAvpType: Integer;aVendorID: TListVendorId): TValue;
-var ByteValue         : Byte;
+var ByteValue         : Uint8;
     IntValue          : Integer;
-    Int64Value        : Int64;
+    Int64Value        : Uint64;
     UIntValue         : Uint32;
     LongValue         : LongWord;
     UInt64Value       : UInt64;
@@ -907,9 +907,9 @@ var ByteValue         : Byte;
     GroupedValue      : string;
     TimeStampValue    : TDateTime;
     UTF8StringValue   : string;
-    AvpLen            : Cardinal;
+    AvpLen            : Uint32;
     Value             : Tvalue;
-    IP6Bytes          : array of byte;
+    IP6Bytes          : array of Uint8;
 begin
   case aAvpType of
     0: // Integer32 AVP
@@ -925,7 +925,7 @@ begin
     1,21,68,122,123,71,73: // Integer64 AVP
       begin
         Int64Value  := PInt64(aPayloadData + aCurrentPos)^;      
-        Result      := TValue.From<Int64>(Int64Value);
+        Result      := TValue.From<Uint64>(Int64Value);
       end;
     2,44,118,120,121, 72,74,75: // Unsigned32 AVP
       begin
@@ -998,7 +998,7 @@ begin
     26,49,107,129, 161, 179, 245: // UnsignedShort AVP
       begin
         UIntValue   := wpcapntohs(PWord(aPayloadData + aCurrentPos)^);
-        Result      := TValue.From<Cardinal>( UIntValue);
+        Result      := TValue.From<Uint32>( UIntValue);
       end;
       
     27: // Integer8 AVP
@@ -1010,7 +1010,7 @@ begin
     28,50: // Unsigned8 AVP
       begin
         ByteValue   := PByte(aPayloadData + aCurrentPos)^;      
-        Result      := TValue.From<Cardinal>(ByteValue);
+        Result      := TValue.From<Uint32>(ByteValue);
       end;
 
     32: //TimeStamp AVP
@@ -1076,7 +1076,7 @@ begin
     234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255:
       begin
         ByteValue   := PByte(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<Byte>(ByteValue);
+        Result      := TValue.From<Uint8>(ByteValue);
       end;  
              
     56: // MACAddress AVP
@@ -1114,8 +1114,8 @@ begin
 
     81,142,143,131,162, 200, 201: // Time AVP
       begin
-        Int64Value   := Int64(PInt64(aPayloadData + aCurrentPos)^);        
-        Result       := TValue.From<Int64>(SwapInt64(Int64Value));
+        Int64Value   := Uint64(PInt64(aPayloadData + aCurrentPos)^);        
+        Result       := TValue.From<Uint64>(SwapInt64(Int64Value));
       end;      
  
     82,83,84,85,86,87,104,108,109,116,111,112,113: //UTF8String AVP
@@ -1163,7 +1163,7 @@ begin
           aCurrentPos := aCurrentPos + SizeOf(AvpLen);
 
           // Skip Vendor ID
-          aCurrentPos := aCurrentPos + SizeOf(Cardinal);
+          aCurrentPos := aCurrentPos + SizeOf(Uint32);
 
           // Read the AVP Value
           Value := ReadAVPValueFromPacket(aPayloadData, aCurrentPos, AvpLen, UIntValue,aVendorID);
@@ -1275,16 +1275,16 @@ begin
   end;
 end;	     
 
-class function TWPcapProtocolL2TP.ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:word;aStartLevel:Integer;aVendorID: TListVendorId): string;
+class function TWPcapProtocolL2TP.ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId): string;
 CONST AVP_LENGHT_WITHOUT_VALUE = 6;
 var LAvpHeader      : TAVPHeader;
-    LAvpType        : Word;
-    LAvpFlag        : Word;
-    LAvpLength      : Word;
+    LAvpType        : Uint16;
+    LAvpFlag        : Uint16;
+    LAvpLength      : Uint16;
     LAvpValue       : TValue;
     LCurrentPos     : Integer;
-    LByte0          : Byte;
-    LByte1          : Byte;    
+    LByte0          : Uint8;
+    LByte1          : Uint8;
     LTypeStr        : string; 
     LLabel          : String;
 begin
@@ -1310,6 +1310,9 @@ begin
     LAvpHeader := PAVPHeader(PayloadData + LCurrentPos)^;
     LAvpFlag   := wpcapntohs(LAvpHeader.AvtFlag);
     LAvpType   := wpcapntohs(LAvpHeader.AttrType);
+
+    if LAvpType = 1 then Break; {Error message ?}
+    
     LAvpLength := GetLastNBit(LAvpFlag,10);  
     LTypeStr   := L2TPAVPTypeToString(LAvpType);
     LLabel     := Format('%s.AVP.%s',[AcronymName,LTypeStr]);  

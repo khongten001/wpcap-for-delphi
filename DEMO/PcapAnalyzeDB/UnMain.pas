@@ -655,7 +655,10 @@ begin
         begin
           MessageDlg('Sox.exe not present',mtError,[mbOK],0);
           Exit;                                            
-        end;                
+        end;     
+
+        if FileExists(LFileWave) then
+          DeleteFile(LFileWave);           
         
         ExecuteAndWait(Format(LSoxCommand,[GetPathUtils+'Sox\',LFileRaw,LFileWave]));
 
@@ -668,7 +671,9 @@ begin
           Finally
             FreeAndNil(LFormWave);
           End;
-        end;
+        end
+        else
+          MessageDlg('Conversion failed',mtError,[mbOK],0); 
       end
       else
         MessageDlg('Invalid RTP flow',mtError,[mbOK],0);                                    

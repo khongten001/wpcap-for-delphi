@@ -37,11 +37,9 @@ Function IsValidPublicIP(Const aIP : String):Boolean;
 var IP4     : Cardinal;
     FR4     : Cardinal;
     TO4     : Cardinal;
-    Provider: Boolean;   
     iIP     : Int64;
 begin
   Result   := True;
-  Provider := False;
   Try
     if isValidIP(aIP) then
     begin
@@ -64,7 +62,6 @@ begin
 
             if Result then
             begin
-              Provider:= True;
               FR4     := IPv4ToUint32('100.64.0.0');
               TO4     := IPv4ToUint32('100.127.255.255');
               Result  := Not InRange(IP4, FR4, TO4);

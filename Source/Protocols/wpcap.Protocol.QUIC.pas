@@ -90,7 +90,7 @@ end;
 
 class function TWPcapProtocolQUIC.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LUDPPayLoad      : PByte;
-    LUDPPayLoadLen   : INteger;
+    LUDPPayLoadLen   : Integer;
     LPUDPHdr         : PUDPHdr;
     TtmpByte         : Byte;
     LFirst_byte_bit1 : Boolean;
@@ -103,8 +103,7 @@ var LUDPPayLoad      : PByte;
     LFirst_byte_bit8 : Boolean;    
     LVersion         : LongWord;
     LDestConnectionID: TIdBytes;
-    Linitial_salt    : TBytes;
-    Lpayload         : PByte;
+    Linitial_salt    : TBytes;    
     LCurrentPos      : Integer;
 begin
   Result := False;
@@ -155,34 +154,28 @@ begin
   begin
     if (LFirst_byte_bit5) then
     begin
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', 8, nil,0));         
-      Move((LUDPPayLoad + 1)^, LDestConnectionID[0], 8);  
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));                           
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId.Len',[AcronymName]), 'Destination Connection ID Length:', 8, nil,0));  
+      LCurrentPos := 1;
+      ParserGenericBytesValue(LUDPPayLoad,aStartLevel+1,LUDPPayLoadLen,8,Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',AListDetail,BytesToHex,True,LCurrentPos);            
     end;
   end
   else if (LVersion = Q046) then
   begin
     TtmpByte := PByte(LUDPPayLoad+5)^;
     if (TtmpByte <> $50) then
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Unexpected connection ID length', null, @TtmpByte,SizeOf(TtmpByte) ,TtmpByte))
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId.Len',[AcronymName]), 'Unexpected connection ID length', null, @TtmpByte,SizeOf(TtmpByte) ,TtmpByte))
     else
     begin      
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', 8, nil,0));   
-      SetLength(LDestConnectionID,8);
-      Move((LUDPPayLoad + 6)^, LDestConnectionID[0], 8);      
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));             
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId.Len',[AcronymName]), 'Destination Connection ID Length:', 8, nil,0));   
+      LCurrentPos := 6;
+      ParserGenericBytesValue(LUDPPayLoad,aStartLevel+1,LUDPPayLoadLen,8,Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',AListDetail,BytesToHex,True,LCurrentPos);          
     end;
   end
   else
   begin 
-    TtmpByte := PByte(LUDPPayLoad+5)^;
-    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionIdLen',[AcronymName]), 'Destination Connection ID Length:', TtmpByte, @TtmpByte,SizeOf(TtmpByte)));    
-    if TtmpByte > 0 then
-    begin
-      SetLength(LDestConnectionID,TtmpByte);
-      Move((LUDPPayLoad + 6)^, LDestConnectionID[0], TtmpByte);
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',ToHex(LDestConnectionID) , @LDestConnectionID,SizeOf(LDestConnectionID) ));        
-    end;
+    LCurrentPos := 5;
+    TtmpByte    := ParserUint8Value(LUDPPayLoad,aStartLevel+1,LUDPPayLoadLen,Format('%s.DstConnectionId.len ',[AcronymName]), 'Destination Connection ID Length:',AListDetail,SizeaUint8ToStr,True,LCurrentPos); 
+    ParserGenericBytesValue(LUDPPayLoad,aStartLevel+1,LUDPPayLoadLen,TtmpByte,Format('%s.DstConnectionId',[AcronymName]), 'Destination Connection ID:',AListDetail,BytesToHex,True,LCurrentPos); 
   end;
 
 

@@ -11,9 +11,9 @@ type
 
 
   TFTPHeader = packed record
-    OpCode   : Byte;  // The opcode specifying the type of FTP message
-    Data     : word;  // Data field for the FTP message
-    Sequence : word;  // Sequence number of the message
+    OpCode   : Uint8;  // The opcode specifying the type of FTP message
+    Data     : Uint16;  // Data field for the FTP message
+    Sequence : Uint16;  // Sequence number of the message
   end;
   
   /// <summary>
@@ -30,7 +30,7 @@ type
       FTP_OP_NAK    = 5;     // Negative acknowledgment
       FTP_OP_RESEND = 6;     // Resend packet
       FTP_OP_ABORT  = 7;
-    class function ResponseToString(const aResponse: word): String; static;     // Abort transfer  
+    class function ResponseToString(const aResponse: Uint16): String; static;     // Abort transfer  
   protected
   public
     /// <summary>
@@ -96,7 +96,7 @@ begin
 end;
 
 
-class function TWPcapProtocolFTP.ResponseToString(const aResponse:word):String;
+class function TWPcapProtocolFTP.ResponseToString(const aResponse:Uint16):String;
 begin
   case aResponse of
      110: Result:= 'Restart marker reply';

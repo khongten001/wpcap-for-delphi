@@ -5,6 +5,7 @@ object FormPlayerWave: TFormPlayerWave
   ClientHeight = 411
   ClientWidth = 814
   Color = clBtnFace
+  DoubleBuffered = True
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
@@ -12,7 +13,6 @@ object FormPlayerWave: TFormPlayerWave
   Font.Style = []
   OldCreateOrder = False
   Position = poMainFormCenter
-  OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 13
   object PaintBox1: TPaintBox
@@ -30,16 +30,11 @@ object FormPlayerWave: TFormPlayerWave
   object MediaPlayer1: TMediaPlayer
     Left = 0
     Top = 381
-    Width = 813
+    Width = 811
     Height = 30
     Align = alBottom
-    ColoredButtons = []
-    EnabledButtons = [btPlay, btPause, btStop, btNext, btPrev, btStep, btBack]
-    VisibleButtons = [btPlay, btPause, btStop, btNext, btPrev, btStep, btBack]
     DoubleBuffered = True
     ParentDoubleBuffered = False
-    ParentShowHint = False
-    ShowHint = True
     TabOrder = 0
   end
 end

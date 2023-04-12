@@ -73,7 +73,6 @@ const
 
 var Reg     : TRegistry;
     Value   : LongInt;
-    i       : LongInt;
 
   Function WriteReg(RootKey:HKEY;const Key,Name:String;iValue:LongInt):LongInt;
   begin

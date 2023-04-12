@@ -4,7 +4,7 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, wpcap.Conts,
-  WinSock, System.Generics.Collections,wpcap.Packet;
+  WinSock, System.Generics.Collections,wpcap.Packet,idGlobal;
 
 
 type
@@ -401,10 +401,13 @@ type
   /// The name of the file that was processed is passed to the callback procedure as a parameter.
   ///</remarks>  
   TPCAPCallBackEnd       = procedure(const aFileName:String) of object;
-  TWpcapUint8ToString     = function(const aValue:Uint8):String of object;
+
+  
+  TWpcapUint8ToString    = function(const aValue:Uint8):String of object;
   TWpcapUint16ToString   = function(const aValue:Uint16):String of object;  
   TWpcapUint32ToString   = function(const aValue:Uint32):String of object;    
   TWpcapUint64ToString   = function(const aValue:Uint64):String of object;     
+  TWpcapBytesToString    = function(const aValue:TidBytes):String of object;          
 implementation
 
 end.

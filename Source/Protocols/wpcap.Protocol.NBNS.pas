@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Protocol.DNS, wpcap.Conts, wpcap.Types, wpcap.BufferUtils, System.StrUtils,
+  wpcap.Protocol.DNS, wpcap.Conts, wpcap.Types, wpcap.BufferUtils, System.StrUtils,System.AnsiStrings,
   WinApi.Windows, System.Generics.Defaults, System.SysUtils, System.Variants,Wpcap.IpUtils,
   System.Math, winsock, wpcap.StrUtils, System.Generics.Collections;
 
@@ -56,27 +56,27 @@ type
 
 
   TStatisticsRSS = record 
-    UnitID                     : Cardinal;
-    UnitIDContinued            : Word;
-    Jumpers                    : Byte;
-    TestResult                 : Byte;
-    VersionNumber              : Word;
-    PeriodOfStatistics         : Word;
-    NumberOfCRCs               : Word;
-    NumberAlignmentErrors      : Word;
-    NumberOfCollisions         : Word;
-    NumberSendAborts           : Word;
-    NumberGoodSends            : Cardinal;
-    NumberGoodReceives         : Cardinal;
-    NumberRetransmits          : Word;
-    NumberNoResourceConditions : Word;
-    NumberFreeCommandBlocks    : Word;
-    TotalNumberCommandBlocks   : Word;
-    MaxTotalNumberCommandBlocks: Word;
-    NumberPendingSessions      : Word;
-    MaxNumberPendingSessions   : Word;
-    MaxTotalSessionsPossible   : Word;
-    SessionDataPacketSize      : Word;
+    UnitID                     : Uint32;
+    UnitIDContinued            : Uint16;
+    Jumpers                    : Uint8;
+    TestResult                 : Uint8;
+    VersionNumber              : Uint16;
+    PeriodOfStatistics         : Uint16;
+    NumberOfCRCs               : Uint16;
+    NumberAlignmentErrors      : Uint16;
+    NumberOfCollisions         : Uint16;
+    NumberSendAborts           : Uint16;
+    NumberGoodSends            : Uint32;
+    NumberGoodReceives         : Uint32;
+    NumberRetransmits          : Uint16;
+    NumberNoResourceConditions : Uint16;
+    NumberFreeCommandBlocks    : Uint16;
+    TotalNumberCommandBlocks   : Uint16;
+    MaxTotalNumberCommandBlocks: Uint16;
+    NumberPendingSessions      : Uint16;
+    MaxNumberPendingSessions   : Uint16;
+    MaxTotalSessionsPossible   : Uint16;
+    SessionDataPacketSize      : Uint16;
   end; 
 
    
@@ -131,7 +131,7 @@ type
     /// <NBNS>
     ///   A string representation of the DNS flags.
     /// </returns>    
-    class procedure GetDNSFlags(aFlags: Word;aStartLevel:integer; AListDetail: TListHeaderString);override;
+    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:integer; AListDetail: TListHeaderString);override;
     
     /// <summary>
     ///  Returns a string representation of a NBNS question class.
@@ -142,7 +142,7 @@ type
     /// <returns>
     ///   A string representation of the NBNS question class.
     /// </returns>
-    class function QuestionClassToStr(aType: Word): string;override;      
+    class function QuestionClassToStr(aType: Uint16): string;override;      
 end;
 
 
@@ -294,7 +294,7 @@ begin
   end;    
 end;
 
-class function TWPcapProtocolNBNS.QuestionClassToStr(aType: Word): string;
+class function TWPcapProtocolNBNS.QuestionClassToStr(aType: Uint16): string;
 begin
   Result := String.Empty;
 
@@ -319,7 +319,7 @@ end;
 class procedure TWPcapProtocolNBNS.ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString);
 CONST MAX_LEN =16;
 var  
-   LName : String;
+   LName : Ansistring;
    I     : Integer;
    LChar : AnsiChar;
    LFlags: Byte;
@@ -390,8 +390,8 @@ begin
 
       if LLen = MAX_LEN  then
       begin
-        if not LName.IsEmpty then
-          AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Name',[aLabelPrefix]), Format('Name:%d:',[I]),LName.Trim, @LName, Length(LName)));
+        if LName <> '' then
+          AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Name',[aLabelPrefix]), Format('Name:%d:',[I]),Trim(LName), @LName, Length(LName)));
         LFlags := aPacket[aOffset];
         AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.Type',[aLabelPrefix]),  'Type:',ifthen(GetBitValue(LFlags,1)=1,'Group name','Unique name'), @LFlags, SizeOf(LFlags), GetBitValue(LFlags,1) ));
         AListDetail.Add(AddHeaderInfo(aStartLevel+4, Format('%s.Name.OwnerNode',[aLabelPrefix]), 'Owner node:',OwnerNodeTypeToStr(LFlags), @LFlags, SizeOf(LFlags), LFlags ));
@@ -532,11 +532,11 @@ begin
 
 end;
 
-class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Word;aStartLevel:integer;AListDetail: TListHeaderString);
+class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Uint16;aStartLevel:integer;AListDetail: TListHeaderString);
 var LtmpResult       : String;
-    LByteValue       : Byte;
-    LByte0           : Byte;
-    LtmpValue        : Byte;
+    LByteValue       : Uint8;
+    LByte0           : Uint8;
+    LtmpValue        : Uint8;
     LisQuery         : Boolean;    
 begin
   LByte0 := GetByteFromWord(aFlags,0);

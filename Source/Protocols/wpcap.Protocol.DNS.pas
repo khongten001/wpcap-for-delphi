@@ -3,7 +3,7 @@
 interface                                  
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Protocol.UDP, System.SysUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Protocol.UDP, System.SysUtils,IdGlobal,
   Variants, wpcap.StrUtils, wpcap.Types, wpcap.BufferUtils, System.StrUtils,
   winSock, WinApi.Windows, System.Classes, wpcap.IpUtils,System.AnsiStrings;
 
@@ -110,12 +110,12 @@ type
  } 
  
   TDnsHeader = packed record
-    id           : Word; // identification number 2 bytes
-    Flags        : Word;
-    Questions    : Word;  // Number of questions in the Question Section
-    AnswerRRs    : Word;  // Number of resource records in the Answer Section
-    AuthorityRRs : Word;  // Number of resource records in the Authority Section
-    AdditionalRRs: Word;  // Number of resource records in the Additional Section
+    id           : Uint16; // identification number 2 bytes
+    Flags        : Uint16;
+    Questions    : Uint16;  // Number of questions in the Question Section
+    AnswerRRs    : Uint16;  // Number of resource records in the Answer Section
+    AuthorityRRs : Uint16;  // Number of resource records in the Authority Section
+    AdditionalRRs: Uint16;  // Number of resource records in the Additional Section
   //  QueryRRs     : Word;  // Number of resource records in the Query Section
   end;
   PTDNSHeader =^TDNSHeader;
@@ -133,11 +133,11 @@ type
   protected
     class function RSSTypeToString(const aRRsType: TRRsType): String; static;
     class procedure GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffset : Integer);virtual;
-    class function GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): byte; virtual;
+    class function GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): Uint8; virtual;
     class procedure ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); virtual;
     class procedure ParserDNSTTL(const aQuestionClass:String;const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); virtual;    
     class function ApplyConversionName(const aName: AnsiString): AnsiString; virtual;
-    class function QClassToString(const aQClass: byte): String;virtual;     
+    class function QClassToString(const aQClass: Uint8): String;virtual;     
     class function DecodeDNS_RSS_SRV(const aQuestionClass:String;const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; virtual;    
     class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; virtual;
 
@@ -146,12 +146,12 @@ type
     /// <summary>
     ///  Returns the default port number for the DNS protocol (53).
     /// </summary>
-    class Function DefaultPort: Word; override;
+    class Function DefaultPort: word; override;
 
     /// <summary>
     /// Return Intenal protocol ID
     /// </summary>
-    class function IDDetectProto: byte; override;
+    class function IDDetectProto: Uint8; override;
     
     /// <summary>
     ///  Returns the acronym name of the DNS protocol ("DNS").
@@ -199,7 +199,7 @@ type
     /// <returns>
     ///   A string representation of the DNS flags.
     /// </returns>
-    class procedure GetDNSFlags(aFlags: Word;aStartLevel:Integer; AListDetail: TListHeaderString);virtual;
+    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:Integer; AListDetail: TListHeaderString);virtual;
 
     /// <summary>
     ///  Returns a string representation of a DNS question class.
@@ -210,7 +210,7 @@ type
     /// <returns>
     ///   A string representation of the DNS question class.
     /// </returns>
-    class function QuestionClassToStr(aType: Word): string;virtual;
+    class function QuestionClassToStr(aType: Uint16): string;virtual;
 
     /// <summary>
     ///  Converts the DNS header to a string and adds it to the list of header details.
@@ -234,12 +234,12 @@ implementation
 
 { TWPcapProtocolDNS }
 
-class function TWPcapProtocolDNS.DefaultPort: Word;
+class function TWPcapProtocolDNS.DefaultPort: word;
 begin
   Result := PROTO_DNS_PORT;
 end;
 
-class function TWPcapProtocolDNS.IDDetectProto: byte;
+class function TWPcapProtocolDNS.IDDetectProto: Uint8;
 begin
   Result := DETECT_PROTO_DNS;
 end;
@@ -254,7 +254,7 @@ begin
   Result := 'DNS';
 end;
 
-class function TWPcapProtocolDNS.HeaderLength(aFlag:Byte): word;
+class function TWPcapProtocolDNS.HeaderLength(aFlag:Byte): Word;
 begin
   Result:= SizeOf(TDnsHeader)
 end;
@@ -264,7 +264,7 @@ begin
   Result := PTDNSHeader(aUDPPayLoad)
 end;
 
-Class function TWPcapProtocolDNS.QuestionClassToStr(aType:Word):String;
+Class function TWPcapProtocolDNS.QuestionClassToStr(aType:Uint16):String;
 begin
   case aType of
     
@@ -349,10 +349,10 @@ begin
 end;
 
 
-class procedure TWPcapProtocolDNS.GetDNSFlags(aFlags: Word;aStartLevel:Integer;AListDetail:TListHeaderString);  
+class procedure TWPcapProtocolDNS.GetDNSFlags(aFlags: Uint16;aStartLevel:Integer;AListDetail:TListHeaderString);  
 var LtmpResult  : String;
-    LByteValue  : Byte;
-    LByte0      : Byte;
+    LByteValue  : Uint8;
+    LByte0      : Uint8;
     LIsQuery    : Boolean;
 begin
   LByte0 := GetByteFromWord(aFlags,0);
@@ -564,7 +564,7 @@ begin
   Result := aName;
 end;
 
-class function TWPcapProtocolDNS.GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): byte;
+class function TWPcapProtocolDNS.GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): Uint8;
 begin
   
   // Read the QClass field as a big-endian 16-bit integer
@@ -577,7 +577,7 @@ var LPUDPHdr        : PUDPHdr;
     LHeaderDNS      : PTDnsHeader;
     LDataQuestions  : TBytes;
     LUDPPayLoad     : PByte;
-    LQType          : Word;    
+    LQType          : Uint16;    
     LQName          : string; 
     i               : Integer;    
     LCountQuestion  : Integer;  
@@ -649,20 +649,20 @@ begin
              TYPE field, together with some more general codes which
              can match more than one type of RR.
     }
-    LQType := Swap(PWord(@LDataQuestions[aOffSetQuestion])^);
+    LQType := Swap(PUint16(@LDataQuestions[aOffSetQuestion])^);
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Questions.Name.Type',[AcronymName]), 'Type:',QuestionClassToStr(LQType),PByte(@LDataQuestions[aOffSetQuestion]),2 ,LQType ));       
-    Inc(aOffSetQuestion, SizeOf(Word));
+    Inc(aOffSetQuestion, SizeOf(Uint16));
     {
       QCLASS  a two octet code that specifies the class of the query.
               For example, the QCLASS field is IN for the Internet.
     }
 
     ParserDNSClass(QuestionClassToStr(LQType),rtQuestion,LDataQuestions,aOffSetQuestion,aStartLevel,AListDetail);
-    Inc(aOffSetQuestion, SizeOf(Word));    
+    Inc(aOffSetQuestion, SizeOf(Uint16));    
   end;  
 end;
 
-class function TWPcapProtocolDNS.QClassToString(const aQClass : byte):String;
+class function TWPcapProtocolDNS.QClassToString(const aQClass : Uint8):String;
   begin
   case aQClass of
     1  : Result := 'IN [Internet]';
@@ -691,8 +691,8 @@ var LPUDPHdr        : PUDPHdr;
     LCountRss       : Integer;
     LDataRss        : TBytes;
     LUDPPayLoad     : PByte;
-    LRssType        : Word;
-    LRssTTL         : Word;
+    LRssType        : Uint16;
+    LRssTTL         : Uint16;
     LRssName        : AnsiString; 
     LAddress        : String;
     LCaption        : String;
@@ -701,7 +701,7 @@ var LPUDPHdr        : PUDPHdr;
     i               : Integer;    
     J               : Integer;    
     LLength         : Integer;
-    LRecordLength   : Integer;
+    LRecordLength   : uint16;
     LTotalNameLen   : Integer;
     LInternalOffset : Integer;
     LIPAddr         : LongWord;
@@ -771,15 +771,15 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Len',[aLabelForName]), 'Name length:',LTotalNameLen,nil,0));    
 
     {TYPE  two octets containing one of the RR TYPE codes.}    
-    LRssType       := Swap(PWord(@LDataRss[LInternalOffset])^);
+    LRssType       := Swap(Puint16(@LDataRss[LInternalOffset])^);
     LQuestionClass := QuestionClassToStr(LRssType);
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.Type',[aLabelForName,LQuestionClass]), 'Type:',LQuestionClass , PByte(@LDataRss[LInternalOffset]), 2, LRssType ));
-    Inc(LInternalOffset, SizeOf(Word));
+    Inc(LInternalOffset, SizeOf(Uint16));
 
     {CLASS two octets containing one of the RR CLASS codes.}
 
     ParserDNSClass(LQuestionClass,aRRsType,LDataRss,LInternalOffset,aStartLevel,AListDetail);
-    Inc(LInternalOffset, SizeOf(word));    
+    Inc(LInternalOffset, SizeOf(Uint16));    
     
     {
       TTL a 32 bit signed integer that specifies the time interval
@@ -799,9 +799,9 @@ begin
       RDLENGTH  an unsigned 16 bit integer that specifies the length in
                 octets of the RDATA field.
     }    
-    LRecordLength := wpcapntohs(PWord(@LDataRss[LInternalOffset])^);
+    LRecordLength := wpcapntohs(Puint16(@LDataRss[LInternalOffset])^);
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.%s.DataLen',[aLabelForName,LQuestionClass]), 'Data length:', LRecordLength,PByte(@LDataRss[LInternalOffset]), 2));    
-    Inc(LInternalOffset, SizeOf(word));
+    Inc(LInternalOffset, SizeOf(Uint16));
 
     {
       RDATA  a variable length string of octets that describes the
@@ -866,7 +866,7 @@ begin
 end;
 
 class function TWPcapProtocolDNS.DecodeDNS_RSS_SRV(const aQuestionClass:String;const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
-var LRssTTL : Word;
+var LRssTTL : Uint16;
 begin
   LRssTTL := wpcapntohl(Pinteger(@aPacket[aOffset])^);
   Inc(aOffset, SizeOf(Pinteger));
@@ -876,7 +876,7 @@ begin
 end;
 
 Class procedure TWPcapProtocolDNS.ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss:TBytes;aInternalOffset,aStartLevel:Integer;AListDetail: TListHeaderString);
-var LRssClass : Word;
+var LRssClass : Uint16;
 begin
    if not Assigned(AListDetail) then exit;
 

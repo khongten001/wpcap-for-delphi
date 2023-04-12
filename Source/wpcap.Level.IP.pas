@@ -34,16 +34,16 @@ type
   // equivalent to the Internet Protocol Version 4 section of wireshark in the package detail
   PTIPHeader = ^TIPHeader;
   TIPHeader = packed record
-    VerLen  : Byte;        // Version and length
-    TOS     : Byte;        // of service
-    TotalLen: Word;        // Length
-    ID      : Word;        // Identification
-    FlagsOfF: Word;        // Flags and fragment offset
-    TTL     : Byte;        // Time to live
-    Protocol: Byte;        // Protocol
-    Checksum: Word;        // Checksum
-    SrcIP   : TIPAddress;  // Source IP address
-    DestIP  : TIPAddress;  // Destination IP address
+    VerLen  : Uint8;        // Version and length
+    TOS     : Uint8;        // of service
+    TotalLen: Uint16;       // Length
+    ID      : Uint16;       // Identification
+    FlagsOfF: Uint16;       // Flags and fragment offset
+    TTL     : Uint8;        // Time to live
+    Protocol: Uint8;        // Protocol
+    Checksum: Uint16;       // Checksum
+    SrcIP   : TIPAddress;   // Source IP address
+    DestIP  : TIPAddress;   // Destination IP address
   end;  
 
 

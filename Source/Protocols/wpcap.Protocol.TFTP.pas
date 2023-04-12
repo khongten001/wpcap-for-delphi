@@ -4,7 +4,7 @@ interface
 
 uses
   wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,wpcap.StrUtils,
-  Wpcap.protocol.UDP, WinApi.Windows,wpcap.BufferUtils,Variants;
+  Wpcap.protocol.UDP, WinApi.Windows,wpcap.BufferUtils,Variants,idGlobal;
 CONST
   TFTP_DATA_SIZE = 512;
 type
@@ -30,27 +30,27 @@ type
 
 
   TTFTPHeaderRRQ_WRQ = packed record
-    OpCode    : Word;
+    OpCode    : Uint16;
     FileName  : array[0..MAX_PATH] of AnsiChar;
   end;
   PTTFTPHeaderRRQ_WRQ = ^TTFTPHeaderRRQ_WRQ;
 
   TTFTPHeaderData = packed record
-    OpCode     : Word;
-    BlockNumber: Word;
-    Data       : array[0..TFTP_DATA_SIZE-1] of Byte;
+    OpCode     : Uint16;
+    BlockNumber: Uint16;
+    Data       : array[0..TFTP_DATA_SIZE-1] of Uint8;
   end;
   PTTFTPHeaderData = ^TTFTPHeaderData;
   
   TTFTPHeaderAck = packed record
-    OpCode     : Word;
-    BlockNumber: Word;
+    OpCode     : Uint16;
+    BlockNumber: Uint16;
   end;
   PTTFTPHeaderAck = ^TTFTPHeaderAck;
   
   TTFTPHeaderError = packed record
-    OpCode      : Word;
-    ErrorCode   : Word;
+    OpCode      : Uint16;
+    ErrorCode   : Uint16;
     ErrorMessage: array[0..MAX_PATH] of AnsiChar;
   end;
   PTTFTPHeaderError = ^TTFTPHeaderError;
@@ -66,14 +66,14 @@ type
     TFTP_DATA  = 3;  // Data
     TFTP_ACK   = 4;  // Acknowledgment
     TFTP_ERROR = 5;    
-    class function OpcodeToString(opcode: Word): string; static;
-    class function ErrorCodeToString(ErrorCode: Word): string; static;
+    class function OpcodeToString(opcode: Uint16): string; static;
+    class function ErrorCodeToString(ErrorCode: Uint16): string; static;
   protected
   public
     /// <summary>
     /// Returns the default TFTP port (110).
     /// </summary>
-    class function DefaultPort: Word; override;
+    class function DefaultPort: word; override;
     /// <summary>
     /// Returns the ID number of the TFTP protocol.
     /// </summary>
@@ -87,7 +87,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
-    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
+    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Uint8): Boolean; override;        
   end;
 
 
@@ -97,7 +97,7 @@ uses wpcap.Level.Ip;
 
 { TWPcapProtocolTFTP }
 
-class function TWPcapProtocolTFTP.OpcodeToString(opcode: Word): string;
+class function TWPcapProtocolTFTP.OpcodeToString(opcode: Uint16): string;
 begin
   case opcode of
     TFTP_RRQ  : Result   := 'Read request';
@@ -110,7 +110,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolTFTP.ErrorCodeToString(ErrorCode: Word): string;
+class function TWPcapProtocolTFTP.ErrorCodeToString(ErrorCode: Uint16): string;
 begin
   case ErrorCode of
     0: Result := 'Not defined, see error message (if any)';
@@ -127,7 +127,7 @@ begin
 end;
 
 
-class function TWPcapProtocolTFTP.DefaultPort: Word;
+class function TWPcapProtocolTFTP.DefaultPort: word;
 begin
   Result := PROTO_TFTP_PORT;
 end;
@@ -143,7 +143,7 @@ begin
 end;
 
 class function TWPcapProtocolTFTP.IsValid(const aPacket: PByte;
-  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
+  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Uint8): Boolean;
 var LUDPPPtr: PUDPHdr;
 begin
   Result  := inherited IsValid(aPacket,aPacketSize,aAcronymName,aIdProtoDetected);  
@@ -163,14 +163,14 @@ end;
 class function TWPcapProtocolTFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
 var LUDPPayLoad        : PByte;
     LPUDPHdr           : PUDPHdr;
-    LOpCode            : Word;
+    LOpCode            : Uint16;
     LTFTPHeaderRRQ_WRQ : PTTFTPHeaderRRQ_WRQ;
     LTFTPHeaderData    : PTTFTPHeaderData;
     LTFTPHeaderAck     : PTTFTPHeaderAck;
     LTFTPHeaderError   : PTTFTPHeaderError;
     LType              : array[0..MAX_PATH] of AnsiChar;
-    LFileLen           : Cardinal;
-    LDataArray         : TArray<Byte>;
+    LFileLen           : Uint32;
+    LDataArray         : TArray<Uint8>;
     LUdpPayLoadLen     : integer;
 begin
   Result := False;
@@ -178,7 +178,7 @@ begin
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
   LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
-  LOpCode        := wpcapntohs(PWord(LUDPPayLoad)^);    
+  LOpCode        := wpcapntohs(PUint16(LUDPPayLoad)^);    
   FIsFilterMode  := aIsFilterMode;
   LUdpPayLoadLen := UDPPayLoadLength(LPUDPHdr)-SizeOf(LOpCode)-8;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUdpPayLoadLen));
@@ -189,7 +189,7 @@ begin
     TFTP_WRQ  :
       begin
         LTFTPHeaderRRQ_WRQ := PTTFTPHeaderRRQ_WRQ(LUDPPayLoad);  
-        LFileLen           :=  StrLen(LTFTPHeaderRRQ_WRQ.Filename);    
+        LFileLen           :=  StrLen(( LTFTPHeaderRRQ_WRQ.Filename));    
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SourceName',[AcronymName]), 'Source name:', StrPas(LTFTPHeaderRRQ_WRQ.Filename), @LTFTPHeaderRRQ_WRQ.Filename,LFileLen));
 
         Move(LUDPPayLoad[SizeOf(LOpCode)+LFileLen+1],LType,SizeOf(LType));

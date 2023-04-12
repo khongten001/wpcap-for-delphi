@@ -33,15 +33,15 @@ type
 
 
   TCPHdr = packed record
-    SrcPort   : Word;     // TCP source port
-    DstPort   : Word;     // TCP destination port
-    SeqNum    : DWORD;    // TCP sequence number
-    AckNum    : DWORD;    // TCP acknowledgment number
-    DataOff   : Byte;     // TCP data offset (number of 32-bit words in header)
-    Flags     : Byte;     // TCP flags (SYN, ACK, FIN, etc.)
-    WindowSize: Word;     // TCP window size
-    Checksum  : Word;     // TCP checksum
-    UrgPtr    : Word;     // TCP urgent pointer
+    SrcPort   : Uint16;    // TCP source port
+    DstPort   : Uint16;    // TCP destination port
+    SeqNum    : DWORD;     // TCP sequence number
+    AckNum    : DWORD;     // TCP acknowledgment number
+    DataOff   : Uint8;     // TCP data offset (number of 32-bit words in header)
+    Flags     : Uint8;     // TCP flags (SYN, ACK, FIN, etc.)
+    WindowSize: Uint16;    // TCP window size
+    Checksum  : Uint16;    // TCP checksum
+    UrgPtr    : Uint16;    // TCP urgent pointer
   end;
   PTCPHdr = ^TCPHdr;
 
@@ -130,7 +130,7 @@ type
     ///    True if a supported protocol was detected, False otherwise.
     ///  </returns>
     class function AnalyzeTCPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;static;  
-    class function GetTCPFlagsV6(Flags: Byte): string;static;
+    class function GetTCPFlagsV6(Flags: Uint8): string;static;
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;override;      
   end;      
 
@@ -161,8 +161,8 @@ begin
 end;
 
 class function TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;
-var LTCPPPtr        : PTCPHdr;
-    I              : Integer;
+var LTCPPPtr  : PTCPHdr;
+    I        : Integer;
 begin
   Result := False;
   if not HeaderTCP(aData,aSize,LTCPPPtr) then exit;
@@ -240,7 +240,7 @@ end;
 
 class function TWPcapProtocolBaseTCP.GetTCPPayLoad(const AData: PByte; aSize: word): PByte;
 var LTCPHeader : PTCPhdr;
-    DataOffset : word;   
+    DataOffset : Uint16;   
 begin
   HeaderTCP(AData,aSize,LTCPHeader);
   DataOffset := GetDataOFFSetBytes( LTCPHeader^.DataOff)*4+1;
@@ -312,7 +312,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolBaseTCP.GetTCPFlagsV6(Flags: Byte): string;
+class function TWPcapProtocolBaseTCP.GetTCPFlagsV6(Flags: Uint8): string;
 begin
   Result := String.Empty;
   if Flags and $80 > 0 then Result := Result + 'CWR,';

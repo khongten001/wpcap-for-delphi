@@ -38,11 +38,11 @@ type
     Target Protocol Address (lunghezza variabile): l'indirizzo di protocollo del destinatario.
 }
   TARPHeader = packed record
-    HardwareType: Word;
-    ProtocolType: Word;
-    HardwareSize: Byte;
-    ProtocolSize: Byte;
-    OpCode      : Word;
+    HardwareType: Uint16;
+    ProtocolType: Uint16;
+    HardwareSize: Uint8;
+    ProtocolSize: Uint8;
+    OpCode      : Uint16;
   end;
   PTARPHeader = ^TARPHeader;
     
@@ -121,7 +121,7 @@ var LHeaderARP     : PTARPHeader;
     LTmpBytesSender: TIdBytes;
     LTmpBytesTarget: TIdBytes;    
     LCurrentPos    : Integer;
-    LPtType        : Word;
+    LPtType        : Uint16;
 begin
   Result        := False;
   FIsFilterMode := aIsFilterMode;

@@ -3,7 +3,7 @@
 interface
 
 uses
-  WinApi.Windows, dxForms, WinApi.Messages, System.SysUtils,
+  WinApi.Windows, dxForms, WinApi.Messages, System.SysUtils, system.UiTypes,
   System.Variants, System.Classes, Vcl.Graphics, vcl.Controls, vcl.Forms,
   vcl.Dialogs, cxGraphics, cxControls, cxLookAndFeels, cxLookAndFeelPainters,
   cxContainer, cxEdit, dxSkinsCore, dxSkinBasic, Vcl.Menus, Vcl.ComCtrls,
@@ -88,9 +88,7 @@ begin
 end;
 
 procedure TFormOpenDialog.BImportClick(Sender: TObject);
-var I        : integer;
-    AItem    : TListItem;
-
+var AItem    : TListItem;
 begin
   if Not Trim(EFilter.Text).IsEmpty then
   begin

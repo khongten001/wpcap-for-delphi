@@ -123,6 +123,7 @@ object FormOpenDialog: TFormOpenDialog
       Style.ButtonTransparency = ebtAlways
       TabOrder = 2
       OnKeyPress = ESearchKeyPress
+      ExplicitHeight = 21
       Width = 232
     end
     object cxSplitter2: TcxSplitter
@@ -184,6 +185,7 @@ object FormOpenDialog: TFormOpenDialog
       ShellListView = cxShellListView1
       TabOrder = 1
       OnMouseUp = cxShellTreeView1MouseUp
+      ExplicitHeight = 85
     end
     object cxSplitter1: TcxSplitter
       Left = 270
@@ -221,6 +223,7 @@ object FormOpenDialog: TFormOpenDialog
       Properties.OnValidate = EFilterPropertiesValidate
       ShowHint = True
       TabOrder = 1
+      ExplicitHeight = 21
       Width = 945
     end
   end
@@ -237,7 +240,7 @@ object FormOpenDialog: TFormOpenDialog
     Left = 712
     Top = 366
     Bitmap = {
-      494C010104000800040010001000FFFFFFFF2100FFFFFFFFFFFFFFFF424D3600
+      494C010104000800040010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
@@ -505,7 +508,8 @@ object FormOpenDialog: TFormOpenDialog
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000000000
-      00000000000000000000000000000000}
+      0000000000000000000000000000000000000000000000000000000000000000
+      000000000000}
     DesignInfo = 23986888
     ImageInfo = <
       item

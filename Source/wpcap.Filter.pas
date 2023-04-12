@@ -34,6 +34,7 @@ var LFilterHandle : Ppcap_t;
     LFilterCode   : BPF_program;      
 begin
   Result        := False;
+  LNetMask      := 0;
   LFilterHandle := pcap_open_dead(DLT_EN10MB, MAX_PACKET_SIZE);
   if (LFilterHandle = nil) then Exit;
   try

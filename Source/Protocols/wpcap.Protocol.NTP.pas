@@ -12,7 +12,7 @@ type
   TNtpTimestamp = packed record
     case Integer of
       0: (IntegerPart: LongWord; FractionPart: LongWord);
-      1: (Bytes: array[0..7] of Byte);
+      1: (Bytes: array[0..7] of Uint8);
   end;
     
 
@@ -20,10 +20,10 @@ type
   /// Represents the header for the Network Time Protocol (NTP).
   /// </summary>
   TNTPHeader = packed record
-    LI_VN_MODE    : Byte;          // Leap indicator, version number, and mode.
-    Stratum       : Byte;          // Stratum level of the local clock.
-    Poll          : Byte;          // Maximum interval between successive messages.
-    Precision     : Byte;          // Precision of the local clock.
+    LI_VN_MODE    : Uint8;          // Leap indicator, version number, and mode.
+    Stratum       : Uint8;          // Stratum level of the local clock.
+    Poll          : Uint8;          // Maximum interval between successive messages.
+    Precision     : Uint8;          // Precision of the local clock.
     RootDelay     : LongInt;       // Total round-trip delay to the reference clock.
     RootDispersion: LongInt;       // Maximum error due to network congestion.
     ReferenceID   : LongInt ;      // Reference clock identifier.
@@ -80,9 +80,9 @@ type
   /// </summary>
   TWPcapProtocolNTP = class(TWPcapProtocolBaseUDP)
   private
-    class  function MessageTypeToString(aMsgType: Byte): String;static;
-    class function StratumToString(const aStratum: Byte): String; static;
-    class function GetNTPLeapIndicatorString(ALeapIndicator: Byte): string; static;
+    class  function MessageTypeToString(aMsgType: Uint8): String;static;
+    class function StratumToString(const aStratum: Uint8): String; static;
+    class function GetNTPLeapIndicatorString(ALeapIndicator: Uint8): string; static;
   public
     /// <summary>
     /// Returns the default port number used by the NTP protocol.
@@ -262,7 +262,7 @@ begin
   Result := True;
 end;
 
-class Function TWPcapProtocolNTP.StratumToString(const aStratum:Byte):String;
+class Function TWPcapProtocolNTP.StratumToString(const aStratum:Uint8):String;
 begin
   case aStratum of
    0    : Result:= 'unspecified or unavailable';
@@ -273,7 +273,7 @@ begin
   end;
 end;
 
-class Function TWPcapProtocolNTP.GetNTPLeapIndicatorString(ALeapIndicator: Byte): string;
+class Function TWPcapProtocolNTP.GetNTPLeapIndicatorString(ALeapIndicator: Uint8): string;
 begin
   case ALeapIndicator of
     0: Result := 'No warning';
@@ -286,7 +286,7 @@ begin
 end;
 
 
-class Function TWPcapProtocolNTP.MessageTypeToString(aMsgType:Byte):String;
+class Function TWPcapProtocolNTP.MessageTypeToString(aMsgType:Uint8):String;
 begin
   case aMsgType of
    0: Result := 'reserved';

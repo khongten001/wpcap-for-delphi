@@ -313,7 +313,6 @@ CONST QRY_FILTER_SPEAKER = 'SELECT NPACKET FROM PACKETS ' +
                            'WHERE XML_PACKET_DETAIL Like :pLabel';
 var lQuery      : TFdQuery;
 begin
-  result := false;
   lQuery := TFdQuery.Create(nil);
   try
     lQuery.Connection                          := FConnection;

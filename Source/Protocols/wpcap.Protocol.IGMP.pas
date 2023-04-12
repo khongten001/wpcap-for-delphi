@@ -31,18 +31,18 @@ type
   }
 
   TIGMPHeader = record
-     VerType        : Byte;
-     Unused         : Byte;
-     CheckSum       : Word; 
-     Reserved       : Word; 
-     NGroupRec      : Word    
+     VerType        : Uint8;
+     Unused         : Uint8;
+     CheckSum       : Uint16; 
+     Reserved       : Uint16; 
+     NGroupRec      : Uint16    
   end;  
   PTIGMPHeader = ^TIGMPHeader;
   
   TIGMPGroupRecord = record
-    RecType        : Byte;
-    DataLen        : Byte;
-    NumSrc         : Word; 
+    RecType        : Uint8;
+    DataLen        : Uint8;
+    NumSrc         : Uint16; 
     Ipaddr         : LongWord;
   end;
   PTIGMPGroupRecord = ^TIGMPGroupRecord;  

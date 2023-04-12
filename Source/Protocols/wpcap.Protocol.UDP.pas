@@ -15,10 +15,10 @@ type
   //uh_sum  : the UDP datagram checksum (2 bytes)
   PUDPHdr = ^TUDPHdr;
   TUDPHdr = packed record
-    SrcPort   : Word;    // Source port
-    DstPort   : Word;    // Destination port
-    Length    : Word;    // Length of UDP packet (including header)
-    CheckSum  : Word;    // UDP checksum (optional, can be zero)
+    SrcPort   : Uint16;    // Source port
+    DstPort   : Uint16;    // Destination port
+    Length    : Uint16;    // Length of UDP packet (including header)
+    CheckSum  : Uint16;    // UDP checksum (optional, can be zero)
   end;
 
   /// <summary>
@@ -36,30 +36,30 @@ type
     class function PayLoadLengthIsValid(const aUDPPtr: PUDPHdr): Boolean; virtual;
   public
     class function AcronymName: String; override;
-    class function DefaultPort: Word; override;
-    class function HeaderLength(aFlag:Byte): word; override;
+    class function DefaultPort: word; override;
+    class function HeaderLength(aFlag:Uint8): word; override;
     class function IDDetectProto: byte; override;  
     /// <summary>
     /// Returns the length of the UDP payload.
     /// </summary>
-    class function UDPPayLoadLength(const aUDPPtr: PUDPHdr): Word; static;
+    class function UDPPayLoadLength(const aUDPPtr: PUDPHdr): word; static;
 
     /// <summary>
     /// Checks whether the packet is valid for the protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;
-      var aIdProtoDetected: Byte): Boolean; virtual;
+      var aIdProtoDetected: byte): Boolean; virtual;
 
     /// <summary>
     /// Returns the source port number for the UDP packet.
     /// </summary>
-    class function SrcPort(const aUDPPtr: PUDPHdr): Word; static;
+    class function SrcPort(const aUDPPtr: PUDPHdr): Uint16; static;
 
     /// <summary>
     /// Returns the destination port number for the UDP packet.
     /// </summary>
-    class function DstPort(const aUDPPtr: PUDPHdr): Word; static;  
+    class function DstPort(const aUDPPtr: PUDPHdr): Uint16; static;  
 
     /// <summary>
     /// Attempts to parse a UDP header from the provided data, and sets the pointer to the parsed header.
@@ -77,7 +77,7 @@ type
     /// <param name="AData">The UDP data to extract the payload from.</param>
     /// <param name="aSize">PacketIp</param>
     /// <returns>A pointer to the beginning of the UDP payload.</returns>
-    class function GetUDPPayLoad(const AData: PByte;aSize: word): PByte;static;     
+    class function GetUDPPayLoad(const AData: PByte;aSize: Uint16): PByte;static;     
 
     ///  <summary>
     ///    Analyzes a UDP protocol packet to determine its acronym name and protocol identifier.
@@ -97,7 +97,7 @@ type
     ///  <returns>
     ///    True if a supported protocol was detected, False otherwise.
     ///  </returns>
-    class function AnalyzeUDPProtocol(const aData: PByte; aSize: Integer; var aArcronymName: string; var aIdProtoDetected: Byte): Boolean;static;
+    class function AnalyzeUDPProtocol(const aData: PByte; aSize: Integer; var aArcronymName: string; var aIdProtoDetected: Uint8): Boolean;static;
    
     /// <summary>
     /// This function returns a TListHeaderString of strings representing the fields in the UDP header. 
@@ -112,17 +112,17 @@ uses wpcap.Level.Ip,wpcap.Protocol;
 
 {TWPcapProtocolBaseUDP}
 
-class function TWPcapProtocolBaseUDP.DefaultPort: Word;
+class function TWPcapProtocolBaseUDP.DefaultPort: word;
 begin
   Result := 0; 
 end;
 
-class function TWPcapProtocolBaseUDP.IDDetectProto: byte;
+class function TWPcapProtocolBaseUDP.IDDetectProto: Uint8;
 begin
   Result := DETECT_PROTO_UDP;
 end;
 
-class function TWPcapProtocolBaseUDP.HeaderLength(aFlag:Byte): word;
+class function TWPcapProtocolBaseUDP.HeaderLength(aFlag:byte): word;
 begin
   Result := SizeOf(TUDPHdr)
 end;
@@ -142,7 +142,7 @@ begin
   Result := wpcapntohs(aUDPPtr.Length);
 end;
 
-class function TWPcapProtocolBaseUDP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName:String;var aIdProtoDetected:Byte): Boolean;
+class function TWPcapProtocolBaseUDP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName:String;var aIdProtoDetected:byte): Boolean;
 var LPUDPHdr: PUDPHdr;
 begin
   Result := False;
@@ -153,23 +153,23 @@ begin
   Result := IsValidByDefaultPort(SrcPort(LPUDPHdr),DstPort(LPUDPHdr),aAcronymName,aIdProtoDetected);
 end;
 
-class function TWPcapProtocolBaseUDP.SrcPort(const aUDPPtr: PUDPHdr): Word;
+class function TWPcapProtocolBaseUDP.SrcPort(const aUDPPtr: PUDPHdr): Uint16;
 begin
   Result := wpcapntohs(aUDPPtr.SrcPort);
 end;
 
-class function TWPcapProtocolBaseUDP.DstPort(const aUDPPtr: PUDPHdr): Word;
+class function TWPcapProtocolBaseUDP.DstPort(const aUDPPtr: PUDPHdr): Uint16;
 begin
   Result := wpcapntohs(aUDPPtr.DstPort);
 end;
 
-class function TWPcapProtocolBaseUDP.GetUDPPayLoad(const AData:Pbyte;aSize: Word):PByte;
+class function TWPcapProtocolBaseUDP.GetUDPPayLoad(const AData:Pbyte;aSize: Uint16):PByte;
 begin
   Result := AData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize)+ HeaderLength(0);
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderUDP(const aData: PByte; aSize: Integer; var aPUDPHdr: PUDPHdr): Boolean;
-var LSizeEthIP    : Word;
+var LSizeEthIP    : Uint16;
     LHeaderV4     : PTIPHeader;
     LNewPacketLen : Integer;
     LNewPacketData: PByte;
@@ -229,7 +229,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;
+class function TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Uint8):boolean;
 var LUDPPtr : PUDPHdr;
     I       : Integer;
 begin

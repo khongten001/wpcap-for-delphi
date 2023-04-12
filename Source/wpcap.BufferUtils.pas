@@ -24,13 +24,6 @@ function wpcapntohs(aWord: Word): word;
 /// <returns>Returns the input 32-bit integer in host byte order.</returns>
 function wpcapntohl(aCardinal: cardinal):Cardinal;
 
-/// <summary>
-/// Converts a 64-bit integer from network byte order to host byte order.
-/// </summary>
-/// <param name="aUInt64">The input 64-bit integer in network byte order.</param>
-/// <returns>Returns the input 64-bit integer in host byte order.</returns>
-function wpcaphtobe64(aUInt64: UInt64): UInt64;
-
 function BCDToDec(const aBCDValue: UInt64): UInt64;
 
 /// <summary>
@@ -93,11 +86,9 @@ begin
 end;
 
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
-var LIdx            : Integer;
-    LHasPendingBytes: Boolean;
+var LIdx : Integer;
 begin
-  Result           := False;
-  LHasPendingBytes := False;
+  Result := False;
                                         
   for LIdx := Low(aPacketData) to High(aPacketData) do
   begin
@@ -105,8 +96,7 @@ begin
     begin
       if (LIdx+3<High(aPacketData))and (aPacketData[LIdx + 1] = $F0) and (aPacketData[LIdx + 2] = $AD) and (aPacketData[LIdx + 3] = $BA) then
       begin
-        aPacketLen       := LIdx;
-        LHasPendingBytes := True;
+        aPacketLen  := LIdx;
         Break;
       end;
     end;
@@ -153,25 +143,6 @@ begin
   result := ntohl(aCardinal);
 end;
 
-
-
-function wpcaphtobe64(aUInt64: UInt64): UInt64;
-var i       : Integer;
-    LpValue : PByte;  
-    LpResult: PByte;
-begin
-  GetMem(LpResult, SizeOf(UInt64));
-  Try
-    LpValue := PByte(@aUInt64);
-  
-    for i := 0 to 7 do
-      (LpResult + (7 - i))^ := (LpValue + i)^;
-
-    Move(LpResult^, Result, SizeOf(UInt64));  
-  Finally
-    FreeMem(LpResult);
-  End;
-end;
 
 function BCDToDec(const aBCDValue: UInt64): UInt64;
 var LDigit   : UInt64;

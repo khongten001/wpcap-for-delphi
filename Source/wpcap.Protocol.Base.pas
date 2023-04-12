@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,idGlobal,
-  System.Variants,wpcap.Types,wpcap.BufferUtils,System.Classes;
+  System.Variants,wpcap.Types,wpcap.BufferUtils,System.Classes,wpcap.IpUtils;
 
 Type
 
@@ -15,24 +15,27 @@ Type
   /// </summary>
   TWPcapProtocolBase = class(TWpcapEthHeader)
   private
-
-
   protected
      class var FIsFilterMode           : Boolean;
      class var FOnFoundMalformedPacket : TNotifyEvent;
      class function SizeaUint8ToStr(const aUint8: UInt8): String;
      class function SizeCardinalToStr(const aCardinal: UInt32): String; 
      class function ByteToBinaryStringInternal(const AByte: UInt8): string;     
+     class function BytesToHex(const ABytes: TidBytes): string;          
      class function SizeWordToStr(const aWord: UInt16): String;
      class Function ByteToBooleanStr(const aValue:Uint8):String;
-     class function MakeDWordIntoIPv4AddressInternal(const ADWord: UInt32): string;
+     class function MakeDWordIntoIPv4AddressInternal(const ADWord: UInt32): string;    
+     class function BytesToStringRawInternal(const ABytes: TidBytes): string;
+     class function IPv6AddressToStringInternal(const ABytes: TidBytes): string;
      class function isValidLen(const aActualPos, aMaxLen: Integer; aLen: Integer): Boolean; static;
      class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
      class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint8;  
      class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint16;
      class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;
      class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint64;     
-     class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer): Boolean;        
+     class procedure ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer);
+     class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigIndian: Boolean; var aCurrentPos: Integer):Integer;
+     class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer): Boolean;   
   public
     /// <summary>
     /// Returns the default port number for the protocol.
@@ -216,6 +219,49 @@ begin
   Inc(aCurrentPos,SizeOf(Result));
 end;
 
+class Procedure TWPcapProtocolBase.ParserGenericBytesValue(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
+        const aLabel,aCaption : String;AListDetail: TListHeaderString;
+        aToStringFunction:TWpcapBytesToString;isBigIndian:Boolean;
+        var aCurrentPos:Integer);
+var LBytes : TIdBytes;        
+begin        
+  if not isValidLen(aCurrentPos,aMaxLen+1,aLen) then Exit;
+
+    
+  SetLength(LBytes,aLen);
+  Move(aPacketData[aCurrentPos],LBytes[0],aLen);
+  if assigned(aToStringFunction) then  
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(LBytes), @LBytes,Length(LBytes) ))
+  else
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, null, @LBytes,Length(LBytes) ));
+    
+  Inc(aCurrentPos,Length(LBytes));    
+  SetLength(LBytes,0);
+end;
+
+class Function TWPcapProtocolBase.ParserBytesToInteger(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
+        const aLabel,aCaption : String;AListDetail: TListHeaderString; isBigIndian:Boolean;
+        var aCurrentPos:Integer):Integer;
+var LBytes : TIdBytes;
+    
+begin 
+  Result := 0;       
+  if not isValidLen(aCurrentPos,aMaxLen+1,aLen) then Exit;
+    
+  SetLength(LBytes,aLen);
+  Move(aPacketData[aCurrentPos],LBytes[0],aLen);             
+
+  if isBigIndian then  
+     Result :=  wpcapntohl(BytesToInt32(LBytes))
+  else
+     Result :=  BytesToInt32(LBytes);
+        
+  AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, Result, @LBytes,Length(LBytes) ));
+    
+  Inc(aCurrentPos,Length(LBytes));    
+  SetLength(LBytes,0);
+end;
+
 class Function TWPcapProtocolBase.ParserUint64Value(const aPacketData:PByte;aLevel:byte; aMaxLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
         aToStringFunction:TWpcapUint64ToString;isBigIndian:Boolean;
@@ -259,7 +305,6 @@ var LCopYStart  : Integer;
     aValueArray : Tarray<String>;      
 begin
   LCopYStart := 0;
-  Result     := False;
   while aStartOffSet+1 < aPayLoadLen do
   begin
     if (aPayLoad[aStartOffSet+1] = $0A )  then
@@ -330,5 +375,25 @@ class function TWPcapProtocolBase.ByteToBinaryStringInternal(
 begin
   Result := ByteToBinaryString(AByte);
 end;
+
+class function TWPcapProtocolBase.BytesToHex(const ABytes: TidBytes): string;
+begin
+  Result := ToHex(ABytes)
+end;
+
+class function TWPcapProtocolBase.BytesToStringRawInternal(const ABytes: TidBytes): string;
+begin
+  Result := BytesToStringRaw(ABytes)
+end;
+
+class function TWPcapProtocolBase.IPv6AddressToStringInternal(const ABytes: TidBytes): string;
+begin
+  Result := IPv6AddressToString(ABytes)
+end;
+
+
+
+
+
 
 end.

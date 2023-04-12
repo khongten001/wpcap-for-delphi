@@ -3,7 +3,7 @@
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.StrUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.StrUtils,idGlobal,
   Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils,System.Math;
 
 type
@@ -324,14 +324,14 @@ var LTCPPayLoad        : PByte;
     LTCPPHdr           : PTCPHdr;
     LDataSize          : Integer;
     LCurrentPos        : Integer;
-    LCommand           : Byte;
-    LOption            : Byte;
-    LSubCommand        : Byte;
+    LCommand           : Uint8;
+    LOption            : Uint8;
+    LSubCommand        : Uint8;
     LIsCommand         : Boolean;
     LIsOption          : Boolean;
     LIsSubCommand      : Boolean;
-    LValueWord         : PWord;
-    LValueByte         : Byte;    
+    LValueWord         : PUint16;
+    LValueByte         : Uint8;    
     LValueBuffer       : PByte;
     LBckCurrentPos     : Integer;
 begin

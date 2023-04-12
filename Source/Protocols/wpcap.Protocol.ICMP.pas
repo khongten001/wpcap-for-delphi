@@ -20,9 +20,9 @@ type
   }
 
   TICMPHeader = record
-     TypeICMP   : Byte;
-     Code       : Byte;
-     CheckSum   : Word; 
+     TypeICMP   : Uint8;
+     Code       : Uint8;
+     CheckSum   : Uint16; 
      ICMP_Unused: Longword    
   end;  
   PTICMPHeader = ^TICMPHeader;
@@ -163,14 +163,24 @@ class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPack
 var LHeader         : PTICMPHeader;
     LNewPacketData  : Pbyte;
     LNewPacketLen   : Integer;
-    SourceAddress   : TIPv6AddrBytes; 
-    LAllHeaderSize  : Integer;
-    LOptions        : Byte;
-    LOptionsW       : Word;
-    LCount          : Word;
-    LLink           : TArray<Byte>;
     LCurrentPos     : Integer;
+    LOptions        : Uint8;
+    LOptionsW       : Uint16;
+    LCount          : Uint16;
     I               : Integer;
+
+    Procedure AddOptionsAndIp;
+    begin
+       if LCurrentPos < aPacketSize then
+       begin
+         LOptions := ParserUint8Value(aPacketData,aStartLevel+1,aPacketSize,Format('%s.OptionsICMPV6',[AcronymName]), 'Options ICMPV:',AListDetail,ByteToBinaryStringInternal,True,LCurrentPos);
+        
+         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Type',[AcronymName]), 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));    
+         LOptions := ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.OptionsICMPV6.Len',[AcronymName]), 'Lenght:',AListDetail,SizeaUint8ToStr,True,LCurrentPos); 
+               
+         ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,LOptions*8,Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos);                         
+       end;
+    end;
 begin
   Result        := False;
   FisFilterMode := aIsFilterMode;
@@ -204,7 +214,7 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Unused',[AcronymName]), 'Unused:', LHeader.ICMP_Unused, @LHeader.ICMP_Unused, SizeOf(LHeader.ICMP_Unused) ));
   end;
   
-  LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0);   
+  LCurrentPos := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0);   
   
   case LHeader.TypeICMP of
   
@@ -254,62 +264,26 @@ begin
     ICMP_NEIGHBOR_ADVERTISEMENT,
     ICMP_NEIGHBOR_SOLICITATION:
       begin
-        SourceAddress  := PTIPv6AddrBytes(aPacketData + LAllHeaderSize)^;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetAddr',[AcronymName]), 'Target address:', IPv6AddressToString(SourceAddress), @SourceAddress, SizeOf(SourceAddress) ));          
-
-        LOptions := PByte(aPacketData + LAllHeaderSize + SizeOf(SourceAddress))^;        
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OptionsICMPV6',[AcronymName]), 'Options ICMPV6:', ByteToBinaryString(LOptions), @LOptions,SizeOf(LOptions), LOptions ));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Type',[AcronymName]), 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));
-        
-
-        LOptions := PByte(aPacketData + LAllHeaderSize + SizeOf(SourceAddress)+1)^;     
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Len',[AcronymName]), 'Lenght',LOptions,@LOptions,sizeOf(LOptions)));  
-        if LOptions > 0 then
-        begin
-          SetLength(LLink,(LOptions*8));
-          Move(aPacketData[LAllHeaderSize+SizeOf(SourceAddress)+2],LLink[0],(LOptions*8));
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink)));                               
-        end;
+        ParserGenericBytesValue(aPacketData,aStartLevel+1,aPacketSize,16,Format('%s.TargetAddr',[AcronymName]), 'Target address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos);                                      
+        AddOptionsAndIp;
       end;
       
     ICMP_MULTICAST_LISTENER_REPORT,
     ICMP_MULTICAST_LISTENER_REPORT_MESSAGE_V2:
       begin      
-        LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0); 
-        LOptionsW      := PWord(aPacketData + LAllHeaderSize-2)^;
-        LCount         := wpcapntohs(LOptionsW);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NMulticastAddrRecords',[AcronymName]),  'Number of Multicast Address Records:',LCount,@LOptionsW,sizeOf(LOptionsW)));   
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NMulticastRecordChangedInclude',[AcronymName]),  'Multicast Address Record Changed to include:',null,nil,0));  
-        LCurrentPos := LAllHeaderSize;
+        LCurrentPos    := LCurrentPos-2;
+        LCount         := ParserUint16Value(aPacketData,aStartLevel+1,aPacketSize,Format('%s.NMulticastAddrRecords.Number',[AcronymName]), 'Number of Multicast Address Records:',AListDetail,nil,True,LCurrentPos);
         for I := 0 to LCount -1 do
         begin
-          ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecordChangedInclude.Type',[AcronymName]), 'Record type:',AListDetail,ConvertRecordTypeToString,True,LCurrentPos);
-          ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecordChangedInclude.AuxLen',[AcronymName]), 'Aux Data Len:',AListDetail,nil,True,LCurrentPos);
-          ParserUint16Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecordChangedInclude.NSource',[AcronymName]), 'Number of Sources:',AListDetail,nil,True,LCurrentPos);
-                  
-          SourceAddress  := PTIPv6AddrBytes(aPacketData + LCurrentPos)^;
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.NMulticastRecordChangedInclude.Addr',[AcronymName]), 'Multicast address:', IPv6AddressToString(SourceAddress),@SourceAddress, SizeOf(SourceAddress)));  
-          inc(LCurrentPos,SizeOf(SourceAddress));                
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NMulticastRecord',[AcronymName]),  'Multicast Address Record:',null,nil,0));  
+          ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.Type',[AcronymName]), 'Record type:',AListDetail,ConvertRecordTypeToString,True,LCurrentPos);
+          ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.AuxLen',[AcronymName]), 'Aux Data Len:',AListDetail,nil,True,LCurrentPos);
+          ParserUint16Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.NSource',[AcronymName]), 'Number of Sources:',AListDetail,nil,True,LCurrentPos);
+          ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,16,Format('%s.NMulticastRecord.Addr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos);                                
         end;
       end;
       
-    ICMP_ROUTER_SOLICITATION:
-      begin
-        LAllHeaderSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)+HeaderLength(0); 
-        LOptions       := PByte(aPacketData + LAllHeaderSize)^;
-
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OptionsICMPV6',[AcronymName]),  'Options ICMPV6:', ByteToBinaryString(LOptions), @LOptions,SizeOf(LOptions), LOptions ));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Type',[AcronymName]), 'Type',ConvertOptionsToString(LOptions), @LOptions,sizeOf(LOptions), LOptions ));
-        LOptions := PByte(aPacketData + LAllHeaderSize +1)^;     
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Len',[AcronymName]), 'Lenght',LOptions, @LOptions,sizeOf(LOptions) ));   
-        if LOptions > 0 then
-        begin
-          SetLength(LLink,LOptions*8);
-          Move(aPacketData[LAllHeaderSize+2],LLink[0],LOptions*8);
-          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:', IPv6AddressToString(LLink), @LLink, SizeOf(LLink) ));        
-        end;
-      end;
-
+    ICMP_ROUTER_SOLICITATION: AddOptionsAndIp;
   end;
   
   Result := True;

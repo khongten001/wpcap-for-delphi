@@ -91,11 +91,11 @@ var LTCPPayLoad    : PByte;
     LTmpResult     : Boolean;
     I              : Integer;
 begin
+  Result := False;
   if not HeaderTCP(aPacket,aPacketSize,LTCPPHdr) then exit;   
   if not PayLoadLengthIsValid(LTCPPHdr,aPacket,aPacketSize) then  Exit;
   
-  if not Result then
-    Result := IsValidByPort(PROTO_HTTP_PORT_1,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);
+  Result := IsValidByPort(PROTO_HTTP_PORT_1,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);
     
   if not Result then
     Result := IsValidByPort(PROTO_HTTP_PORT_2,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);   

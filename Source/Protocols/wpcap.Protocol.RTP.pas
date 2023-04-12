@@ -29,25 +29,25 @@ type
 
 
   TRTPHeader = packed record
-    Version_Padding_Extension_CC  : Byte; // Versione, Padding, Extension, Count CSRC
-    Marker_PT                     : Byte; // Marker, Payload Type
-    SequenceNumber                : Word;
-    Timestamp                     : Cardinal;
-    SSRC                          : Cardinal;
+    Version_Padding_Extension_CC  : Uint8; // Versione, Padding, Extension, Count CSRC
+    Marker_PT                     : Uint8; // Marker, Payload Type
+    SequenceNumber                : Uint16;
+    Timestamp                     : Uint32;
+    SSRC                          : Uint32;
   end;
   PTRTPHeader = ^TRTPHeader;
 
   TRTPHeaderInternal = packed record
-    Version                       : Byte;
+    Version                       : Uint8;
     Padding                       : Boolean;
     Extension                     : Boolean;
-    COuntCSRC                     : Byte; 
+    COuntCSRC                     : Uint8; 
     Marker                        : Boolean;
-    PayloadType                   : Byte; 
-    SequenceNumber                : Word;
-    Timestamp                     : Cardinal;
-    SSRC                          : Cardinal;
-    CSRC                          : TArray<Cardinal>;
+    PayloadType                   : Uint8; 
+    SequenceNumber                : Uint16;
+    Timestamp                     : Uint32;
+    SSRC                          : Uint32;
+    CSRC                          : TArray<Uint32>;
   end;
   PTRTPHeaderInternal = ^TRTPHeaderInternal;
   
@@ -208,7 +208,7 @@ begin
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.payload',[AcronymName]), 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad, LSizePayLoad));
 
       for I := Low(LInternalHeader.CSRC) to High(LInternalHeader.CSRC) do
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CSRC',[AcronymName]), 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Cardinal)));
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CSRC',[AcronymName]), 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Uint32)));
       
       Result := True;
     Finally
@@ -283,11 +283,11 @@ begin
       if LInternalHeader.CountCSRC > 0 then
       begin
 
-        aSize  := UDPPayLoadLength(LPUDPHdr)- HeaderLength(0) - (LInternalHeader.CountCSRC*SizeOf(cardinal))-8;
+        aSize  := UDPPayLoadLength(LPUDPHdr)- HeaderLength(0) - (LInternalHeader.CountCSRC*SizeOf(Uint32))-8;
         if ( aSize > 0 ) and (aSize < aPacketSize) then
         begin
           Result := AllocMem(aSize);
-          Move(LUDPPayLoad[HeaderLength(0) + (LInternalHeader.CountCSRC * SizeOf(Cardinal))], Result^, ASize);
+          Move(LUDPPayLoad[HeaderLength(0) + (LInternalHeader.CountCSRC * SizeOf(Uint32))], Result^, ASize);
         end;
 
       end
@@ -323,21 +323,21 @@ begin
 
 
     case LInternalHeader.PayloadType of
-       PT_PCMU        : Result := '"%ssox.exe" -t raw -r 8000 -c 1 -e u-law %s %s';   //PCMA (G.711 u-law)
+       PT_PCMU        : result := '"%ssox.exe" -t raw -r 8000 -c 1 -e u-law %s -b 16 %s';   //PCMA (G.711 u-law)
        PT_1016        :;
-       PT_G721        :;
-       PT_GSM         :;// Result := '"%ssox.exe" -r8000 -c1 -t ul %S -t wav %s';
-       PT_G723        :;
+       PT_G721        :;// result := '"%ssox.exe" -t raw -r 8000 -c 1 -e g721-adpcm %s %s';
+       PT_GSM         : result := '"%ssox.exe" -t gsm -r 8000 -c 1 %s -b 16 %s';
+       PT_G723        : result := '"%ssox.exe" -t g723 %s -b 16 %s';
        PT_DVI4_8000   :;
        PT_DVI4_16000  :;
        PT_LPC         :;     
-       PT_PCMA        : Result :=  '"%ssox.exe" -t raw -r 8000 -c 1 -e a-law %s %s';   //PCMA (G.711 a-law)
+       PT_PCMA        : result :=  '"%ssox.exe" -t raw -r 8000 -c 1 -e a-law %s -b 16 %s';   //PCMA (G.711 a-law)
        PT_G722        :;
-       PT_L16_STEREO  :;
-       PT_L16_MONO    :;
+       PT_L16_STEREO  : result := '"%ssox.exe" -t s16 -r 44100 -c 2 %s -b 16 %s';
+       PT_L16_MONO    : result := '"%ssox.exe" -t s16 -r 44100 -c 1 %s -b 16 %s';
        PT_QCELP       :;
        PT_CN          :;
-       PT_MPA         :;
+       PT_MPA         : result := '"%ssox.exe" -t mp3 %s -b 16 %s';
        PT_G728        :;
        PT_DVI4_11025  :;
        PT_DVI4_22050  :;
@@ -349,7 +349,7 @@ begin
        PT_H261        :;
        PT_MPV         :;
        PT_MP2T        :;
-       PT_H263        :;//Result :=  '"%ssox.exe" -t raw %s %s'; //H263-1998
+       PT_H263        :;
     end;
   
   Finally
@@ -384,7 +384,7 @@ begin
   begin
     SetLength(Result.CSRC,Result.CountCSRC );
     for I := 0 to Result.CountCSRC -1 do
-      Result.CSRC[i] := wpcapntohl(PCardinal(LUDPPayLoad + HeaderLength(0) + (I*SizeOf(Cardinal)))^);        
+      Result.CSRC[i] := wpcapntohl(PCardinal(LUDPPayLoad + HeaderLength(0) + (I*SizeOf(Uint32)))^);        
   end;
 end;
 

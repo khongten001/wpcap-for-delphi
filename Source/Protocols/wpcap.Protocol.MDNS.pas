@@ -115,8 +115,8 @@ begin
 end;
 
 class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
-var Lz         : Word;
-    LWordValue : Word;
+var Lz         : Uint16;
+    LWordValue : Uint16;
 begin
 
   case aRRsType of
@@ -139,7 +139,7 @@ begin
 end;
 
 class procedure TWPcapProtocolMDNS.ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
-var   LWordValue : Word;
+var   LWordValue : Uint16;
 begin
   case aRRsType of
     rtAnswer     : inherited; 

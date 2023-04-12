@@ -50,10 +50,10 @@ type
 }
  
  TDHCPHeader = packed record
-    OpCode        : Byte;                 // Type
-    HType         : Byte;                 // hardware type
-    HLen          : Byte;                 // Len address hardware
-    Hops          : Byte;                 // Number of hops
+    OpCode        : UInt8;                 // Type
+    HType         : UInt8;                 // hardware type
+    HLen          : UInt8;                 // Len address hardware
+    Hops          : UInt8;                 // Number of hops
     TransactionID : DWORD;                // ID transaction
     SecondsElapsed: Uint16;                 // Second elapsed
     Flags         : Uint16;                 // Flag
@@ -61,9 +61,9 @@ type
     YourIP        : Uint32;             // IP assigned to client
     ServerIP      : Uint32;             // IP server DHCP
     RelayAgentIP  : Uint32;             // IP relay agent
-    ClientMAC     : array[0..15] of Byte; // MAC of client with padding
-    ServerName    : array[0..63] of Byte;
-    BootFileName  : array[0..127] of Byte;
+    ClientMAC     : array[0..15] of UInt8; // MAC of client with padding
+    ServerName    : array[0..63] of UInt8;
+    BootFileName  : array[0..127] of UInt8;
     MagicCookie   : Uint32;  
   end;  
   PTDHCPHeader = ^TDHCPHeader; 
@@ -87,12 +87,12 @@ type
   }
   
   TDHCPAuthentication  = packed record
-    Protocol          : Byte;       
-    Algorithm         : Byte;        
-    RDM               : Byte;      
-    ReplayDetection   : Int64;   
-    SecretID          : Cardinal;
-    AuthenticationInfo: array[0..15]of Byte; // 64 byte        
+    Protocol          : UInt8;       
+    Algorithm         : UInt8;        
+    RDM               : UInt8;      
+    ReplayDetection   : UInt64;   
+    SecretID          : UInt32;
+    AuthenticationInfo: array[0..15]of UInt8; // 64 byte        
   end;
   PTDHCPAuthentication = ^TDHCPAuthentication; 
   
@@ -239,20 +239,20 @@ type
     OPTION_SUBNET_ALLOCATION_OPTION                 =	220;
     OPTION_END                                      = 255;
 
-    class function OptionToString(const aOption: Byte;AddOptionNumber:Boolean=True): String;
-    class function OptionToStringInternal(const aOption: Byte): String;
-    class function OptionValueToCaption(const aOption: Byte): String; 
-    class function GetNetBIOSNodeTypeString(const aNodeType: Byte): string; 
-    class function GetOptionOverloadTypeString(const aOverloadType: Byte): string; 
-    class function GetDHCPMessageTypeString(const aMessageType: Byte): string; 
-    class function GetNetWareSubOptionString(const asubOption: Byte): string; 
-    class function GetDHCPSubOptionDescription(const asubOptionCode: byte): string; 
-    class function DHCPStatusCodeToStr(const aCode: byte): string; 
-    class function DecimalToDHCPState(const aValue: byte): string; 
+    class function OptionToString(const aOption: UInt8;AddOptionNumber:Boolean=True): String;
+    class function OptionToStringInternal(const aOption: UInt8): String;
+    class function OptionValueToCaption(const aOption: UInt8): String; 
+    class function GetNetBIOSNodeTypeString(const aNodeType: UInt8): string; 
+    class function GetOptionOverloadTypeString(const aOverloadType: UInt8): string; 
+    class function GetDHCPMessageTypeString(const aMessageType: UInt8): string; 
+    class function GetNetWareSubOptionString(const asubOption: UInt8): string; 
+    class function GetDHCPSubOptionDescription(const asubOptionCode: UInt8): string; 
+    class function DHCPStatusCodeToStr(const aCode: UInt8): string; 
+    class function DecimalToDHCPState(const aValue: UInt8): string; 
     class function DecimalToAuthenticationSuboption(avalue: Integer): string; 
-    class function DecToDhcpOptionStr(Const avalue: byte): string; 
-    class function GetLabelOptions(const aOptions:Byte): String;
-    class function DhcpOptionToString(const aValue: Byte): String;
+    class function DecToDhcpOptionStr(Const avalue: UInt8): string; 
+    class function GetLabelOptions(const aOptions:UInt8): String;
+    class function DhcpOptionToString(const aValue: UInt8): String;
   protected
   public
     /// <summary>
@@ -262,7 +262,7 @@ type
     /// <summary>
     /// Returns the ID number of the DHCP protocol.
     /// </summary>
-    class function IDDetectProto: byte; override;
+    class function IDDetectProto: UInt8; override;
     /// <summary>
     /// Returns the name of the DHCP protocol.
     /// </summary>
@@ -271,9 +271,9 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderLength(aFlag:Byte): word; override;
+    class function HeaderLength(aFlag:byte): word; override;
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
-    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
+    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: UInt8): Boolean; override;        
   end;
 
 
@@ -290,7 +290,7 @@ begin
   Result := PROTO_DHCP_PORT_S;
 end;
 
-class function TWPcapProtocolDHCP.IDDetectProto: byte;
+class function TWPcapProtocolDHCP.IDDetectProto: UInt8;
 begin
   Result := DETECT_PROTO_DHCP;
 end;
@@ -301,7 +301,7 @@ begin
 end;
 
 class function TWPcapProtocolDHCP.IsValid(const aPacket: PByte;
-  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
+  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: UInt8): Boolean;
 var LUDPPPtr: PUDPHdr;
 begin
   Result := False;
@@ -319,7 +319,7 @@ begin
 end;
 
 
-class function TWPcapProtocolDHCP.GetLabelOptions(const aOptions:Byte):String;
+class function TWPcapProtocolDHCP.GetLabelOptions(const aOptions:UInt8):String;
 begin
   Result := Format('%s.Options.%s',[AcronymName,OptionToString(aOptions).Replace(' ','')]);
 end;
@@ -332,12 +332,11 @@ var LUDPPayLoad         : PByte;
     LBytesTmp           : TidBytes;
     LCurrentPos         : Integer;
     LPayLoadLen         : Integer;
-    LOption             : Byte;
-    LLen                : Byte;
-    LByteValue          : Byte;
-    LLongWordValue      : LongWord;    
-    LWordValue          : Word;        
+    LOption             : UInt8;
+    LLen                : UInt8;
+    LByteValue          : UInt8;
     I                   : Integer;
+    LPosDummy           : Integer;
     LDHCPAuthentication : PTDHCPAuthentication;
 begin
   Result        := False;
@@ -412,6 +411,7 @@ begin
   {chaddr   16  Client hardware address.  }
   SetLength(LBytesTmp,LHeaderDHCP.HLen);
   Move(LHeaderDHCP.ClientMAC[0], LBytesTmp[0], LHeaderDHCP.HLen);   
+
   AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientMAC',[AcronymName]), 'Client MAC address:', MACAddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp)));          
   
   SetLength(LBytesTmp,SizeOf(LHeaderDHCP.ClientMAC)- LHeaderDHCP.HLen);
@@ -437,7 +437,7 @@ begin
   while LCurrentPos < LPayLoadLen do
   begin
 
-    LOption := ParserUint8Value(LUDPPayLoad, aStartLevel+1,LPayLoadLen,GetLabelOptions(LOption), 'Options',AListDetail, OptionToStringInternal, True, LCurrentPos);
+    LOption := ParserUint8Value(LUDPPayLoad, aStartLevel+1,LPayLoadLen,Format('%s.Options',[AcronymName]), 'Options',AListDetail, OptionToStringInternal, True, LCurrentPos);
 
     if LOption = OPTION_PAD then Continue;      
     
@@ -541,19 +541,12 @@ begin
         OPTION_OPTION_V4_ACCESS_DOMAIN,
         OPTION_SUBNET_ALLOCATION_OPTION,        
         OPTION_HOSTNAME:
-          begin
-            if isValidLen(LCurrentPos,LPayLoadLen,LLen) then            
-            begin
-              SetLength(LBytesTmp, LLen);
-              Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen);
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToStringRaw(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));
-              inc(LCurrentPos,LLen);
-            end;
-          end;
+            ParserGenericBytesValue(LUDPPayLoad,aStartLevel+2,LPayLoadLen,LLen,Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),AListDetail,BytesToStringRawInternal,True,LCurrentPos);   
 
         OPTION_CLIENT_ID:
           begin 
             LByteValue :=  ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen,  Format('%s.HwType',[GetLabelOptions(LOption)]), 'Hardaware type:',AListDetail, nil, True, LCurrentPos);
+            
             if isValidLen(LCurrentPos,LPayLoadLen,LLen-1) then
             begin
               SetLength(LBytesTmp, LLen-1);
@@ -644,10 +637,8 @@ begin
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.RDM',[GetLabelOptions(LOption)]), 'Replay Detection Method:',ifthen(LDHCPAuthentication.RDM=0,'use of a monotonically increasing counter value','Reserved'), @LDHCPAuthentication.RDM,sizeOf(LDHCPAuthentication.RDM),LDHCPAuthentication.RDM));
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ReplayDetection',[GetLabelOptions(LOption)]), 'Replay Detection value:', ntohl(LDHCPAuthentication.ReplayDetection), @LDHCPAuthentication.ReplayDetection,sizeOf(LDHCPAuthentication.ReplayDetection)));                                                                 
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.SecretID',[GetLabelOptions(LOption)]), 'Secret ID:', wpcapntohl(LDHCPAuthentication.SecretID), @LDHCPAuthentication.SecretID,sizeOf(LDHCPAuthentication.SecretID)));                 
-
-            SetLength(LBytesTmp, SizeOf(LDHCPAuthentication.AuthenticationInfo));
-            Move(LDHCPAuthentication.AuthenticationInfo[0], LBytesTmp[0], SizeOf(LDHCPAuthentication.AuthenticationInfo));              
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.HMACMD5Hash',[GetLabelOptions(LOption)]), 'HMAC MD5 Hash:',ToHex(LBytesTmp), @LDHCPAuthentication.AuthenticationInfo,sizeOf(LDHCPAuthentication.AuthenticationInfo)));                 
+            LPosDummy := 0;
+            ParserGenericBytesValue(@(LDHCPAuthentication.AuthenticationInfo[0]),aStartLevel+2,SizeOf(LDHCPAuthentication.AuthenticationInfo),SizeOf(LDHCPAuthentication.AuthenticationInfo),Format('%s.HMACMD5Hash',[AcronymName]), 'HMAC MD5 Hash:',AListDetail,BytesToHex,True,LPosDummy); 
             inc(LCurrentPos,LLen);
           end;
           
@@ -751,18 +742,9 @@ begin
 
         OPTION_RELAY_AGENT_INFORMATION  :
           begin
-            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.SubOption',[GetLabelOptions(LOption)]), 'SubOption',AListDetail, DecToDhcpOptionStr, True, LCurrentPos);
-  
+            ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.SubOption',[GetLabelOptions(LOption)]), 'SubOption',AListDetail, DecToDhcpOptionStr, True, LCurrentPos);  
             LByteValue := ParserUint8Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.Len',[GetLabelOptions(LOption)]), 'Length',AListDetail, nil, True, LCurrentPos);
-            
-            if isValidLen(LCurrentPos,LPayLoadLen,LByteValue) then
-            begin
-              SetLength(LBytesTmp, LByteValue);
-              Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0], LByteValue);              
-              AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Value',[GetLabelOptions(LOption)]), 'Value:',ToHex(LBytesTmp), @LBytesTmp,sizeOf(LBytesTmp)));                 
-              inc(LCurrentPos,LByteValue);
-            end;
-                            
+            ParserGenericBytesValue(LUDPPayLoad,aStartLevel+2,LPayLoadLen,LByteValue,Format('%s.Value',[GetLabelOptions(LOption)]), 'Value:',AListDetail,BytesToHex,True,LCurrentPos);                             
           end
                       
       else
@@ -776,7 +758,7 @@ begin
   Result := True;
 end;
 
-Class function TWPcapProtocolDHCP.OptionValueToCaption(const aOption:Byte):String;
+Class function TWPcapProtocolDHCP.OptionValueToCaption(const aOption:UInt8):String;
 begin
   case aOption of
     OPTION_PAD            : Result := 'Padding';
@@ -789,7 +771,7 @@ begin
   end;
 end;
 
-Class function TWPcapProtocolDHCP.OptionToString(const aOption:Byte;AddOptionNumber:Boolean=True):String;
+Class function TWPcapProtocolDHCP.OptionToString(const aOption:UInt8;AddOptionNumber:Boolean=True):String;
 begin
   case aOption of
     OPTION_PAD                                     	: Result := 'Pad';
@@ -971,7 +953,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetNetBIOSNodeTypeString(const aNodeType: Byte): string;
+class function TWPcapProtocolDHCP.GetNetBIOSNodeTypeString(const aNodeType: UInt8): string;
 begin
   case aNodeType of
     1: Result := 'B-node';
@@ -982,7 +964,7 @@ begin
   end;     
 end;
 
-class function TWPcapProtocolDHCP.GetOptionOverloadTypeString(const aOverloadType: Byte): string;
+class function TWPcapProtocolDHCP.GetOptionOverloadTypeString(const aOverloadType: UInt8): string;
 begin
   case aOverloadType of
     1: Result := 'file';
@@ -992,7 +974,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetDHCPMessageTypeString(const aMessageType: Byte): string;
+class function TWPcapProtocolDHCP.GetDHCPMessageTypeString(const aMessageType: UInt8): string;
 begin
   case aMessageType of
     1 : Result := 'DHCPDISCOVER';
@@ -1017,7 +999,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetNetWareSubOptionString(const asubOption: Byte): string;
+class function TWPcapProtocolDHCP.GetNetWareSubOptionString(const asubOption: UInt8): string;
 begin
   case asubOption of
     1 : Result := 'NWIP_DOES_NOT_EXIST';
@@ -1035,7 +1017,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.GetDHCPSubOptionDescription(const asubOptionCode: byte): string;
+class function TWPcapProtocolDHCP.GetDHCPSubOptionDescription(const asubOptionCode: UInt8): string;
 begin
   case asubOptionCode of
     1: Result := 'TSP''s Primary DHCP Server Address';
@@ -1052,7 +1034,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.DHCPStatusCodeToStr(const aCode: byte): string;
+class function TWPcapProtocolDHCP.DHCPStatusCodeToStr(const aCode: UInt8): string;
 begin
   case aCode of
     0: Result := 'Success';
@@ -1068,7 +1050,7 @@ begin
   end;  
 end;
 
-class function TWPcapProtocolDHCP.DecimalToDHCPState(const aValue: byte): string;
+class function TWPcapProtocolDHCP.DecimalToDHCPState(const aValue: UInt8): string;
 const
   StateNames: array[0..8] of string = (
     'Reserved', 'AVAILABLE', 'ACTIVE', 'EXPIRED', 'RELEASED', 'ABANDONED', 'RESET',
@@ -1076,13 +1058,12 @@ const
 var
   StateIndex: Integer;
 begin
-  if (aValue >= 0) and (aValue <= 8) then
+  if (aValue <= 8) then
     StateIndex := aValue
   else
     StateIndex := 9; // Unassigned value
 
-  Result := StateNames[StateIndex];
-      
+  Result := StateNames[StateIndex];      
 end;
 
 class function TWPcapProtocolDHCP.DecimalToAuthenticationSuboption(avalue: Integer): string;
@@ -1098,7 +1079,7 @@ begin
   end;     
 end;
 
-class function TWPcapProtocolDHCP.DecToDhcpOptionStr(const avalue: Byte): string;
+class function TWPcapProtocolDHCP.DecToDhcpOptionStr(const avalue: UInt8): string;
 begin
   case avalue of
     1: Result := 'Agent Circuit ID Sub-option [RFC3046]';
@@ -1127,7 +1108,7 @@ begin
   end;     
 end;
 
-class function TWPcapProtocolDHCP.DhcpOptionToString(const aValue:Byte):String;
+class function TWPcapProtocolDHCP.DhcpOptionToString(const aValue:UInt8):String;
 begin
   case aValue of
     1 : Result := 'IPv4';
@@ -1136,12 +1117,12 @@ begin
   end;
 end;
 
-class function TWPcapProtocolDHCP.HeaderLength(aFlag: Byte): word;
+class function TWPcapProtocolDHCP.HeaderLength(aFlag: byte): word;
 begin
   Result:= SizeOf(TDHCPHeader);
 end;
 
-class function TWPcapProtocolDHCP.OptionToStringInternal(const aOption: Byte): String;
+class function TWPcapProtocolDHCP.OptionToStringInternal(const aOption: UInt8): String;
 begin
   Result := OptionToString(aOption,True);
 end;
