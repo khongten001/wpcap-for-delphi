@@ -1,4 +1,31 @@
-﻿unit wpcap.Conts;
+﻿//*************************************************************
+//                        WPCAP FOR DELPHI                    *
+//				                                        			      *
+//                     Freeware Library                       *
+//                       For Delphi 10.4                      *
+//                            by                              *
+//                     Alessandro Mancini                     *
+//				                                        			      *
+//*************************************************************
+{LICENSE:
+THIS SOFTWARE IS PROVIDED TO YOU "AS IS" WITHOUT WARRANTY OF ANY KIND,
+EITHER EXPRESSED OR IMPLIED INCLUDING BUT NOT LIMITED TO THE APPLIED
+WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
+YOU ASSUME THE ENTIRE RISK AS TO THE ACCURACY AND THE USE OF THE SOFTWARE
+AND ALL OTHER RISK ARISING OUT OF THE USE OR PERFORMANCE OF THIS SOFTWARE
+AND DOCUMENTATION. PRODUCTIONS DOES NOT WARRANT THAT THE SOFTWARE IS ERROR-FREE
+OR WILL OPERATE WITHOUT INTERRUPTION. THE SOFTWARE IS NOT DESIGNED, INTENDED
+OR LICENSED FOR USE IN HAZARDOUS ENVIRONMENTS REQUIRING FAIL-SAFE CONTROLS,
+INCLUDING WITHOUT LIMITATION, THE DESIGN, CONSTRUCTION, MAINTENANCE OR
+OPERATION OF NUCLEAR FACILITIES, AIRCRAFT NAVIGATION OR COMMUNICATION SYSTEMS,
+AIR TRAFFIC CONTROL, AND LIFE SUPPORT OR WEAPONS SYSTEMS. PRODUCTIONS SPECIFICALLY
+DISCLAIMS ANY EXPRESS OR IMPLIED WARRANTY OF FITNESS FOR SUCH PURPOSE.
+
+You may use/change/modify the component under 1 conditions:
+1. In your application, add credits to "WPCAP FOR DELPHI"
+{*******************************************************************************}
+
+unit wpcap.Conts;
 
 interface
 
@@ -43,8 +70,7 @@ const
   IPPROTO_DSTOPTS    = 60;   // IPv6 destination options
   IPPROTO_MH         = 135;  // Mobility header
  // IPPROTO_ICMPV62    = 128;  
-  
-  {ETHERNET TYPE}
+   {ETHERNET TYPE}
   ETH_P_LOOP      = $0060;  // Ethernet Loopback packet
   ETH_P_PUP       = $0200;  // Xerox PUP packet
   ETH_P_PUPAT     = $0201;  // Xerox PUP Addr Trans packet
@@ -124,8 +150,7 @@ const
   ETH_P_TIPC      = $88ca;  // TIPC
   ETH_P_TRAILER   = $001A;  // Trailer encapsulation
   ETH_P_TR_802_2  = $0011;  // Token Ring
-  ETH_P_WAN_PPP   = $7;     // WAN PPP
-
+  ETH_P_WAN_PPP   = $7;     // WAN PPP   
 
  {PROTOCOLS PORT}
  PROTO_FTP_PORT     = 21;
@@ -148,8 +173,7 @@ const
  PROTO_GTP_C_PORT   = 2123 ; 
  PROTO_GTP_U_PORT   = 2152 ;  
  PROTO_GTP_PORT     = 3386;
- PROTO_SSDP_PORT    = 1900;
- 
+ PROTO_SSDP_PORT    = 1900; 
  PROTO_RTP_PORT     = 5000;//5004;
  PROTO_LLMNR_PORT   = 5355;
  PROTO_MDNS_PORT    = 5353;  
