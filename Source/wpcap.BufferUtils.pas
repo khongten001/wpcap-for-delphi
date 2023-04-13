@@ -51,7 +51,6 @@ function wpcapntohs(aWord: Word): word;
 /// <returns>Returns the input 32-bit integer in host byte order.</returns>
 function wpcapntohl(aCardinal: cardinal):Cardinal;
 
-function BCDToDec(const aBCDValue: UInt64): UInt64;
 
 /// <summary>
 /// Extracts the byte at the specified index from a 16-bit integer value.
@@ -157,22 +156,6 @@ end;
 function wpcapntohl(aCardinal: cardinal):Cardinal;
 begin
   result := ntohl(aCardinal);
-end;
-
-
-function BCDToDec(const aBCDValue: UInt64): UInt64;
-var LDigit   : UInt64;
-    LDecValue: UInt64;
-    i        : Integer;
-begin
-  LDecValue := 0;
-  for i := 0 to 15 do
-  begin
-    LDigit := (aBCDValue shr (i * 4)) and $F; // preleva la cifra BCD dal valore
-    if LDigit > 9 then Continue;
-    LDecValue := Trunc(LDecValue + (LDigit * Power(10, i))); // somma la cifra decimale al valore decimale totale
-  end;
-  Result := LDecValue;
 end;
 
 function GetByteFromWord(aWordValue: Word; aByteIndex: Integer): Byte;

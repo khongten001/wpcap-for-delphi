@@ -79,7 +79,18 @@ type
   /// </summary>
   TWPcapProtocolBaseTCP = Class(TWPcapProtocolBase)
   private
-
+    
+  const
+    TCP_OPTION_EOL            = 0;  //(End of Option List, Kind = 0): Indicates the end of the options list.
+    TCP_OPTION_NOP            = 1;  //(No-Operation, Kind = 1): Used for padding and alignment.
+    TCP_OPTION_MSS            = 2;  // (Maximum Segment Size, Kind = 2): Used to specify the maximum segment size that can be received by a host.
+    TCP_OPTION_WSCALE         = 3;  // (Window Scale, Kind = 3): Used to specify a scale factor to increase the maximum window size.
+    TCP_OPTION_SACKOK         = 4;  // (Selective Acknowledgment Permitted, Kind = 4): Indicates that the sender is willing to receive selective acknowledgment (SACK) options.
+    TCP_OPTION_SACK           = 5;  // (Selective Acknowledgment, Kind = 5): Used to acknowledge non-contiguous blocks of data.
+    TCP_OPTION_ECHO           = 6;  // (Echo, Kind = 6): Used to carry a timestamp from the sender to the receiver.
+    TCP_OPTION_ECHOREPLY      = 7;  // (Echo Reply, Kind = 7): Used to carry a timestamp from the receiver back to the sender.
+    TCP_OPTION_TIMESTAMP      = 8;   // (Timestamps, Kind = 8): Used to carry two timestamps: one from the sender to the receiver and one from the receiver back to the sender.
+    class function TCPKindToString(const aKind: Uint8): string;
   protected
     class function GetDataOFFSetBytes(const aDataOFFset: Byte): integer; 
     
@@ -339,6 +350,23 @@ begin
   end;
 end;
 
+class function TWPcapProtocolBaseTCP.TCPKindToString(const aKind: Uint8): string;
+begin
+  case aKind of
+    TCP_OPTION_EOL            : Result := 'End of Options List';
+    TCP_OPTION_NOP            : Result := 'No Operation';
+    TCP_OPTION_MSS            : Result := 'Maximum Segment Size';
+    TCP_OPTION_WSCALE         : Result := 'Window Scale';
+    TCP_OPTION_SACKOK         : Result := 'Selective Acknowledgement Permitted';
+    TCP_OPTION_SACK           : Result := 'Selective Acknowledgement';
+    TCP_OPTION_ECHO           : Result := 'Echo';
+    TCP_OPTION_ECHOREPLY      : Result := 'Echo Reply';
+    TCP_OPTION_TIMESTAMP      : Result := 'Time Stamp';
+    // Aggiungere altre costanti qui, se necessario
+    else Result := 'Unknown';
+  end;
+end;
+
 class function TWPcapProtocolBaseTCP.GetTCPFlagsV6(Flags: Uint8): string;
 begin
   Result := String.Empty;
@@ -354,32 +382,100 @@ begin
     Result := Copy(Result, 1, Length(Result) - 1);
 end;
 
-
 class function TWPcapProtocolBaseTCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
-var LPTCPHdr  : PTCPHdr;
-    LesBits   : Integer;
+var LPTCPHdr      : PTCPHdr;
+    LesBits       : Integer;
+    LHeaderLen    : Integer;
+    LOffset       : Integer;
+    LBckOffSet    : Integer;
+    LEthandIpSize : Integer;
+    LUint8Value   : Uint8;
+    LOptionKind   : Uint8;    
 begin
   Result := False;
   FIsFilterMode := aisFilterMode;
   if not HeaderTCP(aPacketData,aPacketSize,LPTCPHdr) then exit;
-  
+  LEthAndIpSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
+  LHeaderLen    := GetDataOFFSetBytes(LPTCPHdr^.DataOff) *4;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName,'Transmission Control Protocol',Format('Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[SrcPort(LPTCPHdr),DstPort(LPTCPHdr),
-                                   ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),nil,0));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Header length:',SizeToStr(GetDataOFFSetBytes(LPTCPHdr^.DataOff) *4), PByte(@LPTCPHdr.DataOff),2));              
+                                   ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),PByte(aPacketData+LEthAndIpSize),LHeaderLen));  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Header length:',SizeToStr(LHeaderLen), PByte(@LPTCPHdr.DataOff),2));              
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Source',[AcronymName]), 'Source:',wpcapntohs(LPTCPHdr.SrcPort), PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Destination',[AcronymName]), 'Destination:',wpcapntohs(LPTCPHdr.DstPort), PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumber',[AcronymName]), 'Sequence number(RAW):',wpcapntohl(LPTCPHdr.SeqNum), PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AcknowledgmentNUmber',[AcronymName]), 'Acknowledgment number(RAW):',wpcapntohl(LPTCPHdr.AckNum), PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberRaw',[AcronymName]), 'Sequence number(RAW):',wpcapntohl(LPTCPHdr.SeqNum), PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AcknowledgmentNumberRaw',[AcronymName]), 'Acknowledgment number(RAW):',wpcapntohl(LPTCPHdr.AckNum), PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.MsgLen',[AcronymName]), 'Data offset:',GetDataOFFSetBytes(LPTCPHdr^.DataOff), PByte(@LPTCPHdr.DataOff),2));          
   LesBits := (LPTCPHdr.DataOff and $0F) shl 2; 
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ReservedBits',[AcronymName]), 'Reserved bits:',LesBits,PByte(LesBits),2));          
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',GetTCPFlagsV6(LPTCPHdr.Flags), PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags), LPTCPHdr.Flags ));   
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',Format('%s %S [%s]',[ByteToBinaryString(GetByteFromWord(LPTCPHdr.Flags,0)),ByteToBinaryString(GetByteFromWord(LPTCPHdr.Flags,1)),GetTCPFlagsV6(LPTCPHdr.Flags)]), PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags), LPTCPHdr.Flags ));   
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.WindowSize',[AcronymName]), 'Window size:',wpcapntohs(LPTCPHdr.WindowSize), PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPTCPHdr.Checksum), PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UrgentPointer',[AcronymName]), 'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr), PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));   
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize)), PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));     
+  
+  LOffset       := SizeOf(TCPHdr)+LEthAndIpSize; 
+  inc(LHeaderLen,LEthAndIpSize);
+  if LHeaderLen > LOffset then
+  begin
+    LBckOffSet := LOffset;
+    ParserGenericBytesValue(aPacketData,aStartLevel+1,LHeaderLen,LHeaderLen - LOffset,Format('%s.Options',[AcronymName]), 'Options:',AListDetail,nil,True,LOffset); 
+    LOffset := LBckOffSet;            
 
-  {TODO OPTIONS}
+    while LHeaderLen > LOffset do
+    begin
+      LBckOffSet  := LOffset;
+      ParserGenericBytesValue(aPacketData,aStartLevel+2,LHeaderLen,LHeaderLen - LOffset,Format('%s.Option',[AcronymName]), 'Option:',AListDetail,nil,True,LOffset);
+      LOffset     := LBckOffSet;  
+      LOptionKind := ParserUint8Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.Kind',[AcronymName]), 'Kind:',AListDetail,TCPKindToString,False,LOffset);
+
+      if LOptionKind > TCP_OPTION_NOP then
+      begin
+        LUint8Value := ParserUint8Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.Len',[AcronymName]), 'Length:',AListDetail,SizeaUint8ToStr,False,LOffset);
+        Dec(LUint8Value,2);
+
+        if LUint8Value > 0 then
+        begin
+          case LOptionKind of
+            TCP_OPTION_MSS       : 
+              begin
+                ParserUint16Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.MSS.value',[AcronymName]), 'MSS Value:',AListDetail,nil,True,LOffset);
+                Dec(LUint8Value,2);
+                if LUint8Value > 0 then
+                  ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.MSS.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset);   
+                LUint8Value := 0;                             
+              end;
+
+            
+            TCP_OPTION_WSCALE    :
+              begin
+                ParserUint8Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.WScale.ShiftCount',[AcronymName]), 'Shift count:',AListDetail,nil,True,LOffset);
+                Dec(LUint8Value,1);
+                if LUint8Value > 0 then
+                  ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.WScale.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset);  
+                LUint8Value := 0;                              
+              end;           
+            TCP_OPTION_SACKOK    :;//nothing;  
+            TCP_OPTION_SACK      :{TODO};  
+            TCP_OPTION_ECHO      :{TODO};  
+            TCP_OPTION_ECHOREPLY :{TODO};  
+            TCP_OPTION_TIMESTAMP :
+            begin
+              ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.TimeStamp.Value',[AcronymName]), 'TimeStamp value:',AListDetail,nil,True,LOffset);  
+              Dec(LUint8Value,4);
+              ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.TimeStamp.EchoReplay',[AcronymName]), 'TimeStamp echo replay:',AListDetail,nil,True,LOffset);                
+              Dec(LUint8Value,4);
+              if LUint8Value > 0 then
+                ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.TimeStamp.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset); 
+              LUint8Value := 0;
+            end;
+          end;
+
+          if LUint8Value > 0 then
+            Inc(LOffset,LUint8Value-2);
+        end;
+      end;               
+    end;
+  end;
   Result := True;       
 end;
 
