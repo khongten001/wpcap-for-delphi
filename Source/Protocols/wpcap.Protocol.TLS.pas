@@ -106,6 +106,7 @@ type
     class function ChipherToString(const aChipher: Uint16): string;
     class function HandShakeTypeToString(const aRecodType: Uint8): string;
     class function CompressionToString(const aCompression: Uint8): String;
+    class function isHTTPS(const aHandshakeType: Uint8): Boolean; static;
   public
     /// <summary>
     ///  Returns the default port number for the TLS protocol (443).
@@ -153,6 +154,7 @@ var LTCPHdr       : PTCPHdr;
     LRecord       : PTTLSRecordHeader;
     LTCPPayLoadLen: Integer;
     LContectLen   : Integer;
+    LHandshakeType: Byte;
 begin
   Result := False;
   if not HeaderTCP(aPacket,aPacketSize,LTCPHdr) then exit;
@@ -170,13 +172,27 @@ begin
     aIdProtoDetected := inherited IDDetectProto;
     Exit;  
   end;
-  
-  aAcronymName     := TLSVersionToString(LRecord.ProtocolVersion);
+
+  if (LRecord.ContentType = TLS_CONTENT_TYPE_HANDSHAKE) then
+  begin
+    LHandshakeType := LTCPPayLoad[SizeOf(TTLSRecordHeader)];
+
+    if isHTTPS(LHandshakeType) then {TODO search HTTP on payload string, check TLS extention like server_name or status request}
+      aAcronymName := 'HTTPS'
+    else
+      aAcronymName := TLSVersionToString(LRecord.ProtocolVersion);          
+  end
+  else 
+    aAcronymName     := TLSVersionToString(LRecord.ProtocolVersion);
   aIdProtoDetected := IDDetectProto;
- 
 
   if wpcapntohs(LRecord.Length) > LTCPPayLoadLen then
     aAcronymName := 'SSL';
+end;
+
+Class function TWPcapProtocolTLS.isHTTPS(const aHandshakeType: Uint8):Boolean;
+begin
+  Result := (aHandshakeType = TLS_HANDSHAKE_TYPE_CLIENT_HELLO) or (aHandshakeType = TLS_HANDSHAKE_TYPE_SERVER_HELLO)  or (aHandshakeType = TLS_HANDSHAKE_TYPE_CERTIFICATE)
 end;
 
 class function TWPcapProtocolTLS.DefaultPort: Word;
