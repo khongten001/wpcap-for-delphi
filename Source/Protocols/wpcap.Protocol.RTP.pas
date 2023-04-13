@@ -320,19 +320,17 @@ begin
 
   if not Assigned(LInternalHeader) then Exit;
   Try  
-
-
     case LInternalHeader.PayloadType of
        PT_PCMU        : result := '"%ssox.exe" -t raw -r 8000 -c 1 -e u-law %s -b 16 %s';   //PCMA (G.711 u-law)
        PT_1016        :;
-       PT_G721        :;// result := '"%ssox.exe" -t raw -r 8000 -c 1 -e g721-adpcm %s %s';
+       PT_G721        : result := '"%sffmpeg.exe" -f g726 -i %s -ar 8000 %s';
        PT_GSM         : result := '"%ssox.exe" -t gsm -r 8000 -c 1 %s -b 16 %s';
        PT_G723        : result := '"%ssox.exe" -t g723 %s -b 16 %s';
-       PT_DVI4_8000   :;
-       PT_DVI4_16000  :;
+       PT_DVI4_8000   : ;//result := '"%ssox.exe" -t raw -r 8000 -b 16 -c 1 -e signed-integer %s %s';
+       PT_DVI4_16000  : ;//result := '"%ssox.exe" -t raw -r 16000 -c 1 -e a-law %s -b 16 %s';
        PT_LPC         :;     
-       PT_PCMA        : result :=  '"%ssox.exe" -t raw -r 8000 -c 1 -e a-law %s -b 16 %s';   //PCMA (G.711 a-law)
-       PT_G722        :;
+       PT_PCMA        : result := '"%ssox.exe" -t raw -r 8000 -c 1 -e a-law %s -b 16 %s';   //PCMA (G.711 a-law)
+       PT_G722        : result := '"%sffmpeg.exe" -f g722 -i %s -ar 16000 %s';
        PT_L16_STEREO  : result := '"%ssox.exe" -t s16 -r 44100 -c 2 %s -b 16 %s';
        PT_L16_MONO    : result := '"%ssox.exe" -t s16 -r 44100 -c 1 %s -b 16 %s';
        PT_QCELP       :;
@@ -341,17 +339,16 @@ begin
        PT_G728        :;
        PT_DVI4_11025  :;
        PT_DVI4_22050  :;
-       PT_G729        :;
+       PT_G729        : result := '"%sffmpeg.exe" -f g729 -i %s -ar 8000 %s';
        PT_CN_OLD      :;
        PT_CELB        :;
        PT_JPEG        :;
        PT_NV          :;
-       PT_H261        :;
+       PT_H261        : result := '"%sffmpeg.exe" -f h261 -i %s %s';
        PT_MPV         :;
        PT_MP2T        :;
-       PT_H263        :;
-    end;
-  
+       PT_H263        : result := '"%sffmpeg.exe" -f h263 -i %s %s';
+    end;  
   Finally
     Dispose(LInternalHeader);
   End;

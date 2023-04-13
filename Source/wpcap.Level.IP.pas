@@ -205,7 +205,7 @@ type
     /// <returns>
     ///   True if the packet size is valid, False otherwise.
     /// </returns>
-    class function isValidSizeIP(aPacketSize: Integer;aIsIpV6:Boolean): Boolean;static;
+    class function isValidSizeIP(const aPacketData: PByte;aPacketSize: Integer;aIsIpV6:Boolean): Boolean;static;
 
     /// <summary>
     ///   Analyzes the IP protocol of the packet data and populates the provided internal IP record with the appropriate data.
@@ -359,31 +359,33 @@ begin
 end;
 
 { TIPHeaderClas }
-class function TWpcapIPHeader.isValidSizeIP(aPacketSize: Integer;aIsIpV6:Boolean): Boolean;
+class function TWpcapIPHeader.isValidSizeIP(const aPacketData: PByte;aPacketSize: Integer;aIsIpV6:Boolean): Boolean;
 begin
   if aIsIpV6 then
-     result := aPacketSize >HeaderEthSize+SizeOf(TIPv6Header)
+     result := aPacketSize >HeaderEthSize(aPacketData,aPacketSize)+SizeOf(TIPv6Header)
   else
-     result := aPacketSize >HeaderEthSize+SizeOf(TIPHeader);
+     result := aPacketSize >HeaderEthSize(aPacketData,aPacketSize)+SizeOf(TIPHeader);
 end;
 
 class function TWpcapIPHeader.HeaderIPv4(const aPacketData: PByte;aPacketSize: Integer): PTIPHeader;
+var lHeaderSize : integer;
 begin
   Result := nil;
-  if not isValidSizeIP(aPacketSize,False) then exit;
+  if not isValidSizeIP(aPacketData,aPacketSize,False) then exit;
   
-  Result := PTIPHeader(aPacketData + HeaderEthSize);
+  lHeaderSize:= HeaderEthSize(aPacketData,aPacketSize);
+  Result := PTIPHeader(aPacketData + lHeaderSize);
   
-  if  aPacketSize < HeaderEthSize+HeaderLenConvert(Result.VerLen) then   
+  if  aPacketSize < lHeaderSize+HeaderLenConvert(Result.VerLen) then   
     Result := nil;
 end;
 
 class function TWpcapIPHeader.HeaderIPv6(const aPacketData: PByte;aPacketSize: Integer): PIpv6Header;
 begin
   Result := nil;
-  if not isValidSizeIP(aPacketSize,True) then exit;
+  if not isValidSizeIP(aPacketData,aPacketSize,True) then exit;
 
-  Result := PIPv6Header(aPacketData + HeaderEthSize);
+  Result := PIPv6Header(aPacketData + HeaderEthSize(aPacketData,aPacketSize));
 end;
 
 class function TWpcapIPHeader.HeaderIPSize(const aPacketData: PByte;aPacketSize: Integer): Word;
@@ -393,14 +395,15 @@ var LCurrentPos      : Integer;
     LHeaderV4        : PTIPHeader;  
     LNewPacketLen    : Integer;
     LNewPacketData   : PByte;
+    LHeaderSize      : Integer;
 begin
   Result := 0;
   
   if IpClassType(aPacketData,aPacketSize) = imtIpv6 then
   begin
-
+    LHeaderSize := HeaderEthSize(aPacketData,aPacketSize);
     Result      := SizeOf(TIPv6Header);
-    LCurrentPos := HeaderEthSize + Result;
+    LCurrentPos := LHeaderSize + Result;
     LHeaderV6   := HeaderIPv6(aPacketData,aPacketSize);
     LIpProto    := LHeaderV6.NextHeader;
     ExtentionHeader(aPacketData,0,LCurrentPos,LIpProto,nil);
@@ -415,8 +418,8 @@ begin
       End;              
       Exit;
     end;
-    if LCurrentPos > HeaderEthSize + SizeOf(TIPv6Header) then
-      Result:= LCurrentPos - HeaderEthSize;
+    if LCurrentPos > LHeaderSize + SizeOf(TIPv6Header) then
+      Result:= LCurrentPos - LHeaderSize;
   end
   else
   begin
@@ -445,7 +448,7 @@ begin
   if aHeaderPrevLen = 0 then
       aHeaderPrevLen := HeaderIPSize(aPacketData,aPacketSize);
       
-  lHeaderEthLen  := HeaderEthSize;
+  lHeaderEthLen  := HeaderEthSize(aPacketData,aPacketSize);
   aNewPacketLen  := aPacketSize -aHeaderPrevLen; 
   if aNewPacketLen > 0 then
   begin
@@ -527,7 +530,7 @@ begin
       AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.HopLimit','Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
       AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.SourceAddress','Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
       AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.DestinationAddress','Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress))); 
-      LCurrentPos := HeaderEthSize + SizeOf(TIPv6Header);
+      LCurrentPos := HeaderEthSize(aPacketData,aPacketSize) + SizeOf(TIPv6Header);
       LIpProto    := LHeaderV6.NextHeader;
       ExtentionHeader(aPacketData,aStartLevel,LCurrentPos,LIpProto,AListDetail);                     
     end
@@ -773,7 +776,7 @@ begin
         {IPv6}                       
         LheaderIpV6                 := HeaderIPv6(aPacketData,aPacketSize);
         aInternalIP.IpProto         := LheaderIpV6.NextHeader;
-        LCurrentPos                 := HeaderEthSize + SizeOf(TIPv6Header);
+        LCurrentPos                 := HeaderEthSize(aPacketData,aPacketSize) + SizeOf(TIPv6Header);
         ExtentionHeader(aPacketData,0,LCurrentPos, aInternalIP.IpProto,nil); 
 
         if (aInternalIP.IpProto = IPPROTO_IP) and aFallowIpLevel then
@@ -928,7 +931,7 @@ end;
 
 class function TWpcapIPHeader.EthAndIPHeaderSize(const aPacketData: PByte; aPacketSize: Integer): Word;
 begin
-  Result := HeaderEthSize+HeaderIPSize(aPacketData,aPacketSize);
+  Result := HeaderEthSize(aPacketData,aPacketSize)+HeaderIPSize(aPacketData,aPacketSize);
 end;
 
 

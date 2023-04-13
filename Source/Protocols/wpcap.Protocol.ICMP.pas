@@ -151,7 +151,7 @@ begin
   if aHeaderPrevLen = 0 then
       aHeaderPrevLen := TWpcapIPHeader.HeaderIPSize(aPacketData,aPacketSize)+HeaderLength(0);
       
-  lHeaderEthLen  := HeaderEthSize;
+  lHeaderEthLen  := HeaderEthSize(aPacketData,aPacketSize);
   aNewPacketLen  := aPacketSize -aHeaderPrevLen; 
   GetMem(Result,aNewPacketLen);
   Move(aPacketData^,Result^,lHeaderEthLen);

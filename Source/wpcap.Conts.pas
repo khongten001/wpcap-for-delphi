@@ -50,6 +50,7 @@ const
   ETH_P_PUPAT     = $0201;  // Xerox PUP Addr Trans packet
   ETH_P_TSN       = $22F0;  // TSN (IEEE 1722 Audio/Video Bridging)
   ETH_P_IP        = $0800;  // Internet Protocol packet
+  ETH_P_IP_P2P    = $21;     
   ETH_P_X25       = $0805;  // CCITT X.25
   ETH_P_ARP       = $0806;  // Address Resolution packet
   ETH_P_BPQ       = $08FF;  // G8BPQ AX.25 Ethernet Packet [ NOT AN OFFICIALLY REGISTERED ID ]

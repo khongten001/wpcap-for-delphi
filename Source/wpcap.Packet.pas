@@ -11,7 +11,7 @@ Type
   TIntenalETH = record
     DestAddr  : string; // The destination MAC address.
     SrcAddr   : string; // The source MAC address.
-    EtherType : Word;   // The Ethernet type.
+    EtherType : Uint16;   // The Ethernet type.
     Acronym   : string; // An acronym.
   end;
   PTIntenalETH = ^TIntenalETH;
@@ -32,13 +32,13 @@ Type
   TInternalIP = record
     Src            : string;   // The source IP address.
     Dst            : string;   // The destination IP address.
-    PortSrc        : Word;     // The source port.
-    PortDst        : Word;     // The destination port.
-    IpProto        : Word;     // The IP protocol.
+    PortSrc        : Uint16;     // The source port.
+    PortDst        : Uint16;     // The destination port.
+    IpProto        : Uint16;     // The IP protocol.
     IpPrototr      : string;     // The IP protocol.
     ProtoAcronym   : string;   // An acronym for the IP protocol.
     IsIPv6         : Boolean;  // A flag indicating whether the IP is IPv6.
-    DetectedIPProto: Byte;     // A byte that represents the detected IP protocol.
+    DetectedIPProto: Uint8;     // A byte that represents the detected IP protocol.
     IANAProtoStr   : string;   // A string that represents the IANA protocol.
     SrcGeoIP       : TRecordGeoIP;
     DestGeoIP      : TRecordGeoIP;

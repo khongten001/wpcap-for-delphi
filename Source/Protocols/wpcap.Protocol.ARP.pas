@@ -137,7 +137,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Operation',[AcronymName]), 'Operation:',  wpcapntohs(LHeaderARP.OpCode), @LHeaderARP.OpCode, SizeOf(LHeaderARP.OpCode) ));
 
   
-  LCurrentPos := HeaderEthSize + HeaderLength(0);
+  LCurrentPos := HeaderEthSize(aPacketData,aPacketSize) + HeaderLength(0);
 
   SetLength(LTmpBytesSender,LHeaderARP.HardwareSize);
   SetLength(LTmpBytesTarget,LHeaderARP.HardwareSize);
@@ -197,7 +197,7 @@ class function TWPcapProtocolARP.Header(const aData: PByte; aSize: Integer; var 
 var aSizeEthEth : Word;
 begin
   Result     := False;
-  aSizeEthEth := HeaderEthSize;
+  aSizeEthEth := HeaderEthSize(aData,aSize);
 
   // Check if the data size is sufficient for the Ethernet, IP, and UDP headers
   if (aSize < aSizeEthEth + HeaderLength(0)) then Exit;  

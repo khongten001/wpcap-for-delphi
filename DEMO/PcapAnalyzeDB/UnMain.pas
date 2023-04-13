@@ -651,9 +651,9 @@ begin
           Exit;                                            
         end;
 
-        if not FileExists( Format('%sSox\sox.exe',[GetPathUtils])) then
+        if not FileExists( Format('%sSox\sox.exe',[GetPathUtils])) or not FileExists( Format('%sSox\ffmpeg.exe',[GetPathUtils])) then
         begin
-          MessageDlg('Sox.exe not present',mtError,[mbOK],0);
+          MessageDlg('Sox.exe or ffmpeg.exe not present',mtError,[mbOK],0);
           Exit;                                            
         end;     
 
