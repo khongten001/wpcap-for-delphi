@@ -652,8 +652,6 @@ var LHandlePcap      : Ppcap_t;
     LTInternalPacket : PTInternalPacket;
     LListLabelByLevel: TListLabelByLevel;
     LIndex           : Integer;
-   // Tasks            : array of ITask;
-
 begin
   FAbort               := False;
   LTolSizePcap         := FileGetSize(FFileName);  

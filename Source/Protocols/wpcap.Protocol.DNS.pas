@@ -154,7 +154,9 @@ type
   /// </summary>
   TWPcapProtocolDNS = Class(TWPcapProtocolBaseUDP)
   private
+    CONST MAX_RSS_AND_QUESTIONS = 65535;
     class function GetQuestions(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer):String;
+    class function isValidDNSValue(const aHeaderDNS: PTDnsHeader): Boolean; static;
 
 
   protected
@@ -255,6 +257,11 @@ type
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
+    /// <summary>
+    /// Checks whether the packet is valid for the protocol DNS.
+    /// </summary>
+    class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;
+      var aIdProtoDetected: byte): Boolean; override;    
   End;  
 implementation
 
@@ -562,6 +569,7 @@ begin
       inc(aTotalNameLen,2);
       Break;
     end;
+    
     if aOffset > aMaxLen then break;    
     if not Trim(String(Result)).IsEmpty then
       Result := AnsiString(Format('%s.',[Result]));
@@ -583,6 +591,7 @@ begin
 
   if aApplyyConversion then    
     Result := ApplyConversionName(Result);  
+
 end;
 
 class function TWPcapProtocolDNS.ApplyConversionName(const aName:AnsiString):AnsiString;
@@ -788,6 +797,12 @@ begin
   LInternalOffset := aOffset;
   for i := 0 to LCountRss - 1 do
   begin
+    if LInternalOffset > aPacketSize  then
+    begin
+      FisMalformed := True;
+      Exit;
+    end;
+
     {
       NAME an owner name, i.e., the name of the node to which this
            resource record pertains.                                            
@@ -880,7 +895,7 @@ begin
       else
         LRssName := ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen,False);
       end;
-      
+
      if Trim(LRssName) <> '' then
         AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.%s.%s',[aLabelForName,LQuestionClass,LCaption.Replace(' ','')]), Format('%s:',[LCaption]),String(LRssName), @LRssName, Length(LRssName)-1));
   end;
@@ -934,11 +949,18 @@ begin
   LPayLoadLen      := UDPPayLoadLength(LPUDPHdr)-8;
   LHeaderDNS       := Header(LUDPPayLoad);
   FIsFilterMode    := aIsFilterMode;
+  
+  if not isValidDNSValue(LHeaderDNS) then 
+  begin
+    FisMalformed  := True;
+    Exit;
+  end;
+  
   LCountQuestion   := wpcapntohs(LHeaderDNS.Questions);
   LcountAddRrs     := wpcapntohs(LHeaderDNS.AdditionalRRs);
   LCountAnswer     := wpcapntohs(LHeaderDNS.AnswerRRs);
   LCountAuthority  := wpcapntohs(LHeaderDNS.AuthorityRRs);   
-  
+
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)',[ProtoName,AcronymName]),NULL, LUDPPayLoad,LPayLoadLen ));            
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ID',[AcronymName]), 'ID:',wpcapntohs(LHeaderDNS.ID),PByte(@LHeaderDNS.ID),SizeOf(LHeaderDNS.ID)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LHeaderDNS.Flags,0)),
@@ -954,7 +976,7 @@ begin
 
   {QUESTION}
   LOffSetQuestion := 0;
-  if LCountQuestion > 0 then
+  if ( LCountQuestion > 0) and (LCountQuestion <= MAX_RSS_AND_QUESTIONS) then
     GetQuestions(aPacketData,aPacketSize,aStartLevel,AListDetail,LOffSetQuestion);
    
   {ANSWER}
@@ -972,5 +994,54 @@ begin
   Result := True;
 end;
 
+class function TWPcapProtocolDNS.IsValid(const aPacket: PByte;
+  aPacketSize: Integer; var aAcronymName: String;
+  var aIdProtoDetected: byte): Boolean;
+var LUDPPayLoad       : PByte;
+    LPUDPHdr          : PUDPHdr;
+    LHeaderDNS        : PTDnsHeader;    
+begin
+  Result := inherited IsValid(aPacket,aPacketSize,aAcronymName,aIdProtoDetected);
+
+  if Result then
+  begin
+    if not HeaderUDP(aPacket,aPacketSize,LPUDPHdr) then 
+    begin
+      Result           := False;
+      aIdProtoDetected := inherited IDDetectProto;
+      aAcronymName     := inherited AcronymName;      
+      Exit;
+    end;
+  
+    LUDPPayLoad      := GetUDPPayLoad(aPacket,aPacketSize);
+    LHeaderDNS       := Header(LUDPPayLoad);  
+    Result           := isValidDNSValue(LHeaderDNS);
+
+    if not Result then
+    begin 
+      aIdProtoDetected := inherited IDDetectProto;
+      aAcronymName     := inherited AcronymName;   
+      Exit;    
+    end;
+  end;
+end;
+
+class function TWPcapProtocolDNS.isValidDNSValue(const aHeaderDNS : PTDnsHeader): Boolean;
+begin
+  Result := True;   
+  if (wpcapntohs(aHeaderDNS.Questions) > MAX_RSS_AND_QUESTIONS)        or
+     (aHeaderDNS.Questions<0)                                          or 
+     (wpcapntohs(aHeaderDNS.AdditionalRRs) > MAX_RSS_AND_QUESTIONS)    or
+     (aHeaderDNS.AdditionalRRs<0)                                      or
+     (wpcapntohs(aHeaderDNS.AnswerRRs) > MAX_RSS_AND_QUESTIONS)        or
+     (aHeaderDNS.AnswerRRs<0)                                          or     
+     (wpcapntohs(aHeaderDNS.AuthorityRRs) > MAX_RSS_AND_QUESTIONS)     or
+     (aHeaderDNS.AuthorityRRs<0)                                          
+  then
+  begin      
+    Result  := False;
+    Exit;
+  end;
+end;
 
 end.

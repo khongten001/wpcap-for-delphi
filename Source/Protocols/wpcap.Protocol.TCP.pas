@@ -310,7 +310,7 @@ begin
         if not Assigned(LHeaderV4) then Exit;        
         if LHeaderV4.Protocol = IPPROTO_IPV6 then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,IPPROTO_IPV6,0,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IPV6,LNewPacketLen);
           Try
             Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
             Exit;
@@ -333,7 +333,7 @@ begin
 
         if LHeaderV6.NextHeader = IPPROTO_IP then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,IPPROTO_IP,0,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IP,LNewPacketLen);
           Try
             Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
             Exit;
@@ -436,6 +436,7 @@ begin
         if LUint8Value > 0 then
         begin
           case LOptionKind of
+          
             TCP_OPTION_MSS       : 
               begin
                 ParserUint16Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.MSS.value',[AcronymName]), 'MSS Value:',AListDetail,nil,True,LOffset);
@@ -444,7 +445,6 @@ begin
                   ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.MSS.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset);   
                 LUint8Value := 0;                             
               end;
-
             
             TCP_OPTION_WSCALE    :
               begin
@@ -454,20 +454,34 @@ begin
                   ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.WScale.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset);  
                 LUint8Value := 0;                              
               end;           
+
             TCP_OPTION_SACKOK    :;//nothing;  
-            TCP_OPTION_SACK      :{TODO};  
+            
+            TCP_OPTION_SACK      :
+              begin 
+                ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.Sack.LeftEdge',[AcronymName]), 'Left edge:',AListDetail,nil,True,LOffset);  
+                Dec(LUint8Value,4);
+                ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.Sack.RightEdge',[AcronymName]), 'Right edge:',AListDetail,nil,True,LOffset);  
+                Dec(LUint8Value,4);
+                if LUint8Value > 0 then
+                  ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.Sack.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset); 
+                LUint8Value := 0;
+                
+              end;
+              
             TCP_OPTION_ECHO      :{TODO};  
             TCP_OPTION_ECHOREPLY :{TODO};  
+            
             TCP_OPTION_TIMESTAMP :
-            begin
-              ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.TimeStamp.Value',[AcronymName]), 'TimeStamp value:',AListDetail,nil,True,LOffset);  
-              Dec(LUint8Value,4);
-              ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.TimeStamp.EchoReplay',[AcronymName]), 'TimeStamp echo replay:',AListDetail,nil,True,LOffset);                
-              Dec(LUint8Value,4);
-              if LUint8Value > 0 then
-                ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.TimeStamp.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset); 
-              LUint8Value := 0;
-            end;
+              begin
+                ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.TimeStamp.Value',[AcronymName]), 'TimeStamp value:',AListDetail,nil,True,LOffset);  
+                Dec(LUint8Value,4);
+                ParserUint32Value(aPacketData,aStartLevel+3,LHeaderLen,Format('%s.Option.TimeStamp.EchoReplay',[AcronymName]), 'TimeStamp echo replay:',AListDetail,nil,True,LOffset);                
+                Dec(LUint8Value,4);
+                if LUint8Value > 0 then
+                  ParserGenericBytesValue(aPacketData,aStartLevel+3,LHeaderLen,LUint8Value,Format('%s.Option.TimeStamp.Unknown',[AcronymName]), 'Unknown:',AListDetail,nil,True,LOffset); 
+                LUint8Value := 0;
+              end;
           end;
 
           if LUint8Value > 0 then

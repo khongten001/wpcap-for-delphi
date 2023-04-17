@@ -113,9 +113,12 @@ type
     TLS_EXTENSION_TYPE_TOKEN_BINDING          = 24;
     TLS_EXTENSION_TYPE_CACHED_INFO            = 25;
     TLS_EXTENSION_TYPE_SESSION_TICKET         = 35;
+    TLS_EXTENSION_TYPE_PRE_SHARED_KEY         = 41;    
     TLS_EXTENSION_TYPE_SUPPORTED_VERSION      = 43;
     TLS_EXTENSION_TYPE_PSK_EXCHANGE_MODES     = 45;
     TLS_EXTENSION_TYPE_KEY_SHARE              = 51;
+    TLS_EXTENSION_TYPE_RESERVED_GREESE        = 14906;
+    TLS_EXTENSION_TYPE_RESERVED_GREESE_2      = 35466;    
     TLS_EXTENSION_TYPE_RENEGOTIATION_INFO     = 65281;
 
     {TLS version}    
@@ -207,17 +210,26 @@ begin
     Exit;  
   end;
 
-  if (LRecord.ContentType = TLS_CONTENT_TYPE_HANDSHAKE) then
+  if IsValidByPort(PROTO_SMTPS_PORT,SrcPort(LTCPHdr),DstPort(LTCPHdr),aAcronymName,aIdProtoDetected) or
+     IsValidByPort(PROTO_SMTPS_PORT_2,SrcPort(LTCPHdr),DstPort(LTCPHdr),aAcronymName,aIdProtoDetected)
+   then
+    aAcronymName := 'SMTPs'      
+  else if IsValidByPort(PROTO_POP3S_PORT,SrcPort(LTCPHdr),DstPort(LTCPHdr),aAcronymName,aIdProtoDetected) then
+    aAcronymName := 'POP3s'  
+  else if IsValidByPort(PROTO_IMAPS_PORT,SrcPort(LTCPHdr),DstPort(LTCPHdr),aAcronymName,aIdProtoDetected) then
+    aAcronymName := 'IMAPs'  
+  else if (LRecord.ContentType = TLS_CONTENT_TYPE_HANDSHAKE) then
   begin
     LHandshakeType := LTCPPayLoad[SizeOf(TTLSRecordHeader)];
 
-    if isHTTPS(LHandshakeType) then {TODO search HTTP on payload string, check TLS extention like server_name or status request}
+    if isHTTPS(LHandshakeType) then {TODO search HTTP on payload string and check TLS extention like server_name or status request}
       aAcronymName := 'HTTPS'
     else
       aAcronymName := TLSVersionToString(LRecord.ProtocolVersion);          
   end
   else 
     aAcronymName     := TLSVersionToString(LRecord.ProtocolVersion);
+    
   aIdProtoDetected := IDDetectProto;
 
   if wpcapntohs(LRecord.Length) > LTCPPayLoadLen then
@@ -720,10 +732,14 @@ begin
     TLS_EXTENSION_TYPE_TOKEN_BINDING          : Result := 'Token binding';
     TLS_EXTENSION_TYPE_CACHED_INFO            : Result := 'Cached info';
     TLS_EXTENSION_TYPE_SESSION_TICKET         : Result := 'Session ticket';
+    TLS_EXTENSION_TYPE_PRE_SHARED_KEY         : Result := 'Pre shared key';
     TLS_EXTENSION_TYPE_SUPPORTED_VERSION      : Result := 'Supported versions';
     TLS_EXTENSION_TYPE_PSK_EXCHANGE_MODES     : Result := 'psk_key_exchange_modes';
     TLS_EXTENSION_TYPE_KEY_SHARE              : Result := 'Key share';
+    TLS_EXTENSION_TYPE_RESERVED_GREESE_2,
+    TLS_EXTENSION_TYPE_RESERVED_GREESE        : Result := 'Reserved (GREASE)';
     TLS_EXTENSION_TYPE_RENEGOTIATION_INFO     : Result := 'Renegotiation info';
+
     else Result := 'Unknown TLS extension type';
   end;
 end;
@@ -837,8 +853,16 @@ var LOffset         : Integer;
           begin
              while LLenTmp > 0 do
              begin
-               ParserUint16Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.%s.value',[AcronymName,aContentType,aExtName,aExtPluralName]),aSingleCaption,AListDetail,aToStringFunction,isBigIndian,LOffset);   
-               Dec(LLenTmp,2);
+               if LLenTmp >= 2 then
+               begin
+                 ParserUint16Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.%s.value',[AcronymName,aContentType,aExtName,aExtPluralName]),aSingleCaption,AListDetail,aToStringFunction,isBigIndian,LOffset);   
+                 Dec(LLenTmp,2);
+               end
+               else
+               begin
+                 FisMalformed := True;
+                 Break;
+               end;
              end;
           end;         
           SkipUnsupportlabel(aLenSize+LLenTmp2);
@@ -858,8 +882,16 @@ var LOffset         : Integer;
           begin
              while LLenTmp > 0 do
              begin
-               ParserUint8Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.%s.value',[AcronymName,aContentType,aExtName,aExtPluralName]),aSingleCaption,AListDetail,aToStringFunction,isBigIndian,LOffset);   
-               Dec(LLenTmp,1);
+               if LLenTmp >= 1 then
+               begin
+                 ParserUint8Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.%s.value',[AcronymName,aContentType,aExtName,aExtPluralName]),aSingleCaption,AListDetail,aToStringFunction,isBigIndian,LOffset);   
+                 Dec(LLenTmp,1);
+               end
+               else
+               begin
+                 FisMalformed := True;
+                 Break;
+               end;                              
              end;
           end;         
           SkipUnsupportlabel(aLenSize+LLenTmp2);
@@ -881,6 +913,7 @@ var LOffset         : Integer;
               begin
                 Dec(LLenExts,LLenExt);
                 case LExtType of
+                
                   TLS_EXTENSION_TYPE_SERVER_NAME            : 
                     begin
                       ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.ServerName',[AcronymName,aContentType]), 'Server Name Indication extension:',AListDetail,nil,True,LOffset); 
@@ -896,17 +929,26 @@ var LOffset         : Integer;
                   TLS_EXTENSION_TYPE_CLIENT_CERTIFICATE_URL : Inc(LOffset,LLenExt); 
                   TLS_EXTENSION_TYPE_TRUSTED_CA_KEYS        : Inc(LOffset,LLenExt); 
                   TLS_EXTENSION_TYPE_TRUNCATED_HMAC         : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_STATUS_REQUEST         : Inc(LOffset,LLenExt); 
+                  
+                  TLS_EXTENSION_TYPE_STATUS_REQUEST         : 
+                    begin
+                      ParserUint8Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.StatusRequest.CertStatusType',[AcronymName,aContentType]), 'Certificate Status Type:',AListDetail,nil,false,LOffset);   
+                      ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.StatusRequest.Listlen',[AcronymName,aContentType]), 'Responder ID List length:',AListDetail,SizeWordToStr,True,LOffset);   
+                      ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.StatusRequest.ReqExtLen',[AcronymName,aContentType]), 'Request extensions length:',AListDetail,SizeWordToStr,True,LOffset);               
+
+                      SkipUnsupportlabel(5);
+                    end;
+                    
                   TLS_EXTENSION_TYPE_USER_MAPPING           : Inc(LOffset,LLenExt); 
                   TLS_EXTENSION_TYPE_CLIENT_AUTHZ           : Inc(LOffset,LLenExt); 
                   TLS_EXTENSION_TYPE_SERVER_AUTHZ           : Inc(LOffset,LLenExt); 
                   TLS_EXTENSION_TYPE_CERT_TYPE              : Inc(LOffset,LLenExt); 
                   
                   TLS_EXTENSION_TYPE_SUPPORTED_GROUPS       :
-                      ParserDataMod2(2,'SupportedGroups','SupportedGroup','Supported Groups','Supported group:',SupportedGroupToString,true);
+                    ParserDataMod2(2,'SupportedGroups','SupportedGroup','Supported Groups','Supported group:',SupportedGroupToString,true);
                     
                   TLS_EXTENSION_TYPE_EC_POINT_FORMATS       : 
-                      ParserDataMod1(1,'ECPointFormats','ECPointFormat','EC point formats','EC point format:',nil,False);
+                    ParserDataMod1(1,'ECPointFormats','ECPointFormat','EC point formats','EC point format:',nil,False);
 
                   TLS_EXTENSION_TYPE_SRP                    : Inc(LOffset,LLenExt); 
                   
@@ -914,7 +956,12 @@ var LOffset         : Integer;
                     ParserDataMod2(2,'Signatures','Signature','Signature hash algorithms','Signature algorithm:',SignatureAlgorithmToString,true);
 
                   TLS_EXTENSION_TYPE_USE_SRTP               : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_HEARTBEAT              : Inc(LOffset,LLenExt); 
+                  
+                  TLS_EXTENSION_TYPE_HEARTBEAT              : 
+                    begin
+                      ParserUint8Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.HeartBeat.Mode',[AcronymName,aContentType]), 'Mode:',AListDetail,nil,false,LOffset);   
+                      SkipUnsupportlabel(1); 
+                    end;
                   
                   TLS_EXTENSION_TYPE_APP_PROTO_NEGOTIATION  : 
                     begin
@@ -935,7 +982,9 @@ var LOffset         : Integer;
                     end;
                     
                   TLS_EXTENSION_TYPE_STATUS_REQUEST_V2      : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_SIGNED_CERT_TIMESTAMP  : Inc(LOffset,LLenExt); 
+                  
+                  TLS_EXTENSION_TYPE_SIGNED_CERT_TIMESTAMP  : Inc(LOffset,LLenExt); //nothing ??
+
                   TLS_EXTENSION_TYPE_CLIENT_CERT_TYPE       : Inc(LOffset,LLenExt); 
                   TLS_EXTENSION_TYPE_SERVER_CERT_TYPE       : Inc(LOffset,LLenExt); 
                   
@@ -943,12 +992,31 @@ var LOffset         : Integer;
                       ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.Padding.value',[AcronymName,aContentType]), 'Padding:',AListDetail,BytesToHex,True,LOffset); 
 
                   TLS_EXTENSION_TYPE_ENCRYPT_THEN_MAC       : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_EXTENDED_MASTER_SECRET : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_TOKEN_BINDING          : Inc(LOffset,LLenExt); 
+                  
+                  TLS_EXTENSION_TYPE_EXTENDED_MASTER_SECRET : Inc(LOffset,LLenExt);  //Nothing ??
+
+                  TLS_EXTENSION_TYPE_TOKEN_BINDING          : 
+                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.TokenBinding.value',[AcronymName,aContentType]), 'Data:',AListDetail,BytesToHex,True,LOffset); 
+                    
                   TLS_EXTENSION_TYPE_CACHED_INFO            : Inc(LOffset,LLenExt); 
                   
                   TLS_EXTENSION_TYPE_SESSION_TICKET         : 
-                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.SettionTicket.value',[AcronymName,aContentType]), 'Data:',AListDetail,BytesToHex,True,LOffset); 
+                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.SessionTicket.value',[AcronymName,aContentType]), 'Data:',AListDetail,BytesToHex,True,LOffset); 
+
+                  TLS_EXTENSION_TYPE_PRE_SHARED_KEY         :
+                    begin
+                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.PreSharedKey',[AcronymName,aContentType]), 'Pre-shared key extension:',AListDetail,nil,True,LOffset); 
+                      Dec(LOffset,LLenExt);  
+                      LLenTmp := ParserUint16Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.PreSharedKey.IdentitiesLen',[AcronymName,aContentType]), 'Identities Length:',AListDetail,SizeWordToStr,True,LOffset);    
+                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,LLenTmp,Format('%s.Handshake.%S.Extension.PreSharedKey.Identities',[AcronymName,aContentType]), 'PSK identities:',AListDetail,nil,True,LOffset); 
+                      Dec(LOffset,LLenTmp);  
+                      LLenTmp2 := ParserUint16Value(LTCPPayLoad,aStartLevel+6,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.PreSharedKey.Identities.Len',[AcronymName,aContentType]), 'Identities Length:',AListDetail,SizeWordToStr,True,LOffset);    
+                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+6,LTCPPayLoadLen,LLenTmp2,Format('%s.Handshake.%S.Extension.PreSharedKey.Identities.value',[AcronymName,aContentType]), 'Identities:',AListDetail,BytesToHex,True,LOffset);                       
+                      ParserUint32Value(LTCPPayLoad,aStartLevel+6,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.PreSharedKey.Identities.ObTicketAge',[AcronymName,aContentType]), 'Obfuscated Ticket Age:',AListDetail,nil,True,LOffset);    
+                      LLenTmp2 := ParserUint16Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.PreSharedKey.PSKBindersLen',[AcronymName,aContentType]), 'PSK  binders Length:',AListDetail,SizeWordToStr,True,LOffset);    
+                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,LLenTmp2,Format('%s.Handshake.%S.Extension.PreSharedKey.PSKBinders',[AcronymName,aContentType]), 'PSK  binders:',AListDetail,BytesToHex,True,LOffset);                       
+                      SkipUnsupportlabel(2+LLenTmp);   
+                    end;
                     
                   TLS_EXTENSION_TYPE_SUPPORTED_VERSION      :
                     ParserDataMod2(1,'SupportedVersions','SupportedVersion','Supported versions','Supported version:',TLSVersionToString,false);
@@ -972,7 +1040,11 @@ var LOffset         : Integer;
                       end;
                       SkipUnsupportlabel(6+LLenTmp2);                     
                     end;
-                    
+
+                  TLS_EXTENSION_TYPE_RESERVED_GREESE,
+                  TLS_EXTENSION_TYPE_RESERVED_GREESE_2:  
+                      ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.Reservered.value',[AcronymName,aContentType]), 'Data:',AListDetail,BytesToHex,True,LOffset);                     
+                      
                   TLS_EXTENSION_TYPE_RENEGOTIATION_INFO :
                     begin             
                       ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.Renegotiation',[AcronymName,aContentType]), 'Renegotiation info extension:',AListDetail,BytesToHex,True,LOffset);
@@ -1086,7 +1158,7 @@ begin
                 
               TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE:
                 begin
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.Record',[AcronymName]), 'EC Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.Record',[AcronymName]), 'Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
                   Dec(LOffset,LHandShakeLen);  
                   LByteValue := ParserUint8Value(LTCPPayLoad,aStartLevel+4,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.PubkeyLen',[AcronymName]),'Pubkey Length:',AListDetail,nil,True,LOffset);
                   ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LByteValue,Format('%s.Handshake.ClientKeyExChange.Pubkey',[AcronymName]), 'Pubkey:',AListDetail,BytesToHex,True,LOffset);            
@@ -1094,7 +1166,7 @@ begin
 
               TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE :
                 begin
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ServerKeyExChange.Record',[AcronymName]), 'Diffie-Hellman Client Params:',AListDetail,nil,True,LOffset);
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ServerKeyExChange.Record',[AcronymName]), 'EC Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
                   Dec(LOffset,LHandShakeLen);  
                   LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.p.Len',[AcronymName]), 'p Length:',AListDetail,SizeWordToStr,True,LOffset);             
                   ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.p',[AcronymName]), 'p:',AListDetail,BytesToHex,True,LOffset);                                
@@ -1111,21 +1183,42 @@ begin
 
               TLS_HANDSHAKE_TYPE_CERTIFICATE :
                 begin
-                  LtmpVaue := ParserBytesToInteger(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,3,Format('%s.Handshake.Certificates.Len',[AcronymName]), 'Certificates length:',AListDetail,True,LOffset);   
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LtmpVaue,Format('%s..Handshake.Certificate.Certificates',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
+                  LtmpVaue := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.Certificates.Len',[AcronymName]), 'Certificates length:',AListDetail,nil,True,LOffset);   
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LtmpVaue,Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
                   Dec(LOffset,LtmpVaue);  
                                        
                   while LOffset < LHandShakeLen do
                   begin
-                    LtmpVaue2 := ParserBytesToInteger(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,3,Format('%s.Certificate.Certificates.Len',[AcronymName]), 'Certificate length:',AListDetail,True,LOffset);      
-                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s..Handshake.Certificates.Certificate',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
+                    LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Certificate.Certificates.Len',[AcronymName]), 'Certificate length:',AListDetail,nil,True,LOffset);      
+                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.Certificates.Certificate',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
                     Dec(LOffset,LtmpVaue2);  
+
+                    
                     {TODO info certificate}
                     Inc(LOffset,LtmpVaue2);                                          
                   end;                  
                 end;
                       
-                TLS_HANDSHAKE_TYPE_NEWSESSION_TICKET      ,
+                TLS_HANDSHAKE_TYPE_NEWSESSION_TICKET  :
+                  begin
+                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.TLSSessionTicket',[AcronymName]), 'TLS session ticket:',AListDetail,nil,True,LOffset);
+                    Dec(LOffset,LHandShakeLen);  
+                    ParserUint32Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.TLSSessionTicket.Lifetime',[AcronymName]), 'Session Ticket Lifetime Hint(s):',AListDetail,nil,True,LOffset);             
+                    LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.TLSSessionTicket.len',[AcronymName]), 'Session Ticket Length:',AListDetail,SizeWordToStr,True,LOffset);             
+                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.TLSSessionTicket.value',[AcronymName]), 'Session Ticket:',AListDetail,BytesToHex,True,LOffset);
+                  end;
+                  
+                TLS_HANDSHAKE_TYPE_CERT_STATUS :
+                  begin
+                    ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.CertificateStatus.Type',[AcronymName]), 'Certificate Status Type:',AListDetail,nil,True,LOffset);                                       
+                    LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.CertificateStatus.Response.Len',[AcronymName]), 'OCSP response length:',AListDetail,nil,True,LOffset);      
+                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.CertificateStatus.Response',[AcronymName]), 'OCSP Response:',AListDetail,nil,True,LOffset);
+                    Dec(LOffset,LtmpVaue2);  
+
+                    {TODO info reponse certificate}
+                    Inc(LOffset,LtmpVaue2);                     
+                  end;
+                  
                 TLS_HANDSHAKE_TYPE_END_OF_EARLY_DATA      ,
                 TLS_HANDSHAKE_TYPE_HELLO_RETRY_REQUEST    ,
                 TLS_HANDSHAKE_TYPE_ENCRYPTED_EXTENSIONS   ,   
@@ -1133,7 +1226,6 @@ begin
                 TLS_HANDSHAKE_TYPE_CERTIFICATE_VERIFY     ,    
                 TLS_HANDSHAKE_TYPE_FINISHED               ,
                 TLS_HANDSHAKE_TYPE_CERT_URL               ,
-                TLS_HANDSHAKE_TYPE_CERT_STATUS            ,
                 TLS_HANDSHAKE_TYPE_SUPPLEMENTAL_DATA      ,
                 TLS_HANDSHAKE_TYPE_KEY_UPDATE             ,
                 TLS_HANDSHAKE_TYPE_COMPRESSED_CERTIFICATE ,

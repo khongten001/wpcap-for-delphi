@@ -217,7 +217,7 @@ begin
         if not Assigned(LHeaderV4) then Exit;        
         if LHeaderV4.Protocol = IPPROTO_IPV6 then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,ETH_P_IPV6,0,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,ETH_P_IP,LNewPacketLen);
           Try
             Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
             Exit;
@@ -238,7 +238,7 @@ begin
 
         if LHeaderV6.NextHeader = IPPROTO_IP then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,IPPROTO_IP,0,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IPV6,LNewPacketLen);
           Try
             Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
             Exit;

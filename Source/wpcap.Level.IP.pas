@@ -437,7 +437,7 @@ begin
 
     if (LIpProto = IPPROTO_IP)  then
     begin
-      LNewPacketData  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IP,Result,LNewPacketLen);
+      LNewPacketData  := GetNextBufferHeader(aPacketData,aPacketSize,Result,ETH_P_IP,LNewPacketLen);
       Try
         Inc(Result,HeaderIPSize(LNewPacketData, LNewPacketLen));
       Finally
@@ -457,7 +457,7 @@ begin
 
     if LHeaderV4.Protocol = IPPROTO_IPV6 then
     begin
-      LNewPacketData := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IPV6,Result,LNewPacketLen);
+      LNewPacketData := GetNextBufferHeader(aPacketData,aPacketSize,Result,ETH_P_IPV6,LNewPacketLen);
       Try
         Inc(Result,HeaderIPSize(LNewPacketData, LNewPacketLen));
       Finally
@@ -601,22 +601,28 @@ begin
         IPPROTO_GGP     :;  
         IPPROTO_IP      :
           begin  
-            LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IP,0,LNewPacketSize);
-            Try
-              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail);
-            Finally
-              FreeMem(LNewPacket);
-            End;           
+            LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IPV6,LNewPacketSize);
+            if Assigned(LNewPacket) then
+              begin
+              Try
+                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail);
+              Finally
+                FreeMem(LNewPacket);
+              End;           
+            end;
           end;
           
         IPPROTO_IPV6    :
         begin
-          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IPV6,0,LNewPacketSize);
-          Try
-            Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail);
-          Finally
-            FreeMem(LNewPacket);
-          End;        
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IP,LNewPacketSize);
+          if Assigned(LNewPacket) then
+          begin
+            Try
+              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail);
+            Finally
+              FreeMem(LNewPacket);
+            End;        
+          end;
         end;
 
 
@@ -782,7 +788,7 @@ begin
 
         if (aInternalIP.IpProto = IPPROTO_IPV6) and aFallowIpLevel then
         begin
-          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IPV6,0,LNewPacketSize);
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IPV6,LNewPacketSize);
           Try
             Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP);
           Finally
@@ -808,7 +814,7 @@ begin
 
         if (aInternalIP.IpProto = IPPROTO_IP) and aFallowIpLevel then
         begin
-          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,ETH_P_IP,0,LNewPacketSize);
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IP,LNewPacketSize);
           Try
             Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP);
           Finally

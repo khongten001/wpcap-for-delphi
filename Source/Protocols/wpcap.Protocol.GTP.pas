@@ -382,7 +382,13 @@ var LUDPPPtr    : PUDPHdr;
 begin
   Result  := inherited IsValid(aPacket,aPacketSize,aAcronymName,aIdProtoDetected);  
 
-  if not HeaderUDP(aPacket,aPacketSize,LUDPPPtr) then exit;
+  if not HeaderUDP(aPacket,aPacketSize,LUDPPPtr) then 
+  begin
+    Result           := False;
+    aIdProtoDetected := inherited IDDetectProto;
+    aAcronymName     := inherited AcronymName;        
+    exit;
+  end;
   
   if not Result then
     Result := IsValidByPort(PROTO_GTP_C_PORT,DstPort(LUDPPPtr),SrcPort(LUDPPPtr),aAcronymName,aIdProtoDetected);
