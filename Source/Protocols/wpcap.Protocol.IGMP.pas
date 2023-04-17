@@ -212,7 +212,7 @@ class function TWPcapProtocolIGMP.Header(const aData: PByte; aSize: Integer; var
 var aSizeEthIP : Word;
 begin
   Result     := False;
-  aSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
+  aSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize,False);
 
   // Check if the data size is sufficient for the Ethernet, IP, and UDP headers
   if (aSize < aSizeEthIP + HeaderLength(0)) then Exit;  

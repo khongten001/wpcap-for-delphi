@@ -203,7 +203,7 @@ var LSizeEthIP    : Uint16;
     LHeaderV6     : PIpv6Header;  
 begin
   Result     := False;
-  LSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
+  LSizeEthIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize,False);
 
   // Check if the data size is sufficient for the Ethernet, IP, and UDP headers
   if (aSize < LSizeEthIP + HeaderLength(0)) then Exit;
@@ -217,7 +217,7 @@ begin
         if not Assigned(LHeaderV4) then Exit;        
         if LHeaderV4.Protocol = IPPROTO_IPV6 then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,ETH_P_IP,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,ETH_P_IP,LNewPacketLen,False);
           Try
             Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
             Exit;
@@ -238,7 +238,7 @@ begin
 
         if LHeaderV6.NextHeader = IPPROTO_IP then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IPV6,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IPV6,LNewPacketLen,True);
           Try
             Result := HeaderUDP(LNewPacketData, LNewPacketLen,aPUDPHdr);
             Exit;

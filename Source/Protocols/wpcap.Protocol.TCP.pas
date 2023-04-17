@@ -281,6 +281,8 @@ var LTCPHeader : PTCPhdr;
     DataOffset : Uint16;   
 begin
   HeaderTCP(AData,aSize,LTCPHeader);
+
+  
   DataOffset := GetDataOFFSetBytes( LTCPHeader^.DataOff)*4+1;
   Result     := AData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize) +  DataOffset-1; 
 end;
@@ -298,7 +300,7 @@ var LSizeEthAndIP : Word;
     LHeaderV6     : PIpv6Header;      
 begin
   Result        := False;
-  LSizeEthAndIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize);
+  LSizeEthAndIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize,False);
   // Check if the data size is sufficient for the Ethernet, IP, and TCP headers
   if (aSize < LSizeEthAndIP + SizeOf(TCPHdr)) then Exit;
   
@@ -310,7 +312,7 @@ begin
         if not Assigned(LHeaderV4) then Exit;        
         if LHeaderV4.Protocol = IPPROTO_IPV6 then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IPV6,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,ETH_P_IPV6,LNewPacketLen,False);
           Try
             Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
             Exit;
@@ -323,7 +325,7 @@ begin
         if (LHeaderV4.Protocol <> IPPROTO_TCP) then exit;
 
         // Parse the UDP header
-        aPTCPHdr := PTCPHdr(aData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize));
+        aPTCPHdr := PTCPHdr(aData + LSizeEthAndIP);
 
         Result   := True;     
       end;
@@ -333,7 +335,7 @@ begin
 
         if LHeaderV6.NextHeader = IPPROTO_IP then
         begin
-	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,IPPROTO_IP,LNewPacketLen);
+	        LNewPacketData := TWpcapIPHeader.GetNextBufferHeader(aData,aSize,0,ETH_P_IP,LNewPacketLen,False);
           Try
             Result := HeaderTCP(LNewPacketData, LNewPacketLen,aPTCPHdr);
             Exit;
@@ -344,7 +346,7 @@ begin
         if LHeaderV6.NextHeader <> IPPROTO_TCP then Exit;      
 
         // Parse the TCP header
-        aPTCPHdr := PTCPHdr(aData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize));
+        aPTCPHdr := PTCPHdr(aData + LSizeEthAndIP);
         Result   := True;
       end;      
   end;

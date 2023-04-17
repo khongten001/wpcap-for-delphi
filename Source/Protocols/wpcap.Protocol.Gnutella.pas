@@ -43,7 +43,7 @@ type
   protected
   public
     /// <summary>
-    /// Returns the default Gnutella port (143).
+    /// Returns the default Gnutella port (6346).
     /// </summary>
     class function DefaultPort: Word; override;
     /// <summary>

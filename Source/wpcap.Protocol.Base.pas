@@ -354,8 +354,7 @@ begin
   end;
 end;
                                                 
-class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,
-  aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer): Boolean;
+class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer): Boolean;
 var LCopYStart  : Integer;
     aValue      : String;
     LBytes      : TIdBytes;
@@ -382,7 +381,7 @@ begin
            if not aValueArray[0].Trim.IsEmpty then
             AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValueArray[0].Trim]),aValueArray[0].Trim,aValueArray[1].Trim, @LBytes, Length(LBytes) ))
          end
-         else if aValue.Contains('/')  then
+         else if aValue.Contains('/') and ( aValue.CountChar('/') = 1)  then
          begin
            aValueArray := aValue.Split(['/']); 
            if not aValueArray[0].Trim.IsEmpty then

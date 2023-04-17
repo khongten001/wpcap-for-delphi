@@ -109,6 +109,7 @@ class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacket
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
     LTCPPHdr       : PTCPHdr;
+    LOffSet        : Integer;
 begin
   Result := False;
 
@@ -118,8 +119,9 @@ begin
   FIsFilterMode   := aIsFilterMode;
   LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen));
+  LOffSet    := 0;  
+  Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);
 
-  Result := True;
 end;
 
 
