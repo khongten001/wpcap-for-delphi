@@ -60,7 +60,8 @@ uses
   UnitCustomOpenDialog in 'UnitCustomOpenDialog.pas' {FormOpenDialog},
   wpcap.MCC in '..\..\Source\wpcap.MCC.pas',
   wpcap.Protocol.SSDP in '..\..\Source\Protocols\wpcap.Protocol.SSDP.pas',
-  UnitFormLabelFilter in 'UnitFormLabelFilter.pas' {FormLabelFilter};
+  UnitFormLabelFilter in 'UnitFormLabelFilter.pas' {FormLabelFilter},
+  wpcap.Protocol.IMAP in '..\..\Source\Protocols\wpcap.Protocol.IMAP.pas';
 
 {$R *.res}
 

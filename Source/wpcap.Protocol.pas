@@ -30,7 +30,7 @@ unit wpcap.protocol;
 interface              
 
 uses
-  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2,wpcap.Protocol.Telnet,
+  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2,wpcap.Protocol.Telnet,wpcap.Protocol.IMAP,
   wpcap.Protocol.Base, wpcap.Protocol.TCP, wpcap.Protocol.POP3, vcl.Graphics,wpcap.Protocol.MQTT,
   wpcap.Graphics, wpcap.Protocol.DNS, wpcap.Protocol.UDP,wpcap.Protocol.FTP,wpcap.Protocol.QUIC,
   System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP, wpcap.Protocol.SIP, wpcap.Protocol.SSDP,
@@ -229,6 +229,7 @@ begin
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolFTP>);    
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolTELNET>);      
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolMQTT>);        
+  FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolIMAP>);    
 end;
 
 { TListProtolsTCPDetected }

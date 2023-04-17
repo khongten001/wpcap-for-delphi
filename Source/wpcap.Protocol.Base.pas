@@ -389,7 +389,7 @@ begin
             AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValue.Split(['/'])[0]]),aValue.Split(['/'])[0],aValue.Split(['/'])[1], @LBytes, Length(LBytes) ))
          end
          else if not aValue.Trim.IsEmpty then              
-           AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValue.Trim]),aValue.Trim,null, @LBytes, Length(LBytes) ));
+           AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',aValue.Trim, @LBytes, Length(LBytes) ));
          
          Inc(LCopYStart,LtmpLen)
        end;
