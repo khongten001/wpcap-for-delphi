@@ -180,6 +180,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.IMAP.pas"/>
+        <DCCReference Include="..\..\Source\Protocols\wpcap.Protocol.Gnutella.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

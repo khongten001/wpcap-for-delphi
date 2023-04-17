@@ -30,14 +30,16 @@ unit wpcap.protocol;
 interface              
 
 uses
-  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2,wpcap.Protocol.Telnet,wpcap.Protocol.IMAP,
-  wpcap.Protocol.Base, wpcap.Protocol.TCP, wpcap.Protocol.POP3, vcl.Graphics,wpcap.Protocol.MQTT,
-  wpcap.Graphics, wpcap.Protocol.DNS, wpcap.Protocol.UDP,wpcap.Protocol.FTP,wpcap.Protocol.QUIC,
-  System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP, wpcap.Protocol.SIP, wpcap.Protocol.SSDP,
-  wpcap.Protocol.NTP, wpcap.Protocol.MDNS, wpcap.Protocol.LLMNR,wpcap.Protocol.TFTP,wpcap.Protocol.GTP,
-  wpcap.Protocol.TLS, wpcap.Protocol.NBNS,wpcap.Protocol.RTP,wpcap.Protocol.DHCP;
-
-
+  wpcap.Conts, WinSock, System.SysUtils, wpcap.Types, Winapi.Winsock2,
+  wpcap.Protocol.Telnet, wpcap.Protocol.IMAP, wpcap.Protocol.Base,
+  wpcap.Protocol.TCP, wpcap.Protocol.POP3, vcl.Graphics, wpcap.Protocol.MQTT,
+  wpcap.Protocol.Gnutella, wpcap.Graphics, wpcap.Protocol.DNS,
+  wpcap.Protocol.UDP, wpcap.Protocol.FTP, wpcap.Protocol.QUIC,
+  System.Generics.Collections, wpcap.Protocol.HTTP, wpcap.Protocol.L2TP,
+  wpcap.Protocol.SIP, wpcap.Protocol.SSDP, wpcap.Protocol.NTP,
+  wpcap.Protocol.MDNS, wpcap.Protocol.LLMNR, wpcap.Protocol.TFTP,
+  wpcap.Protocol.GTP, wpcap.Protocol.TLS, wpcap.Protocol.NBNS,
+  wpcap.Protocol.RTP, wpcap.Protocol.DHCP;
 
 
 /// <summary>
@@ -230,6 +232,7 @@ begin
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolTELNET>);      
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolMQTT>);        
   FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolIMAP>);    
+  FListProtolsTCPDetected.Add(TProtocolFactoryTCP.CreateInstance<TWPcapProtocolGnutella>);    
 end;
 
 { TListProtolsTCPDetected }
