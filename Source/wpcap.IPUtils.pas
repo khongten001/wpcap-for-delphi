@@ -30,7 +30,10 @@ unit wpcap.IPUtils;
 
 interface
 
-uses WinApi.Windows,System.Classes,System.SysUtils,IdGlobal,System.Math,IdGlobalProtocols;
+uses
+  WinApi.Windows, System.Classes, System.SysUtils, IdGlobal, System.Math,
+  IdGlobalProtocols, IdWhois;
+
 
 /// <summary>
 /// This function takes a byte array representing the IPv6 address in the TIPv6Header structure, and returns
@@ -42,6 +45,8 @@ function IPv6AddressToString(const Address: array of Byte): string;
 function IPv6ToUInt64(const AIPAddress: string): UInt64;
 
 Function IsValidPublicIP(Const aIP : String):Boolean;
+
+Function Whois(const aIPAddress:String):String;
 
 implementation
 
@@ -164,6 +169,29 @@ begin
   Result := StringReplace(Result, '::0', '::', [rfReplaceAll, rfIgnoreCase]);
   Result := StringReplace(Result, '0::', '::', [rfReplaceAll, rfIgnoreCase]);
 end;
+
+Function Whois(const aIPAddress:String):String;
+var LWhois          : TIdWhois;
+begin
+  if aIPAddress.Trim.IsEmpty then
+    raise Exception.Create('IP address is empty');
+
+  if not IsValidPublicIP(aIPAddress) then
+  begin
+    Result := 'The WHOIS function is not available for private IP';
+    Exit;
+  end;
+  
+  LWhois := TIdWhois.Create(nil); // create new TCP client instance
+  try
+    LWhois.Host := 'whois.iana.org'; 
+    LWhois.Port := 43;
+    Result := LWhois.WhoIs(aIPAddress);
+  finally
+    FreeAndNil(LWhois);
+  end;
+end;
+
 
 
 

@@ -23,7 +23,7 @@ uses
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
   cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
   cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons, dxStatusBar,
-  dxCalloutPopup, cxImageComboBox, cxMaskEdit;
+  dxCalloutPopup, cxImageComboBox, cxMaskEdit,wpcap.IPUtils;
 
 type
   TFormMain = class(TForm)
@@ -109,6 +109,9 @@ type
     BFilterByLabelForm: TdxBarButton;
     GridPcapDBTableView1IS_MALFORMED: TcxGridDBColumn;
     GridPcapDBTableView1NOTE: TcxGridDBColumn;
+    BSubWhoise: TdxBarSubItem;
+    BWhoiseServer: TdxBarButton;
+    BWhoiseClient: TdxBarButton;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -149,6 +152,8 @@ type
       AShift: TShiftState; var AHandled: Boolean);
     procedure GridPcapDBTableView1InitEditValue(Sender: TcxCustomGridTableView;
       AItem: TcxCustomGridTableItem; AEdit: TcxCustomEdit; var AValue: Variant);
+    procedure BWhoiseClientClick(Sender: TObject);
+    procedure BWhoiseServerClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -170,6 +175,7 @@ type
     procedure OpenDatabase(const aFileName: String;aCheckVersion:Boolean);
     procedure SetButtonGrid(aValue: Boolean);
     procedure FilterByLabel(const aLabel: String);
+    procedure ShowWhois(aIP: Variant);
   public
     { Public declarations }
   end;
@@ -181,7 +187,7 @@ implementation
 
 uses
   UnFormRecording, UnFormImportGeoLite, UnFormPlayerWave, UnFunctionFilter,
-  UnitCustomOpenDialog, UnitFormLabelFilter;
+  UnitCustomOpenDialog, UnitFormLabelFilter,UnitFormMemo;
 
 
 {$R *.dfm}
@@ -283,15 +289,20 @@ begin
   BRTPCall.Enabled               := False;
   BFlow.Enabled                  := Assigned(AFocusedRecord);  
   BFilterCellValue.Enabled       := Assigned(AFocusedRecord);  
-  BFilterFlowSelected.Enabled    := Assigned(AFocusedRecord);  
-      
+  BFilterFlowSelected.Enabled    := Assigned(AFocusedRecord);
+  BWhoiseServer.Caption          := 'Whois destination'; 
+  BWhoiseClient.Caption          := 'Whois source';
+  BWhoiseServer.Enabled          := Assigned(AFocusedRecord);
+  BWhoiseClient.Enabled          := Assigned(AFocusedRecord);
   if GridPcapDBTableView1NOTE.DataBinding.DataController.DataSource.DataSet.State = dsEdit then    
     GridPcapDBTableView1NOTE.DataBinding.DataController.DataSource.DataSet.Post;      
     
   if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
-    BRTPCall.Enabled := AFocusedRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index] = DETECT_PROTO_RTP;
+    BRTPCall.Enabled        := AFocusedRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index] = DETECT_PROTO_RTP;
     
+    BWhoiseServer.Caption   := Format('Whois destination [%s]',[ AFocusedRecord.Values[GridPcapDBTableView1IP_DST.Index]]);
+    BWhoiseClient.Caption   := Format('Whois source [%s]',[ AFocusedRecord.Values[GridPcapDBTableView1IP_SRC.Index]]);    
     LListDetail := TListHeaderString.Create;
     Try
      LHexList := FWPcapDBSqLite.GetListHexPacket(AFocusedRecord.Values[GridPcapDBTableView1NPACKET.Index],0,LListDetail);
@@ -850,6 +861,35 @@ begin
     InnerControl:= (AEdit as TcxCustomTextEdit).InnerControl;  
    // PostMessage(InnerControl.Handle, EM_SETSEL, -1, MaxInt);  
   end;  
+end;
+
+procedure TFormMain.BWhoiseClientClick(Sender: TObject);
+begin
+  if not Assigned(GridPcapDBTableView1.Controller.FocusedRow) then Exit;
+
+    ShowWhois(GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_SRC.Index])
+end;
+
+procedure TFormMain.BWhoiseServerClick(Sender: TObject);
+begin
+  if not Assigned(GridPcapDBTableView1.Controller.FocusedRow) then Exit;
+
+  ShowWhois(GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_DST.Index])
+end;
+
+Procedure TFormMain.ShowWhois(aIP:Variant);
+var  LFormMemo: TFormMemo;
+begin
+  if VarIsNull(aIP) then Exit;
+  LFormMemo := TFormMemo.Create(nil);
+  Try
+    LFormMemo.Caption := Format('Whois %s',[VarToStrDef(aIP,String.Empty)]);
+    LFormMemo.Show;
+    LFormMemo.cxMemo1.Lines.Text := Whois(VarToStrDef(aIP,String.Empty))
+
+  Finally
+
+  End;
 end;
 
 end.

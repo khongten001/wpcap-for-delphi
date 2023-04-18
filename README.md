@@ -66,6 +66,9 @@ In my library, I provide information on TCP and UDP flow streams as part of the 
 
 ![image](https://user-images.githubusercontent.com/11525545/223887025-799aa3c9-8dc3-463c-9364-8cc118554e76.png)
 
+# Whois
+
+Whois service provided by IANA has been integrated into wpcap-for-delphi! This will definitely come in handy when searching for domain information.
 
 # DEMO
 

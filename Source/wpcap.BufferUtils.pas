@@ -91,7 +91,7 @@ function IntToBin(Value: integer; Digits: integer): string;
 /// <returns>The actual length of the packet in bytes.</returns>
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
 
-function BinToInt(BinStr : string) : Int64;
+function BinToInt(aBinStr : string) : Int64;
 function GetLastNBit(const ASource: word; const AN: Integer): integer;
 function GetFistNBit(const ASource: word; const AN: Integer): integer;
 function SwapInt64(Value: Int64): Int64;
@@ -182,22 +182,22 @@ begin
   result := (AByteValue shr (8 - AIndexBit) ) and $01;     
 end;
 
-function BinToInt(BinStr : string) : Int64;
-var i : byte;
-    RetVar : Int64;
+function BinToInt(aBinStr : string) : Int64;
+var i      : byte;
+    LRetVar : Int64;
 begin
-   BinStr := UpperCase(BinStr);
-   if BinStr[length(BinStr)] = 'B' then Delete(BinStr,length(BinStr),1);
-   RetVar := 0;
-   for i := 1 to length(BinStr) do begin
-     if not (BinStr[i] in ['0','1']) then begin
-        RetVar := 0;
+   aBinStr := UpperCase(aBinStr);
+   if aBinStr[length(aBinStr)] = 'B' then Delete(aBinStr,length(aBinStr),1);
+   LRetVar := 0;
+   for i := 1 to length(aBinStr) do begin
+     if not (aBinStr[i] in ['0','1']) then begin
+        LRetVar := 0;
         Break;
      end;
-     RetVar := (RetVar shl 1) + (byte(BinStr[i]) and 1) ;
+     LRetVar := (LRetVar shl 1) + (byte(aBinStr[i]) and 1) ;
    end;
    
-   Result := RetVar;
+   Result := LRetVar;
 end;
 
 function IntToBin(Value: integer; Digits: integer): string;
