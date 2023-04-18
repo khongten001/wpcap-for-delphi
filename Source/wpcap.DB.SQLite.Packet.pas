@@ -45,6 +45,7 @@ uses
     FFDQuerySession     : TFDQuery;
     FFDQueryInsertLabel : TFDQuery;
     FFDQueryLabelList   : TFDQuery;
+    FFDViewUpdate       : TFDUpdateSQL;
     FInsertToArchive    : SmallInt;
     FMaxInsertCache     : SmallInt;
     procedure SetMaxInsertCache(const Value: SmallInt);
@@ -135,6 +136,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  DST_LONGITUDE FLOAT,                          '+sLineBreak+    
                       '  PACKET_RAW_TEXT TEXT,                         '+sLineBreak+  
                       '  XML_PACKET_DETAIL TEXT,                       '+sLineBreak+  
+                      '  NOTE_PACKET TEXT,                                    '+sLineBreak+  
                       '  PACKET_DATA BLOB                              '+sLineBreak+
                       ');                                              ';
 
@@ -165,8 +167,10 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                        '  PORT_SRC, PORT_DST ,                                                                   ' +sLineBreak+   {TCP/UDP}   
                        '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                        '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                       '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE                  ' +sLineBreak+   {GEOIP DST}   
+                       '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+    {GEOIP DST} 
+                       '  NOTE_PACKET                                                                            ' +sLineBreak+      
                        '  FROM PACKETS;';
+
 {$ENDREGION}
 begin
 
@@ -257,7 +261,7 @@ begin
                                                                '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
                                                                '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                                                                '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                                                               '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE                  ' +sLineBreak+   {GEOIP DST} 
+                                                               '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET                  ' +sLineBreak+   {GEOIP DST} 
                                                                '  FROM VST_PACKETS ORDER BY NPACKET ';            
   FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA FROM PACKETS WHERE NPACKET = :pNPACKET '; 
 
@@ -288,6 +292,11 @@ begin
   FFDQueryLabelList                                          := TFDQuery.Create(nil);
   FFDQueryLabelList.Connection                               := FConnection;
   FFDQueryLabelList.SQL.Text                                 := 'SELECT * FROM LABEL_FILTER';
+
+  FFDViewUpdate                                              := TFDUpdateSQL.Create(nil);
+  FFDViewUpdate.Connection                                   := FConnection;
+  FFDViewUpdate.ModifySQL.Text                               := 'UPDATE PACKETS SET NOTE_PACKET = :NOTE_PACKET WHERE NPACKET = :NPACKET ';
+  FFDQueryGrid.UpdateObject                                  := FFDViewUpdate;
 end; 
 
 

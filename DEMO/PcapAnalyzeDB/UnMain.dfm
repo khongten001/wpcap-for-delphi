@@ -33,8 +33,10 @@ object FormMain: TFormMain
       FindPanel.Layout = fplCompact
       FindPanel.Location = fplGroupByBox
       ScrollbarAnnotations.CustomAnnotations = <>
+      OnCellClick = GridPcapDBTableView1CellClick
       OnCustomDrawCell = GridPcapDBTableView1CustomDrawCell
       OnFocusedRecordChanged = GridPcapDBTableView1FocusedRecordChanged
+      OnInitEditValue = GridPcapDBTableView1InitEditValue
       DataController.DataSource = DsGrid
       DataController.Summary.DefaultGroupSummaryItems = <
         item
@@ -62,52 +64,61 @@ object FormMain: TFormMain
       OptionsData.CancelOnExit = False
       OptionsData.Deleting = False
       OptionsData.DeletingConfirmation = False
-      OptionsData.Editing = False
       OptionsData.Inserting = False
       OptionsView.CellEndEllipsis = True
+      OptionsView.ShowEditButtons = gsebAlways
       OptionsView.DataRowHeight = 20
       OptionsView.Footer = True
       OptionsView.GridLines = glHorizontal
       OptionsView.HeaderEndEllipsis = True
+      OptionsView.HeaderHeight = 30
       OptionsView.Indicator = True
       OptionsView.ShowColumnFilterButtons = sfbAlways
       object GridPcapDBTableView1NPACKET: TcxGridDBColumn
         Caption = 'Count'
         DataBinding.FieldName = 'NPACKET'
+        Options.Editing = False
         Width = 82
       end
       object GridPcapDBTableView1PACKET_DATE: TcxGridDBColumn
         Caption = 'Date'
         DataBinding.FieldName = 'PACKET_DATE'
+        Options.Editing = False
         Width = 120
       end
       object GridPcapDBTableView1IP_SRC: TcxGridDBColumn
         Caption = 'Source'
         DataBinding.FieldName = 'IP_SRC'
+        Options.Editing = False
         Width = 150
       end
       object GridPcapDBTableView1PORT_SRC: TcxGridDBColumn
         Caption = 'Port src'
         DataBinding.FieldName = 'PORT_SRC'
+        Options.Editing = False
       end
       object GridPcapDBTableView1IP_DST: TcxGridDBColumn
         Caption = 'Dest'
         DataBinding.FieldName = 'IP_DST'
+        Options.Editing = False
         Width = 150
       end
       object GridPcapDBTableView1PORT_DST: TcxGridDBColumn
         Caption = 'Port dst'
         DataBinding.FieldName = 'PORT_DST'
+        Options.Editing = False
         Width = 70
       end
       object GridPcapDBTableView1PROTOCOL: TcxGridDBColumn
         Caption = 'Protocol'
         DataBinding.FieldName = 'PROTOCOL'
+        Options.Editing = False
         Width = 77
       end
       object GridPcapDBTableView1PACKET_LEN: TcxGridDBColumn
         Caption = 'Len'
         DataBinding.FieldName = 'PACKET_LEN'
+        Options.Editing = False
         Width = 73
       end
       object GridPcapDBTableView1IS_MALFORMED: TcxGridDBColumn
@@ -116,79 +127,104 @@ object FormMain: TFormMain
         PropertiesClassName = 'TcxCheckBoxProperties'
         Properties.ValueChecked = '1'
         Properties.ValueUnchecked = '0'
+        Options.Editing = False
       end
       object GridPcapDBTableView1ETH_TYPE: TcxGridDBColumn
         DataBinding.FieldName = 'ETH_TYPE'
         Visible = False
+        Options.Editing = False
         Width = 109
       end
       object GridPcapDBTableView1ETH_ACRONYM: TcxGridDBColumn
         Caption = 'Eth type'
         DataBinding.FieldName = 'ETH_ACRONYM'
+        Options.Editing = False
       end
       object GridPcapDBTableView1MAC_SRC: TcxGridDBColumn
         Caption = 'Mac src'
         DataBinding.FieldName = 'MAC_SRC'
+        Options.Editing = False
         Width = 150
       end
       object GridPcapDBTableView1MAC_DST: TcxGridDBColumn
         Caption = 'Mac dst'
         DataBinding.FieldName = 'MAC_DST'
+        Options.Editing = False
         Width = 150
       end
       object GridPcapDBTableView1IPPROTO: TcxGridDBColumn
         DataBinding.FieldName = 'IPPROTO'
         Visible = False
+        Options.Editing = False
       end
       object GridPcapDBTableView1PROTO_DETECT: TcxGridDBColumn
         DataBinding.FieldName = 'PROTO_DETECT'
         Visible = False
+        Options.Editing = False
         VisibleForCustomization = False
       end
       object GridPcapDBTableView1IANA_PROTO: TcxGridDBColumn
         Caption = 'IANA_Protocol'
         DataBinding.FieldName = 'IANA_PROTO'
+        Options.Editing = False
+      end
+      object GridPcapDBTableView1NOTE: TcxGridDBColumn
+        Caption = 'Note'
+        DataBinding.FieldName = 'NOTE_PACKET'
+        PropertiesClassName = 'TcxMemoProperties'
+        Options.ShowEditButtons = isebAlways
+        Width = 277
       end
       object GridPcapDBTableView1IPPROTO_STR: TcxGridDBColumn
         Caption = 'IP protocol'
         DataBinding.FieldName = 'IPPROTO_STR'
+        Options.Editing = False
       end
       object GridPcapDBTableView1ASN: TcxGridDBColumn
         Caption = 'Src ASN'
         DataBinding.FieldName = 'SRC_ASN'
+        Options.Editing = False
       end
       object GridPcapDBTableView1ORGANIZZATION: TcxGridDBColumn
         Caption = 'Organizzation'
         DataBinding.FieldName = 'SRC_ORGANIZZATION'
+        Options.Editing = False
       end
       object GridPcapDBTableView1DST_ASN: TcxGridDBColumn
         Caption = 'Dst ASN'
         DataBinding.FieldName = 'DST_ASN'
+        Options.Editing = False
       end
       object GridPcapDBTableView1DstORGANIZZATION: TcxGridDBColumn
         Caption = 'Dst organizzation'
         DataBinding.FieldName = 'DST_ORGANIZZATION'
+        Options.Editing = False
       end
       object GridPcapDBTableView1SRC_LATITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'SRC_LATITUDE'
         Visible = False
+        Options.Editing = False
       end
       object GridPcapDBTableView1SRC_LONGITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'SRC_LONGITUDE'
         Visible = False
+        Options.Editing = False
       end
       object GridPcapDBTableView1DST_LATITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'DST_LATITUDE'
         Visible = False
+        Options.Editing = False
       end
       object GridPcapDBTableView1DST_LONGITUDE: TcxGridDBColumn
         DataBinding.FieldName = 'DST_LONGITUDE'
         Visible = False
+        Options.Editing = False
       end
       object GridPcapDBTableView1PACKET_RAW_TEXT: TcxGridDBColumn
         Caption = 'Raw data'
         DataBinding.FieldName = 'PACKET_RAW_TEXT'
         Visible = False
+        Options.Editing = False
         VisibleForCustomization = False
         Width = 150
       end
@@ -196,6 +232,7 @@ object FormMain: TFormMain
         Caption = 'Packet detail'
         DataBinding.FieldName = 'XML_PACKET_DETAIL'
         Visible = False
+        Options.Editing = False
         VisibleForCustomization = False
         Width = 150
       end

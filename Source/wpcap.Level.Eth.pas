@@ -45,14 +45,14 @@ type
   TETHHdr =  record
     DestAddr : array [0..5] of Uint8;  // The destination MAC address.
     SrcAddr  : array [0..5] of Uint8;  // The source MAC address.
-    EtherType: Uint16;                  // The Ethernet type.
+    EtherType: Uint16;                 // The Ethernet type.
   end;  
 
 
   TPPPoE_Session = packed record
-    Version     : Uint8; // constant values 0x00
-    Code        : Uint8; // specifies the protocol type for the session
-    SessionID   : Uint16; 
+    Version     : Uint8;  // constant values 0x00
+    Code        : Uint8;  // specifies the protocol type for the session
+    SessionID   : Uint16;  
     PayLoadLen  : Uint16; // length of payload data
   end; 
   PTPPPoE_Session = ^TPPPoE_Session;
@@ -113,6 +113,7 @@ type
     /// </summary>
     class function GetEthAcronymName(protocol: Word): string;static; 
     class procedure DoOnMalformedPacket(sendert: TObject);
+    
     {property}
     class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
     class property isMalformed            : Boolean        read FisMalformed;
@@ -163,9 +164,7 @@ begin
     ETH_P_PAE      : Result := 'PAE';
     ETH_P_AOE      : Result := 'AOE';
     ETH_P_8021AD   : Result := '802.1AD';
-//    ETH_P_802_EX1: Result := '802_EX1';
     ETH_P_TIPC     : Result := 'TIPC';
-    //ETH_P_8021AH: Result := '802.1AH';
     ETH_P_IEEE1588 : Result := 'IEEE1588';
     ETH_P_FCOE     : Result := 'FCoE';
     ETH_P_FIP      : Result := 'FIP';
@@ -272,7 +271,6 @@ begin
                 end;
               end;
             end
-
           end;   
           
         ETH_P_PPP_SES: 
@@ -426,9 +424,7 @@ begin
           Move( (aPacketData+LDataPos)^, (LNewData + SizeOf(TETHHdr))^, LNewSize-SizeOf(TETHHdr));
           Move(LPETHHdrNEw^, LNewData^, SizeOf(TETHHdr));
           InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
-        end;      
-
-      
+        end;            
       end;
     
     ETH_P_LOOP,
@@ -454,7 +450,6 @@ begin
     ETH_P_SLOW,     
     ETH_P_WCCP,     
     ETH_P_PPP_DISC, 
-
     ETH_P_MPLS_UC,  
     ETH_P_ATMMPOA,  
     ETH_P_LINK_CTL, 
@@ -470,6 +465,7 @@ begin
     ETH_P_802_3,    
     ETH_P_AX25,     
     ETH_P_ALL:  ;
+    
   else           
     begin
       {Lik layers type}
@@ -480,12 +476,15 @@ begin
         LEthType  := ntohs(ETH_P_IP);  {Loopback}
         LOffSet   := 4;
       end;      
+
+      if LEthType = 0 then
+      begin
+        LIpFlagVersion  := Pbyte(aPacketData+LOffSet)^ shr 4;   
       
-      LIpFlagVersion  := Pbyte(aPacketData+LOffSet)^ shr 4;   
-      
-      case LIpFlagVersion of
-        4  : LEthType  := ntohs(ETH_P_IP);
-        6  : LEthType  := ntohs(ETH_P_IPV6);
+        case LIpFlagVersion of
+          4  : LEthType  := ntohs(ETH_P_IP);
+          6  : LEthType  := ntohs(ETH_P_IPV6);
+        end;
       end;
 
       if LEthType <> 0 then

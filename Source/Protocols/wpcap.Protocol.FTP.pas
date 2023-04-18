@@ -121,9 +121,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen));
   LOffSet    := 0;  
   Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);
-
 end;
-
 
 class function TWPcapProtocolFTP.ResponseToString(const aResponse:Uint16):String;
 begin

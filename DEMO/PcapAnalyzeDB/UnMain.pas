@@ -108,6 +108,7 @@ type
     BLoadSQLLiteDatabase: TdxBarButton;
     BFilterByLabelForm: TdxBarButton;
     GridPcapDBTableView1IS_MALFORMED: TcxGridDBColumn;
+    GridPcapDBTableView1NOTE: TcxGridDBColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -143,6 +144,11 @@ type
     procedure ListPacketDetailClick(Sender: TObject);
     procedure BLoadSQLLiteDatabaseClick(Sender: TObject);
     procedure BFilterByLabelFormClick(Sender: TObject);
+    procedure GridPcapDBTableView1CellClick(Sender: TcxCustomGridTableView;
+      ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
+      AShift: TShiftState; var AHandled: Boolean);
+    procedure GridPcapDBTableView1InitEditValue(Sender: TcxCustomGridTableView;
+      AItem: TcxCustomGridTableItem; AEdit: TcxCustomEdit; var AValue: Variant);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -279,6 +285,9 @@ begin
   BFilterCellValue.Enabled       := Assigned(AFocusedRecord);  
   BFilterFlowSelected.Enabled    := Assigned(AFocusedRecord);  
       
+  if GridPcapDBTableView1NOTE.DataBinding.DataController.DataSource.DataSet.State = dsEdit then    
+    GridPcapDBTableView1NOTE.DataBinding.DataController.DataSource.DataSet.Post;      
+    
   if Assigned(AFocusedRecord) and AFocusedRecord.HasCells then
   begin
     BRTPCall.Enabled := AFocusedRecord.Values[GridPcapDBTableView1PROTO_DETECT.Index] = DETECT_PROTO_RTP;
@@ -818,6 +827,29 @@ begin
   Finally
     FreeAndNil(aFormLabelFilter);
   End;
+end;
+
+procedure TFormMain.GridPcapDBTableView1CellClick(
+  Sender: TcxCustomGridTableView; ACellViewInfo: TcxGridTableDataCellViewInfo;
+  AButton: TMouseButton; AShift: TShiftState; var AHandled: Boolean);
+begin
+  if (AButton = mbLeft) and (ACellViewInfo.Item.Index = GridPcapDBTableView1NOTE.Index) then
+  begin
+    if GridPcapDBTableView1.DataController.DataSource.DataSet.State <> dsEdit then    
+      GridPcapDBTableView1.DataController.DataSource.DataSet.Edit;    
+  end;
+end;
+
+procedure TFormMain.GridPcapDBTableView1InitEditValue(
+  Sender: TcxCustomGridTableView; AItem: TcxCustomGridTableItem;
+  AEdit: TcxCustomEdit; var AValue: Variant);
+var InnerControl: TWinControl;  
+begin  
+  if AEdit is TcxCustomTextEdit then  
+  begin  
+    InnerControl:= (AEdit as TcxCustomTextEdit).InnerControl;  
+   // PostMessage(InnerControl.Handle, EM_SETSEL, -1, MaxInt);  
+  end;  
 end;
 
 end.

@@ -34,7 +34,7 @@ By using this registry, I can ensure that my software is compatible with the pro
 ![image](https://user-images.githubusercontent.com/11525545/231596717-2e590617-2bb1-41d7-8346-1bfd0fd1a04e.png)
 
 
-Ability to export RTP session payloads and play them back as audio files using SOX(https://sox.sourceforge.net/Main/HomePage).
+Ability to export RTP session payloads and play them back as audio files using SOX(https://sox.sourceforge.net/Main/HomePage) or FFMPEG.
 
 [Info codec supported](https://github.com/amancini/wpcap-for-delphi/wiki/RTP-table-codec-supported)
 
