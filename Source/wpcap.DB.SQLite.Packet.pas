@@ -47,11 +47,10 @@ uses
     FFDQueryLabelList   : TFDQuery;
     FFDViewUpdate       : TFDUpdateSQL;
     FInsertToArchive    : SmallInt;
-    FMaxInsertCache     : SmallInt;
+    FMaxInsertCache     : SmallInt;    
     procedure SetMaxInsertCache(const Value: SmallInt);
     Function GetVarArrayByQuery(aQuery:TFdQuery;out aArray : Variant;out aDescription:String):Boolean;
   protected
-
     function GetSQLScriptDatabaseSchema: String;override;
     procedure InitConnection;override;
     procedure InsertMetadata(const aName: String; aValue: String);override;               

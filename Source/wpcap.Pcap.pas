@@ -36,42 +36,135 @@ uses
   Forms, System.Math, System.Types, System.Generics.Collections, System.Variants,
   wpcap.GEOLite2, wpcap.IPUtils,wpcap.Filter,System.SyncObjs;
 
-type
+  ///<summary>
+  /// Callback function that handles incoming packets in real-time mode
+  ///</summary>
+  ///<param name="aUser">Pointer to user-defined data, not used in this function</param>
+  ///<param name="aHeader">Pointer to the packet header</param>
+  ///<param name="aPacketData">Pointer to the packet data</param>
+  ///<returns>Zero on success, a negative value on error</returns>
+  function PacketHandlerRealtime(aUser: PAnsiChar; const aHeader: PTpcap_pkthdr; const aPacketData: PByte): Integer; cdecl;
+  
+  /// <summary>
+  /// This is a function that analyzes a packet. It takes two parameters: a pointer to the packet data and a pointer to the packet header.
+  /// </summary>
+  /// <param name="aPacketData">A pointer to the packet data.</param>
+  /// <param name="aHeader">A pointer to the packet header.</param>
+  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel): PTInternalPacket;
 
-  TPacketToDump = record 
+type
+  ///<summary>
+  /// Structure that represents a packet to be dumped to a file
+  ///</summary>
+  TPacketToDump = record
     tv_sec    : LongInt;
     PacketLen : Integer;
-    packet    : pbyte;
+    packet    : PByte;
   end;
   PTPacketToDump = ^TPacketToDump;
 
-  function  PacketHandlerRealtime ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; cdecl;  
- type 
 
-  TThreaPcap = class( TThread)
+  ///<summary>
+  /// Thread class for capturing network packets using the PCAP library
+  ///</summary>
+  TThreadPcap = class(TThread)
   private         
     FAbort                   : Boolean; 
     FOnPCAPCallBackPacket    : TPCAPCallBackPacket;
     FOnPCAPCallBackError     : TPCAPCallBackError;
     FOnPCAPCallBackProgress  : TPCAPCallBackProgress; 
-    FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;         
+    FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;   
+    FonWpcapEthMacFound      : TWpcapEthMacFound;    
+    FonWpcapIpFound          : TWpcapIPFound;    
+    FOnWpcapProtocolDetected : TWpcapProtocolDetected;
   protected
     FFilename               : string;
     FFilter                 : string;  
     FOwner                  : TObject;
-    procedure DoError(const aFileName, aErrorMessage: string); 
+    
+    ///<summary>
+    /// Invokes an error event with the given error message
+    ///</summary>
+    ///<param name="aFileName">File name of the error</param>
+    ///<param name="aErrorMessage">Error message to send</param>
+    procedure DoError(const aFileName, aErrorMessage: string); virtual;
+
   public
+    ///<summary>
+    /// Stops the thread from capturing packets
+    ///</summary>
     procedure Stop;
-    procedure DoProgress(aTotalSize,aCurrentSize:Int64);
-    procedure DoPacket(const aInternalPacket : PTInternalPacket);
+
+    ///<summary>
+    /// Invokes a progress event with the given packet size information
+    ///</summary>
+    ///<param name="aTotalSize">Total number of bytes to be processed</param>
+    ///<param name="aCurrentSize">Number of bytes processed so far</param>
+    procedure DoProgress(aTotalSize, aCurrentSize: Int64); virtual;
+
+    ///<summary>
+    /// Invokes a packet event with the given internal packet information
+    ///</summary>
+    ///<param name="aInternalPacket">Internal packet information</param>
+    procedure DoPacket(const aInternalPacket: PTInternalPacket); virtual;
+
+    ///<summary>
+    /// Executes a callback function in the context of the main thread to notify a listener that an Mac address has been found
+    ///</summary>
+    ///<param name="aInternalPacket">Pointer to a structure that contains information about the packet</param>
+    ///<param name="aSkypPacket">Specifies whether the packet should be skipped</param>    
+    procedure DoEthMacFound(const aInternalPacket: PTInternalPacket;var aSkypPacket:Boolean);                          
+
+    ///<summary>
+    /// Executes a callback function in the context of the main thread to notify a listener that an IP address has been found
+    ///</summary>
+    ///<param name="aInternalPacket">Pointer to a structure that contains information about the packet</param>
+    ///<param name="aSkypPacket">Specifies whether the packet should be skipped</param>
+    procedure DoIpFound(const aInternalPacket: PTInternalPacket;var aSkypPacket: Boolean);
+
+    ///<summary>
+    /// Executes a callback function in the context of the main thread to notify a listener that an protocol has been detected
+    ///</summary>
+    ///<param name="aInternalPacket">Pointer to a structure that contains information about the packet</param>
+    ///<param name="aSkypPacket">Specifies whether the packet should be skipped</param>    
+    procedure DoProtocolFound(const aInternalPacket: PTInternalPacket;var aSkypPacket: Boolean);    
+
+    
+    ///<summary>
+    /// Flag that determines if the thread should be aborted
+    ///</summary>
+    ///<returns>True if should be aborted; otherwise, False</returns>
     Property Abort                    : Boolean                 read FAbort;
+
+    ///<summary>
+    /// Event triggered when there is a callback error
+    ///</summary>
     property OnPCAPCallBackError      : TPCAPCallBackError      read FOnPCAPCallBackError     write FOnPCAPCallBackError;
+
+    ///<summary>
+    /// Event triggered during the PCAP analisys
+    ///</summary>
     property OnPCAPCallBackProgress   : TPCAPCallBackProgress   read FOnPCAPCallBackProgress  write FOnPCAPCallBackProgress;
+
+    ///<summary>
+    /// Event triggered when packet is ready
+    ///</summary>
     property OnPCAPCallBackPacket     : TPCAPCallBackPacket     read FOnPCAPCallBackPacket    write FOnPCAPCallBackPacket;    
-    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;         
+
+    ///<summary>
+    /// Event triggered before call callBackEnd event
+    ///</summary>
+    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;     
+
+    property OnWpcapEthMacFound       : TWpcapEthMacFound          read FonWpcapEthMacFound        write FonWpcapEthMacFound;
+    property OnWpcapIpFound           : TWpcapIPFound              read FonWpcapIpFound            write FonWpcapIpFound;
+    property OnWpcapProtocolDetected  : TWpcapProtocolDetected     read FOnWpcapProtocolDetected   write FOnWpcapProtocolDetected;        
   end;
 
-  TPCAPCaptureRT = class( TThreaPcap)
+  ///<summary>
+  /// Thread class for capturing real-time network packets using the PCAP library
+  ///</summary>          
+  TPCAPCaptureRT = class(TThreadPcap)
   private
     FInterfaceName          : string;
     FIP                     : string;
@@ -85,25 +178,60 @@ type
     FDataLink               : Integer;   
     FListLabelByLevel       : TListLabelByLevel;   
   protected
+    ///<summary>
+    /// Overrides the Execute method from the parent class to start capturing real-time packets
+    ///</summary>
     procedure Execute; override;
+
   public
-    constructor Create(const aOwner : Tobject;const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean;aTimeoutMs: Integer = 1000;aMaxSizePacket: Integer = MAX_PACKET_SIZE; aTimeRecoStop: TTime = 0);  
+    ///<summary>
+    /// Creates an instance of the TPCAPCaptureRT class with the specified parameters
+    ///</summary>
+    ///<param name="aOwner">Owner object</param>
+    ///<param name="aFilename">Name of the capture file</param>
+    ///<param name="aFilter">Capture filter</param>
+    ///<param name="aInterfaceName">Name of the interface to capture on</param> 
+    ///<param name="aIP">IP address to capture on</param> 
+    ///<param name="aPromisc">Promiscuous mode flag</param>
+    ///<param name="aSavePcapDump">Save PCAP dump flag</param>
+    ///<param name="aTimeoutMs">Capture timeout in milliseconds</param>
+    ///<param name="aMaxSizePacket">Maximum size of packets to capture</param>
+    ///<param name="aTimeRecoStop">Time to stop capturing packets</param>  
+    constructor Create(const aOwner: TObject; const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean; aTimeoutMs: Integer = 1000; aMaxSizePacket: Integer = MAX_PACKET_SIZE; aTimeRecoStop: TTime = 0);  
+    
+    ///<summary>
+    /// Destroys the instance of the TPCAPCaptureRT class and cleans up resources
+    ///</summary>
     destructor Destroy; override;
+
     {Property}
     Property PCapRT           : Ppcap_t           read FPCapRT; 
     property DataLink         : Integer           read FDataLink;
     property ListLabelByLevel : TListLabelByLevel read FListLabelByLevel;
   end;
 
-  
-  TPCAPLoadFile = class( TThreaPcap)
+  ///<summary>
+  /// Thread class for loading a PCAP capture file and decoding its packets
+  ///</summary>
+  TPCAPLoadFile = class(TThreadPcap)
   private
-    FGeoLiteDB               : TWpcapGEOLITE;
+    FGeoLiteDB    : TWpcapGEOLITE;
   protected
+    ///<summary>
+    /// Overrides the Execute method from the parent class to load and decode packets from the capture file
+    ///</summary>
     procedure Execute; override;
   public
-    constructor Create(const aOwner : Tobject;const aFilename, aFilter:String;aGeoLiteDB : TWpcapGEOLITE );
-  end;  
+    ///<summary>
+    /// Creates an instance of the TPCAPLoadFile class with the specified parameters
+    ///</summary>
+    ///<param name="aOwner">Owner object</param>
+    ///<param name="aFilename">Name of the capture file to load</param>
+    ///<param name="aFilter">Capture filter</param>
+    ///<param name="aGeoLiteDB">GeoLite database to use for IP geolocation</param>
+    constructor Create(const aOwner: TObject; const aFilename, aFilter: string; const aGeoLiteDB: TWpcapGEOLITE);
+  end;
+
 
  
   TPCAPUtils = class
@@ -112,14 +240,30 @@ type
     var FThreadCaptureRT         : TPCAPCaptureRT;    
     var FThreadLoadFile          : TPCAPLoadFile;        
     var FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;
-
-    var FOnPCAPCallBackPacket   : TPCAPCallBackPacket;
-    var FOnPCAPCallBackError    : TPCAPCallBackError;
-    var FOnPCAPCallBackProgress : TPCAPCallBackProgress;
+    var FOnPCAPCallBackPacket    : TPCAPCallBackPacket;
+    var FOnPCAPCallBackError     : TPCAPCallBackError;
+    var FOnPCAPCallBackProgress  : TPCAPCallBackProgress;
+    var FonWpcapEthMacFound      : TWpcapEthMacFound;    
+    var FonWpcapIpFound          : TWpcapIPFound;    
+    var FOnWpcapProtocolDetected : TWpcapProtocolDetected;            
   private
-    procedure DoOnTerminateRT(sender:Tobject);
-    procedure DoOnTerminateOffline(sender:Tobject);    
-    procedure SetAbort(const aValue: Boolean);
+    ///<summary>
+    /// Event handler for when the real-time capture terminates
+    ///</summary>
+    ///<param name="sender">Object that triggered the event</param>
+    procedure DoOnTerminateRT(sender:TObject);
+
+    ///<summary>
+    /// Event handler for when the offline capture terminates
+    ///</summary>
+    ///<param name="sender">Object that triggered the event</param>
+    procedure DoOnTerminateOffline(sender:TObject);
+
+    ///<summary>
+    /// Sets the value of an abort flag
+    ///</summary>
+    ///<param name="aValue">Value to set for the flag</param>
+    procedure SetAbort(const aValue:Boolean);
   public
     ///<summary>
     /// Analyzes an packet capture file using a specified set of callbacks.
@@ -141,7 +285,6 @@ type
     ///</param>
     ///<param name="aPCAPCallBackProgress">
     /// A callback procedure to be called to report progress during packet processing.
-
     ///</param>
     ///<remarks>
     /// This procedure analyzes an packet capture file using a specified set of callbacks. The specified callbacks are responsible for processing packets, 
@@ -151,7 +294,6 @@ type
     ///</remarks>
     procedure AnalyzePCAPOffline( const aFilename, aFilter: String;
                                         aGeoLiteDB : TWpcapGEOLITE); 
-
 
     /// <summary>
     ///   Starts recording a PCAP file with the given filename and packet filter.
@@ -206,25 +348,76 @@ type
     ///  </param>
     ///
     procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);
-    property Abort                    : Boolean                 read FAbort                     write SetAbort;
-    property OnPCAPCallBackError      : TPCAPCallBackError      read FOnPCAPCallBackError       write FOnPCAPCallBackError;
-    property OnPCAPCallBackProgress   : TPCAPCallBackProgress   read FOnPCAPCallBackProgress    write FOnPCAPCallBackProgress;
-    property OnPCAPCallBackPacket     : TPCAPCallBackPacket     read FOnPCAPCallBackPacket      write FOnPCAPCallBackPacket;
-    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;   
-    property ThreadCaptureRT          : TPCAPCaptureRT          read FThreadCaptureRT;
+    property Abort                    : Boolean                    read FAbort                     write SetAbort;
+    property ThreadCaptureRT          : TPCAPCaptureRT             read FThreadCaptureRT;
+    
+    {Event}
+    property OnPCAPCallBackError      : TPCAPCallBackError         read FOnPCAPCallBackError       write FOnPCAPCallBackError;
+    property OnPCAPCallBackProgress   : TPCAPCallBackProgress      read FOnPCAPCallBackProgress    write FOnPCAPCallBackProgress;
+    property OnPCAPCallBackPacket     : TPCAPCallBackPacket        read FOnPCAPCallBackPacket      write FOnPCAPCallBackPacket;
+    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd     read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;   
+    property OnWpcapEthMacFound       : TWpcapEthMacFound          read FonWpcapEthMacFound        write FonWpcapEthMacFound;
+    property OnWpcapIpFound           : TWpcapIPFound              read FonWpcapIpFound            write FonWpcapIpFound;
+    property OnWpcapProtocolDetected  : TWpcapProtocolDetected     read FOnWpcapProtocolDetected   write FOnWpcapProtocolDetected;
   end;
-
-  /// <summary>
-  /// This is a function that analyzes a packet. It takes two parameters: a pointer to the packet data and a pointer to the packet header.
-  /// </summary>
-  /// <param name="aPacketData">A pointer to the packet data.</param>
-  /// <param name="aHeader">A pointer to the packet header.</param>
-  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel): PTInternalPacket;
 
 
 implementation
 
+function PacketHandlerRealtime ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; 
+var PacketBuffer     : TBytes;
+    LPacketLen       : Word;
+    aNewHeader       : PTpcap_pkthdr;
+    LTInternalPacket : PTInternalPacket;
+    LSkypPacket      : Boolean;
+begin
+  if Assigned(aPacketData) then
+  begin
+    LPacketLen  := wpcapntohs(aHeader^.len);
+    TPCAPCaptureRT(aUser).DoProgress(-1,LPacketLen); 
+    new(aNewHeader);
+    Try
+      aNewHeader.ts     := aHeader.ts;
+      aNewHeader.caplen := (aHeader.caplen);
 
+      SetLength(PacketBuffer,LPacketLen);
+      Move(aPacketData^, PacketBuffer[0], LPacketLen);
+      
+      if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
+        SetLength(PacketBuffer,LPacketLen);
+
+      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel);
+      
+      if Assigned(LTInternalPacket) then
+      begin
+        Try
+          LSkypPacket := false;
+          TPCAPCaptureRT(aUser).DoEthMacFound(LTInternalPacket,LSkypPacket);  
+
+          if not LSkypPacket then
+            TPCAPCaptureRT(aUser).DoIpFound(LTInternalPacket,LSkypPacket);
+
+          if not LSkypPacket then
+            TPCAPCaptureRT(aUser).DoProtocolFound(LTInternalPacket,LSkypPacket);            
+             
+          if not LSkypPacket then             
+            TPCAPCaptureRT(aUser).DoPacket(LTInternalPacket);
+        finally
+          Dispose(LTInternalPacket)
+        end; 
+      end;              
+    Finally
+      dispose(aNewHeader);
+    End;
+  end;
+  
+  if ( TPCAPCaptureRT(aUser).Abort) or 
+      ( ( TPCAPCaptureRT(aUser).FTimeRecCheck>0 ) and (Now> TPCAPCaptureRT(aUser).FTimeRecCheck) ) 
+  then
+    pcap_breakloop(TPCAPCaptureRT(aUser).PCapRT);                             
+
+  Result := 0;
+end;
 
 function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel) : PTInternalPacket;
 var LLen              : Integer;
@@ -349,7 +542,10 @@ begin
   FThreadCaptureRT.OnPCAPCallBackError      := FOnPCAPCallBackError; 
   FThreadCaptureRT.OnPCAPCallBackProgress   := FOnPCAPCallBackProgress;
   FThreadCaptureRT.OnPCAPCallBackPacket     := FOnPCAPCallBackPacket; 
-  FThreadCaptureRT.OnPCAPCallBeforeBackEnd  := FOnPCAPCallBeforeBackEnd;   
+  FThreadCaptureRT.OnPCAPCallBeforeBackEnd  := FOnPCAPCallBeforeBackEnd; 
+  FThreadCaptureRT.OnWpcapEthMacFound       := FOnWpcapEthMacFound;
+  FThreadCaptureRT.OnWpcapIpFound           := FOnWpcapIpFound; 
+  FThreadCaptureRT.OnWpcapProtocolDetected  := FOnWpcapProtocolDetected;     
   FThreadCaptureRT.OnTerminate              := DoOnTerminateRT;
   FThreadCaptureRT.FreeOnTerminate          := True;
   FThreadCaptureRT.Start;     
@@ -394,11 +590,13 @@ begin
   FThreadLoadFile.OnPCAPCallBackProgress  := FOnPCAPCallBackProgress;
   FThreadLoadFile.OnPCAPCallBackPacket    := FOnPCAPCallBackPacket; 
   FThreadLoadFile.OnPCAPCallBeforeBackEnd := FOnPCAPCallBeforeBackEnd;   
+  FThreadLoadFile.OnWpcapEthMacFound      := FOnWpcapEthMacFound;
+  FThreadLoadFile.OnWpcapIpFound          := FOnWpcapIpFound; 
+  FThreadLoadFile.OnWpcapProtocolDetected := FOnWpcapProtocolDetected;  
   FThreadLoadFile.OnTerminate             := DoOnTerminateOffline;
   FThreadLoadFile.FreeOnTerminate         := True;
   FThreadLoadFile.Start;      
 end;
-
 
 procedure TPCAPUtils.DoOnTerminateOffline(sender:Tobject);   
 begin
@@ -449,7 +647,7 @@ end;
 
 
 { TThreaPcap }
-procedure TThreaPcap.DoError(const aFileName, aErrorMessage: string);
+procedure TThreadPcap.DoError(const aFileName, aErrorMessage: string);
 begin
   TThread.Synchronize(nil,
     procedure
@@ -458,7 +656,7 @@ begin
     end);  
 end;
 
-procedure TThreaPcap.DoProgress(aTotalSize,aCurrentSize:Int64);
+procedure TThreadPcap.DoProgress(aTotalSize,aCurrentSize:Int64);
 begin
   TThread.Synchronize(nil,
     procedure
@@ -468,65 +666,63 @@ begin
     end);        
 end;
 
-procedure TThreaPcap.Stop;
+procedure TThreadPcap.Stop;
 begin
   Fabort := True;
 end;
 
-procedure TThreaPcap.DoPacket(const aInternalPacket : PTInternalPacket);
+procedure TThreadPcap.DoIpFound(const aInternalPacket : PTInternalPacket;var aSkypPacket:Boolean);
+var LSkyp : Boolean;
+begin
+  if Assigned(FonWpcapIpFound) then
+  begin
+    LSkyp := aSkypPacket;
+    TThread.Synchronize(nil,
+      procedure
+      begin                    
+        FonWpcapIpFound(aInternalPacket.IP.Src,aInternalPacket.Ip.Dst,LSkyp);
+      end);
+    aSkypPacket := LSkyp;      
+  end;  
+end;
+
+procedure TThreadPcap.DoProtocolFound(const aInternalPacket : PTInternalPacket;var aSkypPacket:Boolean);
+var LSkyp : Boolean;
+begin
+  if Assigned(FOnWpcapProtocolDetected) then
+  begin
+    LSkyp := aSkypPacket;  
+    TThread.Synchronize(nil,
+      procedure
+      begin                    
+        FOnWpcapProtocolDetected(aInternalPacket.IP.ProtoAcronym,LSkyp);
+      end);
+    aSkypPacket := LSkyp;        
+  end;  
+end;
+
+procedure TThreadPcap.DoEthMacFound(const aInternalPacket : PTInternalPacket;var aSkypPacket:Boolean);
+var LSkyp : Boolean;
+begin
+  if Assigned(FonWpcapEthMacFound) then
+  begin
+    LSkyp := aSkypPacket;    
+    TThread.Synchronize(nil,
+      procedure
+      begin                    
+        FonWpcapEthMacFound(aInternalPacket.Eth.SrcAddr,aInternalPacket.Eth.SrcAddr,LSkyp);
+      end);
+    aSkypPacket := LSkyp;          
+  end;
+end;
+
+procedure TThreadPcap.DoPacket(const aInternalPacket : PTInternalPacket);
 begin
   TThread.Synchronize(nil,
     procedure
     begin                    
       OnPCAPCallBackPacket(aInternalPacket);
     end);
-end;
-
-{ TPCAPUtilsThread }
-
-function PacketHandlerRealtime ( aUser: PAnsiChar;const aHeader: PTpcap_pkthdr;const aPacketData: Pbyte): Integer; 
-var PacketBuffer     : TBytes;
-    LPacketLen       : Word;
-    aNewHeader       : PTpcap_pkthdr;
-    LTInternalPacket : PTInternalPacket;
-
-begin
-  if Assigned(aPacketData) then
-  begin
-    LPacketLen  := wpcapntohs(aHeader^.len);
-    TPCAPCaptureRT(aUser).DoProgress(-1,LPacketLen); 
-    new(aNewHeader);
-    Try
-      aNewHeader.ts     := aHeader.ts;
-      aNewHeader.caplen := (aHeader.caplen);
-
-      SetLength(PacketBuffer,LPacketLen);
-      Move(aPacketData^, PacketBuffer[0], LPacketLen);
-      
-      if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
-        SetLength(PacketBuffer,LPacketLen);
-
-      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel);
-      
-      if Assigned(LTInternalPacket) then
-      begin
-        Try
-          TPCAPCaptureRT(aUser).DoPacket(LTInternalPacket);
-        finally
-          Dispose(LTInternalPacket)
-        end; 
-      end;              
-    Finally
-      dispose(aNewHeader);
-    End;
-  end;
-  
-  if ( TPCAPCaptureRT(aUser).Abort) or 
-      ( ( TPCAPCaptureRT(aUser).FTimeRecCheck>0 ) and (Now> TPCAPCaptureRT(aUser).FTimeRecCheck) ) 
-  then
-    pcap_breakloop(TPCAPCaptureRT(aUser).PCapRT);                             
-
-  Result := 0;
 end;
 
 constructor TPCAPCaptureRT.Create(const aOwner: Tobject;const aFilename, aFilter, aInterfaceName,aIP: string; aPromisc, aSavePcapDump: Boolean; aTimeoutMs,aMaxSizePacket: Integer; aTimeRecoStop: TTime);
@@ -632,7 +828,7 @@ begin
 end;
 
 { TPCAPLoadFile }
-constructor TPCAPLoadFile.Create(const aOwner: Tobject; const aFilename,aFilter:String; aGeoLiteDB: TWpcapGEOLITE);
+constructor TPCAPLoadFile.Create(const aOwner: TObject; const aFilename, aFilter: string; const aGeoLiteDB: TWpcapGEOLITE);
 begin
   inherited Create(True);
   FFilename      := aFilename;
@@ -652,6 +848,7 @@ var LHandlePcap      : Ppcap_t;
     LTInternalPacket : PTInternalPacket;
     LListLabelByLevel: TListLabelByLevel;
     LIndex           : Integer;
+    LSkypPacket      : boolean;
 begin
   FAbort               := False;
   LTolSizePcap         := FileGetSize(FFileName);  
@@ -689,6 +886,14 @@ begin
                   if Assigned(LTInternalPacket) then
                   begin
                     Try
+                      LSkypPacket := false;
+                      DoEthMacFound(LTInternalPacket,LSkypPacket);  
+
+                      if not LSkypPacket then
+                        DoIpFound(LTInternalPacket,LSkypPacket);
+
+                      if not LSkypPacket then
+                        DoProtocolFound(LTInternalPacket,LSkypPacket);                     
                       DoPacket(LTInternalPacket);
                     finally
                       Dispose(LTInternalPacket)

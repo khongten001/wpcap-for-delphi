@@ -429,12 +429,64 @@ type
   ///</remarks>  
   TPCAPCallBackEnd       = procedure(const aFileName:String) of object;
 
-  
-  TWpcapUint8ToString    = function(const aValue:Uint8):String of object;
-  TWpcapUint16ToString   = function(const aValue:Uint16):String of object;  
-  TWpcapUint32ToString   = function(const aValue:Uint32):String of object;    
-  TWpcapUint64ToString   = function(const aValue:Uint64):String of object;     
-  TWpcapBytesToString    = function(const aValue:TidBytes):String of object;          
+  ///<summary>
+  /// Converts the specified Uint8 value to a string representation
+  ///</summary>
+  ///<param name="aValue">Uint8 value to convert</param>
+  ///<returns>String representation of the Uint8 value</returns>
+  TWpcapUint8ToString = function(const aValue:Uint8):String of object;
+
+  ///<summary>
+  /// Converts the specified Uint16 value to a string representation
+  ///</summary>
+  ///<param name="aValue">Uint16 value to convert</param>
+  ///<returns>String representation of the Uint16 value</returns>
+  TWpcapUint16ToString = function(const aValue:Uint16):String of object;
+
+  ///<summary>
+  /// Converts the specified Uint32 value to a string representation
+  ///</summary>
+  ///<param name="aValue">Uint32 value to convert</param>
+  ///<returns>String representation of the Uint32 value</returns>
+  TWpcapUint32ToString = function(const aValue:Uint32):String of object;
+
+  ///<summary>
+  /// Converts the specified Uint64 value to a string representation
+  ///</summary>
+  ///<param name="aValue">Uint64 value to convert</param>
+  ///<returns>String representation of the Uint64 value</returns>
+  TWpcapUint64ToString = function(const aValue:Uint64):String of object;
+
+  ///<summary>
+  /// Converts the specified array of bytes to a string representation
+  ///</summary>
+  ///<param name="aValue">Array of bytes to convert</param>
+  ///<returns>String representation of the byte array</returns>
+  TWpcapBytesToString = function(const aValue:TidBytes):String of object;
+
+  ///<summary>
+  /// Method notified when a MAC is found in an ETH packet
+  ///</summary>
+  ///<param name="aMacsrc">Destination MAC address</param>
+  ///<param name="aMacDst">Source MAC address</param>
+  ///<param name="aSkypPacket">Indicates whether the packet should be skipped (True) or not (False)</param>
+  TWpcapEthMacFound = procedure(const aMacSrc,aMacDst:String;var aSkypPacket:Boolean) of object;
+
+  ///<summary>
+  /// Method notified when an IP is found
+  ///</summary>
+  ///<param name="aIpSrc">Source IP address</param>
+  ///<param name="aIPDest">Destination IP address</param>
+  ///<param name="aSkypPacket">Indicates whether the packet should be skipped (True) or not (False)</param>
+  TWpcapIPFound          = procedure(const aIpSrc,aIPDest:String;var aSkypPacket:Boolean) of object;
+
+  ///<summary>
+  /// Method notified when an protocol is detected
+  ///</summary>
+  ///<param name="aAcronym">Acronym of protocol (example HTTP)</param>
+  ///<param name="aSkypPacket">Indicates whether the packet should be skipped (True) or not (False)</param>
+  TWpcapProtocolDetected = procedure(const aAcronym:String;var aSkypPacket:Boolean) of object;  
+     
 implementation
 
 end.

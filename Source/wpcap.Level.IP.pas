@@ -594,10 +594,10 @@ begin
       case LInternalIP.IpProto of
  
         IPPROTO_ICMP,
-        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
-        IPPROTO_TCP     : TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
-        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
-        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail);
+        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
+        IPPROTO_TCP     : TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
+        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
+        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
         IPPROTO_GGP     :;  
         IPPROTO_IP      :
           begin  
@@ -605,7 +605,7 @@ begin
             if Assigned(LNewPacket) then
               begin
               Try
-                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail);
+                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode);
               Finally
                 FreeMem(LNewPacket);
               End;           
@@ -618,7 +618,7 @@ begin
           if Assigned(LNewPacket) then
           begin
             Try
-              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail);
+              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode);
             Finally
               FreeMem(LNewPacket);
             End;        

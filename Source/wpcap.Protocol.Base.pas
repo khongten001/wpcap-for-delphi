@@ -148,6 +148,7 @@ end;
 
 class function TWPcapProtocolBase.AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;
 begin    
+  
   Result.Description     := aDescription;
   Result.Labelname       := aLabel;
   Result.Value           := aValue;
@@ -162,7 +163,13 @@ begin
   if (aPacketInfo = nil) or FisFilterMode then      
     Result.Hex := String.Empty
   else
-    Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False)).Trim;
+    Try
+      Result.Hex := String.Join(sLineBreak,DisplayHexData(aPacketInfo,aPacketInfoSize,False)).Trim;
+    Except on E: Exception do
+      begin
+        FisMalformed := true; 
+      end;
+    End;
 end;   
 
 class function TWPcapProtocolBase.IsValidByPort(aTestPort,aSrcPort,aDstPort: Integer;
@@ -355,43 +362,78 @@ begin
 end;
                                                 
 class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer): Boolean;
-var LCopYStart  : Integer;
-    aValue      : String;
-    LBytes      : TIdBytes;
-    LtmpLen     : Integer;
-    aValueArray : Tarray<String>;      
+CONST HTTP_COMPRESS_CONTENT_VALUE : array [0..3] of string= ( 'gzip','deflate','identity','br');
+var LCopYStart     : Integer;
+    LValue         : String;
+    LBytes         : TIdBytes;
+    LtmpLen        : Integer;
+    LCompressType  : ShortInt;
+
+    Function ParserValue(const aSep:char;aCheckCount:Boolean): Boolean;
+    var LValueArray : Tarray<String>; 
+        LField      : String;
+        LValueField : String;
+        I           : Integer;
+    begin 
+      Result := False;
+      if LValue.Contains(aSep) then
+      begin
+
+        if aCheckCount then
+          if LValue.CountChar(aSep) > 1 then exit;
+          
+        Result      := True;
+        LValueArray := LValue.Split([aSep]); 
+        LField      := LValueArray[0].Trim;
+        LValueField := LValueArray[1].Trim;
+        if not LField.IsEmpty then
+        begin
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,LField]),LField,LValueField, @LBytes, Length(LBytes) ));              
+          if LCompressType = -1 then
+          begin
+            if SameText(LField,'Content-Encoding') then
+            begin
+               for I := Low(HTTP_COMPRESS_CONTENT_VALUE) to High(HTTP_COMPRESS_CONTENT_VALUE) do
+               begin
+                 if LValueField.ToLower.Contains(HTTP_COMPRESS_CONTENT_VALUE[I]) then
+                 begin
+                   LCompressType := I;
+                   break;
+                 end;
+
+               end;
+            end;
+          end;
+        end
+        else
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes) ));              
+      end
+    end;
 begin
-  LCopYStart := 0;
+  LCopYStart    := 0;
+  LCompressType := -1;
   while aStartOffSet+1 < aPayLoadLen do
   begin
     if (aPayLoad[aStartOffSet+1] = $0A )  then
     begin
-       Inc(aStartOffSet); 
-       LtmpLen := aStartOffSet-LCopYStart;
+      Inc(aStartOffSet); 
+      LtmpLen := aStartOffSet-LCopYStart;
        
-       if isValidLen(LCopYStart,aPayLoadLen,LtmpLen)  then 
-       begin
-         SetLength(LBytes,LtmpLen);
-         Move(aPayLoad[LCopYStart],LBytes[0],LtmpLen);             
-         aValue := BytesToString(LBytes);
-
-         if aValue.Contains(':') then
-         begin
-           aValueArray := aValue.Split([':']); 
-           if not aValueArray[0].Trim.IsEmpty then
-            AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValueArray[0].Trim]),aValueArray[0].Trim,aValueArray[1].Trim, @LBytes, Length(LBytes) ))
-         end
-         else if aValue.Contains('/') and ( aValue.CountChar('/') = 1)  then
-         begin
-           aValueArray := aValue.Split(['/']); 
-           if not aValueArray[0].Trim.IsEmpty then
-            AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,aValue.Split(['/'])[0]]),aValue.Split(['/'])[0],aValue.Split(['/'])[1], @LBytes, Length(LBytes) ))
-         end
-         else if not aValue.Trim.IsEmpty then              
-           AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',aValue.Trim, @LBytes, Length(LBytes) ));
-         
-         Inc(LCopYStart,LtmpLen)
-       end;
+      if isValidLen(LCopYStart,aPayLoadLen,LtmpLen)  then 
+      begin
+        SetLength(LBytes,LtmpLen);
+        Move(aPayLoad[LCopYStart],LBytes[0],LtmpLen);             
+        LValue := BytesToString(LBytes);
+        if not LValue.Trim.IsEmpty then  
+        begin
+          if not ParserValue(':',false) then
+          begin
+            if not ParserValue('/',True)  then
+              AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes) ));            
+          end;
+        end;         
+        Inc(LCopYStart,LtmpLen)
+      end;
     end;
 
     Inc(aStartOffSet);
