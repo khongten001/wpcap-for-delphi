@@ -80,31 +80,31 @@ Type
     /// </summary>
     class function ByteToBooleanStr(const aValue: Uint8): string;
 
- 		 /// <summary>
-     /// Convert an array of bytes to a string without locale
- 		 /// </summary>
-     class function BytesToStringRawInternal(const ABytes: TidBytes): string;
+    /// <summary>
+    /// Convert an array of bytes to a string without locale
+    /// </summary>
+    class function BytesToStringRawInternal(const ABytes: TidBytes): string;
      
-		 /// <summary>
- 		 /// Convert a Uinr32 value to a string representing an IPv4 address.
-		 /// </summary>
-     class function MakeUint32IntoIPv4AddressInternal(const aValue: UInt32): string;    
+    /// <summary>
+    /// Convert a Uinr32 value to a string representing an IPv4 address.
+    /// </summary>
+    class function MakeUint32IntoIPv4AddressInternal(const aValue: UInt32): string;    
      
-		 /// <summary>
-		 /// Convert an array of bytes representing an IPv6 address to a string representation.
- 		 /// </summary>
-     class function IPv6AddressToStringInternal(const ABytes: TidBytes): string;     
+    /// <summary>
+    /// Convert an array of bytes representing an IPv6 address to a string representation.
+    /// </summary>
+    class function IPv6AddressToStringInternal(const ABytes: TidBytes): string;     
 
-		 /// <summary>
-		 /// Check if the specified length is valid within the given actual position and maximum length.
-     /// if not valid call event FOnFoundMalformedPacket
-		 /// </summary>     
-     class function isValidLen(const aActualPos, aMaxLen: Integer; aLen: Integer): Boolean; static;
+    /// <summary>
+    /// Check if the specified length is valid within the given actual position and maximum length.
+    /// if not valid call event FOnFoundMalformedPacket
+    /// </summary>     
+    class function isValidLen(const aActualPos, aMaxLen: Integer; aLen: Integer): Boolean; static;
 
-     /// <summary>
-     /// Check if the given test port matches either the source or destination port.
-     /// </summary>
-     class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
+    /// <summary>
+    /// Check if the given test port matches either the source or destination port.
+    /// </summary>
+    class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
 
      class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint8;  
      class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint16;
