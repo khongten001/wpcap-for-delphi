@@ -209,7 +209,7 @@ begin
 
   for I := 0 to FListProtolsTCPDetected.Count-1 do
   begin
-    FListProtolsTCPDetected[I].OnLog := DoLog;
+    FListProtolsTCPDetected[I].OnLog := OnLog;
     if FListProtolsTCPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then
     begin
       Result := True;
@@ -472,8 +472,8 @@ begin
                 
               end;
               
-            TCP_OPTION_ECHO      :{TODO};  
-            TCP_OPTION_ECHOREPLY :{TODO};  
+            TCP_OPTION_ECHO      : DoLog('TWPcapProtocolBaseTCP.HeaderToString','TCP_OPTION_ECHO not impleented',TWLLWarning) {TODO};  
+            TCP_OPTION_ECHOREPLY : DoLog('TWPcapProtocolBaseTCP.HeaderToString','TCP_OPTION_ECHOREPLY not impleented',TWLLWarning) {TODO};  
             
             TCP_OPTION_TIMESTAMP :
               begin

@@ -265,7 +265,7 @@ begin
   Result           := True;
   for I := 0 to FListProtolsUDPDetected.Count-1 do
   begin
-    FListProtolsUDPDetected[I].OnLog := DoLog;
+    FListProtolsUDPDetected[I].OnLog := OnLog;
     if FListProtolsUDPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then Exit;
   end;
 end;

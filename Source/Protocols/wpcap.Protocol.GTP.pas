@@ -450,7 +450,8 @@ begin
         LCurrentPos := SizeOf(TGTPHeaderV1);      
         if GetBitValue(LGTPHeaderV1.Flags,7)=1 then      
           ParserUint16Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.SequenceNumber',[AcronymName]), 'Sequence number:',AListDetail,nil,True,LCurrentPos);
-          
+
+        DoLog('TWPcapProtocolGTP.HeaderToString','GTPv1 not implemented',TWLLWarning);                
         if GetBitValue(LGTPHeaderV1.Flags,8)=1 then
         begin
          { N-PDU number
@@ -962,13 +963,37 @@ begin
             end;         
           end;
 
-        GTP_IEI_TFT          :Inc(aCurrentPos,LlenIE);
-        GTP_IEI_SDF_FILTER   :Inc(aCurrentPos,LlenIE);
-        GTP_IEI_PCO          :Inc(aCurrentPos,LlenIE);    
-        GTP_IEI_SGW_ADDRESS  :Inc(aCurrentPos,LlenIE);
-        GTP_IEI_ECGI         :Inc(aCurrentPos,LlenIE);        
+        GTP_IEI_TFT          :
+          begin
+            DoLog('TWPcapProtocolGTP.ParserIEType','GTP_IEI_TFT not implemented',TWLLWarning); 
+            Inc(aCurrentPos,LlenIE);
+          end;
+        GTP_IEI_SDF_FILTER   :
+          begin
+            DoLog('TWPcapProtocolGTP.ParserIEType','GTP_IEI_SDF_FILTER not implemented',TWLLWarning); 
+            Inc(aCurrentPos,LlenIE);
+          end;
+        GTP_IEI_PCO          :
+          begin
+            DoLog('TWPcapProtocolGTP.ParserIEType','GTP_IEI_PCO not implemented',TWLLWarning); 
+            Inc(aCurrentPos,LlenIE);
+          end;
+        GTP_IEI_SGW_ADDRESS  :
+          begin
+            DoLog('TWPcapProtocolGTP.ParserIEType','GTP_IEI_SGW_ADDRESS not implemented',TWLLWarning); 
+            Inc(aCurrentPos,LlenIE);
+          end;        
+        GTP_IEI_ECGI         :
+          begin
+            DoLog('TWPcapProtocolGTP.ParserIEType','GTP_IEI_ECGI not implemented',TWLLWarning); 
+            Inc(aCurrentPos,LlenIE);
+          end;           
         
-      else  Inc(aCurrentPos,LlenIE);
+      else  
+        begin
+          DoLog('TWPcapProtocolGTP.ParserIEType',Format('IEType [%d] not valid',[LIEType]),TWLLError); 
+          Inc(aCurrentPos,LlenIE);
+        end
       end;  
                   
       if aCurrentPos -3 <= aMaxLen  then

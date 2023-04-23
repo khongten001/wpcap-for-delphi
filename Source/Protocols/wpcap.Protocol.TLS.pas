@@ -811,6 +811,7 @@ var LOffset         : Integer;
     LByteValue      : Uint8;
     LByteValue2     : Uint8;
     LTypeRecord     : Uint8;
+    LTypeRecordStr  : String;
     LtmpVaue        : Integer;
     LtmpVaue2       : Integer;
     LHandShakeLen   : integer;
@@ -925,10 +926,29 @@ var LOffset         : Integer;
                       SkipUnsupportlabel(5+LLenTmp);
                     end;
                     
-                  TLS_EXTENSION_TYPE_MAX_FRAGMENT_LENGTH    : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_CLIENT_CERTIFICATE_URL : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_TRUSTED_CA_KEYS        : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_TRUNCATED_HMAC         : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_MAX_FRAGMENT_LENGTH    : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_MAX_FRAGMENT_LENGTH not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;  
+                                      
+                  TLS_EXTENSION_TYPE_CLIENT_CERTIFICATE_URL : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_CLIENT_CERTIFICATE_URL not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;  
+                    
+                  TLS_EXTENSION_TYPE_TRUSTED_CA_KEYS        : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_TRUSTED_CA_KEYS not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;  
+                    
+                  TLS_EXTENSION_TYPE_TRUNCATED_HMAC         : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_TRUSTED_CA_KEYS not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                    
                   
                   TLS_EXTENSION_TYPE_STATUS_REQUEST         : 
                     begin
@@ -939,10 +959,26 @@ var LOffset         : Integer;
                       SkipUnsupportlabel(5);
                     end;
                     
-                  TLS_EXTENSION_TYPE_USER_MAPPING           : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_CLIENT_AUTHZ           : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_SERVER_AUTHZ           : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_CERT_TYPE              : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_USER_MAPPING           : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_USER_MAPPING not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                          
+                  TLS_EXTENSION_TYPE_CLIENT_AUTHZ           :
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_CLIENT_AUTHZ not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                          
+                  TLS_EXTENSION_TYPE_SERVER_AUTHZ           : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_SERVER_AUTHZ not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                          
+                  TLS_EXTENSION_TYPE_CERT_TYPE              : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_CERT_TYPE not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                          
                   
                   TLS_EXTENSION_TYPE_SUPPORTED_GROUPS       :
                     ParserDataMod2(2,'SupportedGroups','SupportedGroup','Supported Groups','Supported group:',SupportedGroupToString,true);
@@ -950,12 +986,20 @@ var LOffset         : Integer;
                   TLS_EXTENSION_TYPE_EC_POINT_FORMATS       : 
                     ParserDataMod1(1,'ECPointFormats','ECPointFormat','EC point formats','EC point format:',nil,False);
 
-                  TLS_EXTENSION_TYPE_SRP                    : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_SRP                    : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_SRP not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                    
                   
                   TLS_EXTENSION_TYPE_SIGNATURE_ALGORITHMS   : 
                     ParserDataMod2(2,'Signatures','Signature','Signature hash algorithms','Signature algorithm:',SignatureAlgorithmToString,true);
 
-                  TLS_EXTENSION_TYPE_USE_SRTP               : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_USE_SRTP               : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_USE_SRTP not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                                
                   
                   TLS_EXTENSION_TYPE_HEARTBEAT              : 
                     begin
@@ -981,24 +1025,45 @@ var LOffset         : Integer;
                       end; 
                     end;
                     
-                  TLS_EXTENSION_TYPE_STATUS_REQUEST_V2      : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_STATUS_REQUEST_V2      : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_STATUS_REQUEST_V2 not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;                  
                   
                   TLS_EXTENSION_TYPE_SIGNED_CERT_TIMESTAMP  : Inc(LOffset,LLenExt); //nothing ??
 
-                  TLS_EXTENSION_TYPE_CLIENT_CERT_TYPE       : Inc(LOffset,LLenExt); 
-                  TLS_EXTENSION_TYPE_SERVER_CERT_TYPE       : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_CLIENT_CERT_TYPE       : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_CLIENT_CERT_TYPE not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;
+
+                  TLS_EXTENSION_TYPE_SERVER_CERT_TYPE       : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_SERVER_CERT_TYPE not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;
                   
                   TLS_EXTENSION_TYPE_PADDING                : 
                       ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.Padding.value',[AcronymName,aContentType]), 'Padding:',AListDetail,BytesToHex,True,LOffset); 
 
-                  TLS_EXTENSION_TYPE_ENCRYPT_THEN_MAC       : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_ENCRYPT_THEN_MAC       : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_ENCRYPT_THEN_MAC not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;
                   
                   TLS_EXTENSION_TYPE_EXTENDED_MASTER_SECRET : Inc(LOffset,LLenExt);  //Nothing ??
 
                   TLS_EXTENSION_TYPE_TOKEN_BINDING          : 
                     ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.TokenBinding.value',[AcronymName,aContentType]), 'Data:',AListDetail,BytesToHex,True,LOffset); 
                     
-                  TLS_EXTENSION_TYPE_CACHED_INFO            : Inc(LOffset,LLenExt); 
+                  TLS_EXTENSION_TYPE_CACHED_INFO            : 
+                    begin
+                      DoLog('TWPcapProtocolTLS.HeaderToString','Extentions TLS_EXTENSION_TYPE_CACHED_INFO not implemented',TWLLWarning);
+                      Inc(LOffset,LLenExt); 
+                    end;
                   
                   TLS_EXTENSION_TYPE_SESSION_TICKET         : 
                       ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LLenExt,Format('%s.Handshake.%S.Extension.SessionTicket.value',[AcronymName,aContentType]), 'Data:',AListDetail,BytesToHex,True,LOffset); 
@@ -1103,13 +1168,13 @@ begin
             
           TLS_CONTENT_TYPE_HANDSHAKE          :
           begin
-            LTypeRecord := PByte(LTCPPayLoad+LOffset)^;
-          
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake.%s',[AcronymName,HandShakeTypeToString(LTypeRecord)]), Format('Handshake: %s',[HandShakeTypeToString(LTypeRecord)]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
+            LTypeRecord    := PByte(LTCPPayLoad+LOffset)^;
+            LTypeRecordStr := HandShakeTypeToString(LTypeRecord);
+            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake.%s',[AcronymName,LTypeRecordStr]), Format('Handshake: %s',[LTypeRecordStr]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
             
-            ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Type',[AcronymName,HandShakeTypeToString(LTypeRecord)]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   
+            ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Type',[AcronymName,LTypeRecordStr]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   
             
-            LHandShakeLen := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Len',[AcronymName,HandShakeTypeToString(LTypeRecord)]), 'Length:',AListDetail,SizeCardinalToStr,true,LOffset);            
+            LHandShakeLen := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Len',[AcronymName,LTypeRecordStr]), 'Length:',AListDetail,SizeCardinalToStr,true,LOffset);            
 
             if LHandShakeLen <= 0 then  continue;
             if LHandShakeLen > 16384  then Break;
@@ -1192,7 +1257,7 @@ begin
                     LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Certificate.Certificates.Len',[AcronymName]), 'Certificate length:',AListDetail,nil,True,LOffset);      
                     ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.Certificates.Certificate',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
                     Dec(LOffset,LtmpVaue2);  
-
+                    DoLog('TWPcapProtocolTLS.HeaderToString','TLS_HANDSHAKE_TYPE_CERTIFICATE not compleated',TWLLWarning);
                     
                     {TODO info certificate}
                     Inc(LOffset,LtmpVaue2);                                          
@@ -1215,6 +1280,8 @@ begin
                     ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.CertificateStatus.Response',[AcronymName]), 'OCSP Response:',AListDetail,nil,True,LOffset);
                     Dec(LOffset,LtmpVaue2);  
 
+                    DoLog('TWPcapProtocolTLS.HeaderToString','TLS_HANDSHAKE_TYPE_CERT_STATUS not compleated',TWLLWarning);
+                    
                     {TODO info reponse certificate}
                     Inc(LOffset,LtmpVaue2);                     
                   end;
@@ -1232,6 +1299,7 @@ begin
                 TLS_HANDSHAKE_TYPE_ENCRYPTED_EXTS         :
                   begin
                      //TODO
+                    DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] not implemented',[LTypeRecord,LTypeRecordStr]),TWLLWarning);
                     Inc(LOffset,LContectLen);  
                   end   
                 
@@ -1246,15 +1314,20 @@ begin
 
         TLS_CONTENT_TYPE_ID_HEARTBEAT  :
           begin              //TODO
+            DoLog('TWPcapProtocolTLS.HeaderToString','TLS_CONTENT_TYPE_ID_HEARTBEAT not implemented',TWLLWarning);          
              Inc(LOffset,LContectLen);
           end;
         TLS_CONTENT_TYPE_ID_TLS12_CID : 
           begin             //TODO
+             DoLog('TWPcapProtocolTLS.HeaderToString','TLS_CONTENT_TYPE_ID_TLS12_CID not implemented',TWLLWarning);        
              Inc(LOffset,LContectLen);
           end;
           
       else
-        Inc(LOffset,LContectLen); // TODO invalid
+        begin
+          DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] invalid',[LTypeRecord,LTypeRecordStr]),TWLLError);      
+          Inc(LOffset,LContectLen); // TODO invalid
+        end;
       end;
 
   end;

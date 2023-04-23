@@ -711,8 +711,10 @@ begin
         if LHeaderL2TP.Version = 2 then    
         begin
           ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID);
-          {TODO MESSAGE CONTROL}
-        end;
+          DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP MESSAGE CONTROL not implemented',TWLLWarning);                
+        end
+        else if LHeaderL2TP.Version = 3 then  
+          DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP Version 3 not implemented',TWLLWarning);                
         {TODO version 3}
       end;
       Result := True;
@@ -1422,6 +1424,8 @@ begin
 
 
       {TODO message by AVP Type}
+      DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP MESSAGE AVP type not implemented',TWLLWarning);                
+
       // Move to the next AVP
       Inc(LCurrentPos, LAvpLength - SizeOf(TAVPHeader));
     end
