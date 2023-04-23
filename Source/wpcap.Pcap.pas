@@ -30,7 +30,7 @@ unit wpcap.Pcap;
 interface
 
 uses
-  wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts, wpcap.IANA.DbPort,
+  wpcap.Wrapper, wpcap.Types, wpcap.StrUtils, wpcap.Conts, wpcap.IANA.DbPort,System.Diagnostics,
   System.Threading, WinApi.Windows, wpcap.Packet, wpcap.IOUtils, System.SysUtils,
   System.DateUtils, System.Classes, Winsock, wpcap.Level.Eth, wpcap.BufferUtils,
   Forms, System.Math, System.Types, System.Generics.Collections, System.Variants,
@@ -50,7 +50,10 @@ uses
   /// </summary>
   /// <param name="aPacketData">A pointer to the packet data.</param>
   /// <param name="aHeader">A pointer to the packet header.</param>
-  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel): PTInternalPacket;
+  /// <param name="aGeoLiteDB">Link for MaxMind geoIp database.</param>  
+  /// <param name="aListLabelByLevel">Internal list for label filter.</param>  
+  /// <param name="aLogFunctoin">Function log.</param>  
+  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog): PTInternalPacket;
 
 type
   ///<summary>
@@ -70,13 +73,14 @@ type
   TThreadPcap = class(TThread)
   private         
     FAbort                   : Boolean; 
-    FOnPCAPCallBackPacket    : TPCAPCallBackPacket;
-    FOnPCAPCallBackError     : TPCAPCallBackError;
-    FOnPCAPCallBackProgress  : TPCAPCallBackProgress; 
-    FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;   
-    FonWpcapEthMacFound      : TWpcapEthMacFound;    
-    FonWpcapIpFound          : TWpcapIPFound;    
-    FOnWpcapProtocolDetected : TWpcapProtocolDetected;
+    FOnPCAPCallBackPacket    : TPCAPCallBackPacket;     // event for process packet analyzed
+    FOnPCAPCallBackError     : TPCAPCallBackError;      // event for PCAP analysis error
+    FOnPCAPCallBackProgress  : TPCAPCallBackProgress;   // event for PCAP analysis progress
+    FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;  // event fire bofere end analysis 
+    FonWpcapEthMacFound      : TWpcapEthMacFound;       // event for MAC found
+    FonWpcapIpFound          : TWpcapIPFound;           // event for IP found
+    FOnWpcapProtocolDetected : TWpcapProtocolDetected;  // event for protocol detected      
+    FOnLog                   : TWpcapLog;               // event for logging      
   protected
     FFilename               : string;
     FFilter                 : string;  
@@ -89,6 +93,10 @@ type
     ///<param name="aErrorMessage">Error message to send</param>
     procedure DoError(const aFileName, aErrorMessage: string); virtual;
 
+     /// <summary>
+     /// Log a message with the given function name, description, and log level.
+     /// </summary>         
+    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);               
   public
     ///<summary>
     /// Stops the thread from capturing packets
@@ -128,7 +136,6 @@ type
     ///<param name="aInternalPacket">Pointer to a structure that contains information about the packet</param>
     ///<param name="aSkypPacket">Specifies whether the packet should be skipped</param>    
     procedure DoProtocolFound(const aInternalPacket: PTInternalPacket;var aSkypPacket: Boolean);    
-
     
     ///<summary>
     /// Flag that determines if the thread should be aborted
@@ -156,9 +163,25 @@ type
     ///</summary>
     property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;     
 
-    property OnWpcapEthMacFound       : TWpcapEthMacFound          read FonWpcapEthMacFound        write FonWpcapEthMacFound;
-    property OnWpcapIpFound           : TWpcapIPFound              read FonWpcapIpFound            write FonWpcapIpFound;
-    property OnWpcapProtocolDetected  : TWpcapProtocolDetected     read FOnWpcapProtocolDetected   write FOnWpcapProtocolDetected;        
+    /// <summary>
+    /// Occurs when a Wpcap Ethernet MAC is found.
+    /// </summary>
+    property OnWpcapEthMacFound       : TWpcapEthMacFound       read FonWpcapEthMacFound        write FonWpcapEthMacFound;
+
+    /// <summary>
+    /// Occurs when a Wpcap IP address is found.
+    /// </summary>
+    property OnWpcapIpFound           : TWpcapIPFound           read FonWpcapIpFound            write FonWpcapIpFound;
+
+    /// <summary>
+    /// Occurs when a Wpcap protocol is detected.
+    /// </summary>
+    property OnWpcapProtocolDetected  : TWpcapProtocolDetected  read FOnWpcapProtocolDetected    write FOnWpcapProtocolDetected;
+
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>        
+    property OnLog                    : TWpcapLog               read FOnLog                       write FOnLog;         
   end;
 
   ///<summary>
@@ -208,6 +231,7 @@ type
     Property PCapRT           : Ppcap_t           read FPCapRT; 
     property DataLink         : Integer           read FDataLink;
     property ListLabelByLevel : TListLabelByLevel read FListLabelByLevel;
+
   end;
 
   ///<summary>
@@ -232,20 +256,20 @@ type
     constructor Create(const aOwner: TObject; const aFilename, aFilter: string; const aGeoLiteDB: TWpcapGEOLITE);
   end;
 
-
  
   TPCAPUtils = class
   strict private
     var FAbort                   : Boolean; 
     var FThreadCaptureRT         : TPCAPCaptureRT;    
     var FThreadLoadFile          : TPCAPLoadFile;        
-    var FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;
-    var FOnPCAPCallBackPacket    : TPCAPCallBackPacket;
-    var FOnPCAPCallBackError     : TPCAPCallBackError;
-    var FOnPCAPCallBackProgress  : TPCAPCallBackProgress;
-    var FonWpcapEthMacFound      : TWpcapEthMacFound;    
-    var FonWpcapIpFound          : TWpcapIPFound;    
-    var FOnWpcapProtocolDetected : TWpcapProtocolDetected;            
+    var FOnPCAPCallBeforeBackEnd : TPCAPCallBeforeBackEnd;  // event fire bofere end analysis 
+    var FOnPCAPCallBackPacket    : TPCAPCallBackPacket;     // event for process packet analyzed
+    var FOnPCAPCallBackError     : TPCAPCallBackError;      // event for PCAP analysis error
+    var FOnPCAPCallBackProgress  : TPCAPCallBackProgress;   // event for PCAP analysis progress
+    var FonWpcapEthMacFound      : TWpcapEthMacFound;       // event for MAC found
+    var FonWpcapIpFound          : TWpcapIPFound;           // event for IP found
+    var FOnWpcapProtocolDetected : TWpcapProtocolDetected;  // event for protocol detected      
+    var FonLog                   : TWpcapLog;               // event for logging              
   private
     ///<summary>
     /// Event handler for when the real-time capture terminates
@@ -264,6 +288,11 @@ type
     ///</summary>
     ///<param name="aValue">Value to set for the flag</param>
     procedure SetAbort(const aValue:Boolean);
+    
+    /// <summary>
+    /// Log a message with the given function name, description, and log level.
+    /// </summary>             
+    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
   public
     ///<summary>
     /// Analyzes an packet capture file using a specified set of callbacks.
@@ -346,19 +375,51 @@ type
     ///  <param name="aFilename">
     ///    The name of the pcap file to save to.
     ///  </param>
-    ///
     procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);
+    
     property Abort                    : Boolean                    read FAbort                     write SetAbort;
     property ThreadCaptureRT          : TPCAPCaptureRT             read FThreadCaptureRT;
     
     {Event}
-    property OnPCAPCallBackError      : TPCAPCallBackError         read FOnPCAPCallBackError       write FOnPCAPCallBackError;
-    property OnPCAPCallBackProgress   : TPCAPCallBackProgress      read FOnPCAPCallBackProgress    write FOnPCAPCallBackProgress;
-    property OnPCAPCallBackPacket     : TPCAPCallBackPacket        read FOnPCAPCallBackPacket      write FOnPCAPCallBackPacket;
-    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd     read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;   
-    property OnWpcapEthMacFound       : TWpcapEthMacFound          read FonWpcapEthMacFound        write FonWpcapEthMacFound;
-    property OnWpcapIpFound           : TWpcapIPFound              read FonWpcapIpFound            write FonWpcapIpFound;
-    property OnWpcapProtocolDetected  : TWpcapProtocolDetected     read FOnWpcapProtocolDetected   write FOnWpcapProtocolDetected;
+    ///<summary>
+    /// Event triggered when there is a callback error
+    ///</summary>
+    property OnPCAPCallBackError      : TPCAPCallBackError      read FOnPCAPCallBackError     write FOnPCAPCallBackError;
+
+    ///<summary>
+    /// Event triggered during the PCAP analisys
+    ///</summary>
+    property OnPCAPCallBackProgress   : TPCAPCallBackProgress   read FOnPCAPCallBackProgress  write FOnPCAPCallBackProgress;
+
+    ///<summary>
+    /// Event triggered when packet is ready
+    ///</summary>
+    property OnPCAPCallBackPacket     : TPCAPCallBackPacket     read FOnPCAPCallBackPacket    write FOnPCAPCallBackPacket;    
+
+    ///<summary>
+    /// Event triggered before call callBackEnd event
+    ///</summary>
+    property OnPCAPCallBeforeBackEnd  : TPCAPCallBeforeBackEnd  read FOnPCAPCallBeforeBackEnd   write FOnPCAPCallBeforeBackEnd;  
+
+    /// <summary>
+    /// Occurs when a Wpcap Ethernet MAC is found.
+    /// </summary>
+    property OnWpcapEthMacFound       : TWpcapEthMacFound       read FonWpcapEthMacFound        write FonWpcapEthMacFound;
+
+    /// <summary>
+    /// Occurs when a Wpcap IP address is found.
+    /// </summary>
+    property OnWpcapIpFound           : TWpcapIPFound           read FonWpcapIpFound            write FonWpcapIpFound;
+
+    /// <summary>
+    /// Occurs when a Wpcap protocol is detected.
+    /// </summary>
+    property OnWpcapProtocolDetected  : TWpcapProtocolDetected  read FOnWpcapProtocolDetected    write FOnWpcapProtocolDetected;
+
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>        
+    property OnLog                    : TWpcapLog               read FOnLog                       write FOnLog;        
   end;
 
 
@@ -386,7 +447,7 @@ begin
       if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
         SetLength(PacketBuffer,LPacketLen);
 
-      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel);
+      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel,TPCAPCaptureRT(aUser).OnLog);
       
       if Assigned(LTInternalPacket) then
       begin
@@ -419,7 +480,7 @@ begin
   Result := 0;
 end;
 
-function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel) : PTInternalPacket;
+function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog) : PTInternalPacket;
 var LLen              : Integer;
     LListDetail       : TListHeaderString;
     LLikLayersSize    : Integer;
@@ -429,8 +490,8 @@ begin
   if not Assigned(aPacketData) then Exit;
   LEthParser :=  TWpcapEthHeader.Create;
   Try
+    LEthParser.OnLog  := aLogFunctoin;
     New(Result); 
-
     Result.PacketDate                 := UnixToDateTime(aHeader.ts.tv_sec,false);    
     LLen                              := aHeader.len;
     LLikLayersSize                    := 0;
@@ -498,6 +559,13 @@ begin
     FThreadLoadFile.Stop;    
 end;
 
+procedure TPCAPUtils.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel)
+
+end;
+
 procedure TPCAPUtils.AnalyzePCAPRealtime( const aFilename, aFilter,aInterfaceName,aIP: string;
                                                 aPromisc,aSevePcapDump:Boolean;
                                                 aTimeOutMs:Integer=1000;
@@ -506,7 +574,11 @@ procedure TPCAPUtils.AnalyzePCAPRealtime( const aFilename, aFilter,aInterfaceNam
                                              );
 begin
   if not Assigned(FOnPCAPCallBackError) then
+  begin
+    DoLog('TPCAPUtils.AnalyzePCAPRealtime','Callback event for error not assigned',TWLLError);
+
     raise Exception.Create('Callback event for error not assigned');
+  end;
 
   if aFilename.Trim.IsEmpty then
   begin
@@ -546,6 +618,7 @@ begin
   FThreadCaptureRT.OnWpcapEthMacFound       := FOnWpcapEthMacFound;
   FThreadCaptureRT.OnWpcapIpFound           := FOnWpcapIpFound; 
   FThreadCaptureRT.OnWpcapProtocolDetected  := FOnWpcapProtocolDetected;     
+  FThreadCaptureRT.OnLog                    := FOnLog;
   FThreadCaptureRT.OnTerminate              := DoOnTerminateRT;
   FThreadCaptureRT.FreeOnTerminate          := True;
   FThreadCaptureRT.Start;     
@@ -559,7 +632,10 @@ end;
 procedure TPCAPUtils.AnalyzePCAPOffline( const aFilename,aFilter:String;aGeoLiteDB : TWpcapGEOLITE);                            
 begin
   if not Assigned(FOnPCAPCallBackError) then
+  begin
+    DoLog('TPCAPUtils.AnalyzePCAPOffline','Callback event for error not assigned',TWLLError);
     raise Exception.Create('Callback event for error not assigned');
+  end;
 
   if aFilename.Trim.IsEmpty then
   begin
@@ -593,6 +669,7 @@ begin
   FThreadLoadFile.OnWpcapEthMacFound      := FOnWpcapEthMacFound;
   FThreadLoadFile.OnWpcapIpFound          := FOnWpcapIpFound; 
   FThreadLoadFile.OnWpcapProtocolDetected := FOnWpcapProtocolDetected;  
+  FThreadLoadFile.OnLog                   := FOnLog;  
   FThreadLoadFile.OnTerminate             := DoOnTerminateOffline;
   FThreadLoadFile.FreeOnTerminate         := True;
   FThreadLoadFile.Start;      
@@ -613,14 +690,20 @@ begin
   LPcap := pcap_open_dead(DLT_EN10MB, MAX_PACKET_SIZE);
 
   if LPcap = nil then
+  begin
+    DoLog('TPCAPUtils.SavePacketListToPcapFile','Failed to open PCAP [LPcap not assinged]',TWLLError);
     raise Exception.Create('Failed to open PCAP');
+  end;
 
   Try
     // Open the PCAP file for writing
     LPcapDumper := pcap_dump_open(LPcap, PAnsiChar(AnsiString(aFilename)));
 
     if LPcapDumper = nil then
+    begin
+      DoLog('TPCAPUtils.SavePacketListToPcapFile',Format('Failed to dumper object for file [%s] - error [%s]',[aFilename,string(pcap_geterr(LPcap))]),TWLLError);
       raise Exception.CreateFmt('Failed to open PCAP dump %s',[string(pcap_geterr(LPcap))]);
+    end;
 
     try
       // Write each packet in the list to the PCAP file
@@ -649,12 +732,21 @@ end;
 { TThreaPcap }
 procedure TThreadPcap.DoError(const aFileName, aErrorMessage: string);
 begin
+  DoLog('TThreadPcap.DoError',Format('File [%s] - error [%s]',[aFilename,aErrorMessage]),TWLLError);
   TThread.Synchronize(nil,
     procedure
     begin         
         OnPCAPCallBackError(aFileName,aErrorMessage);
     end);  
 end;
+
+
+procedure TThreadPcap.DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel);
+end;
+
 
 procedure TThreadPcap.DoProgress(aTotalSize,aCurrentSize:Int64);
 begin
@@ -849,6 +941,7 @@ var LHandlePcap      : Ppcap_t;
     LListLabelByLevel: TListLabelByLevel;
     LIndex           : Integer;
     LSkypPacket      : boolean;
+    LStopwatch       : TStopwatch;
 begin
   FAbort               := False;
   LTolSizePcap         := FileGetSize(FFileName);  
@@ -863,7 +956,7 @@ begin
     DoError(FFileName,string(LErrbuf));
     Exit;
   end;
-
+  LStopwatch := TStopwatch.Create;
   Try
     try
       if not CheckWPcapFilter(LHandlePcap,FFileName,FFilter,String.Empty,FOnPCAPCallBackError) then exit;
@@ -879,10 +972,12 @@ begin
             1:  // packet read correctly
               begin     
                 try
+                  LStopwatch := LStopwatch.StartNew;
                   Inc(LIndex);    
+                  DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d]',[LIndex]),TWLLInfo);                                  
                   Inc(LLenAnalyze,LHeader^.Len);
                   {Does using parallel to parse pcap make the management of TCP retransmissions and sequence numbers complicated?}
-                  LTInternalPacket  := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel);    
+                  LTInternalPacket  := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel,FOnLog);    
                   if Assigned(LTInternalPacket) then
                   begin
                     Try
@@ -901,7 +996,6 @@ begin
                   end;   
                         
                   DoProgress(LTolSizePcap,LLenAnalyze);
-
                 Except on E :Exception do
                   begin
                     DoError(FFileName,Format('Exception %s Index packet %d',[e.message,LIndex]));
@@ -910,7 +1004,7 @@ begin
                 End;
                 
                 if FAbort then Break;
-            
+                DoLog('TPCAPLoadFile.Execute',Format('Analyze execute in [%d ms]',[LStopwatch.ElapsedMilliseconds]),TWLLTiming);                                  
               end;
             0: 
               begin

@@ -739,7 +739,7 @@ begin
   Inc(aOffset,2);
   Inc(aTotalNameLen,2);
   Move(aPacket[aOffset], LCardinalTmp, SizeOf(cardinal));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',MakeDWordIntoIPv4AddressInternal(wpcapntohl( LCardinalTmp)), @LCardinalTmp,SizeOf(LCardinalTmp)));     
+  AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',MakeUint32IntoIPv4AddressInternal(wpcapntohl( LCardinalTmp)), @LCardinalTmp,SizeOf(LCardinalTmp)));     
   Inc(aOffset,2);
   Inc(aTotalNameLen,2); 
 end;

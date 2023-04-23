@@ -63,7 +63,8 @@ uses
   UnitFormLabelFilter in 'UnitFormLabelFilter.pas' {FormLabelFilter},
   wpcap.Protocol.IMAP in '..\..\Source\Protocols\wpcap.Protocol.IMAP.pas',
   wpcap.Protocol.Gnutella in '..\..\Source\Protocols\wpcap.Protocol.Gnutella.pas',
-  UnitFormMemo in 'UnitFormMemo.pas' {FormMemo};
+  UnitFormMemo in 'UnitFormMemo.pas' {FormMemo},
+  wpcap.Logger in '..\..\Source\wpcap.Logger.pas';
 
 {$R *.res}
 

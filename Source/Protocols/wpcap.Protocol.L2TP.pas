@@ -1000,7 +1000,7 @@ begin
     16: // Unsigned32 AVP (IPv4Address)
       begin
         UIntValue    := PCardinal(aPayloadData + aCurrentPos)^;        
-        AddressValue := MakeDWordIntoIPv4AddressInternal(wpcapntohl(UIntValue));
+        AddressValue := MakeUint32IntoIPv4AddressInternal(wpcapntohl(UIntValue));
         Result       := TValue.From<string>(AddressValue);
       end;
     17: // Unsigned64 AVP (IPv6Address)

@@ -248,9 +248,7 @@ begin
         end;        
         if LHeaderV6.NextHeader <> IPPROTO_UDP then Exit;
         // Parse the UDP header
-        aPUDPHdr := PUDPHdr(aData + LSizeEthIP);
-
-        
+        aPUDPHdr := PUDPHdr(aData + LSizeEthIP);        
         Result   := True;
       end;      
   end;
@@ -266,7 +264,10 @@ begin
   aIdProtoDetected := IDDetectProto;
   Result           := True;
   for I := 0 to FListProtolsUDPDetected.Count-1 do
+  begin
+    FListProtolsUDPDetected[I].OnLog := DoLog;
     if FListProtolsUDPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then Exit;
+  end;
 end;
 
 class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;

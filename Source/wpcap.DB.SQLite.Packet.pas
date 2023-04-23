@@ -32,11 +32,14 @@ interface
 uses
   wpcap.DB.SQLite, wpcap.Protocol.UDP, wpcap.Protocol.TCP, wpcap.protocol, Math,
   wpcap.Conts, FireDAC.Comp.Client, System.Generics.Collections, wpcap.StrUtils,
-  FireDAC.Stan.Option, Vcl.Graphics, wpcap.BufferUtils, wpcap.Level.IP,
+  FireDAC.Stan.Option, Vcl.Graphics, wpcap.BufferUtils, wpcap.Level.IP,Vcl.Forms,
   wpcap.Types, WinApi.Windows, FireDac.Stan.Param, wpcap.Level.Eth, wpcap.Packet,
   System.Classes, System.Variants, System.SysUtils, Data.Db, System.StrUtils,
   winApi.Winsock2, Wpcap.Protocol.RTP;
 
+  /// <summary>
+  /// A class that extends TWPcapDBSqLite and represents a packet stored in a SQLite database.
+  /// </summary>  
   type
     TWPcapDBSqLitePacket = Class(TWPcapDBSqLite)
   private
@@ -48,14 +51,48 @@ uses
     FFDViewUpdate       : TFDUpdateSQL;
     FInsertToArchive    : SmallInt;
     FMaxInsertCache     : SmallInt;    
+    FOnLog              : TWpcapLog;     //Event for logging
+    
+    /// <summary>
+    /// Sets the maximum insert cache size.
+    /// </summary>
+    /// <param name="Value">The maximum insert cache size.</param>    
     procedure SetMaxInsertCache(const Value: SmallInt);
+    
+    /// <summary>
+    /// Retrieves the data from a TFDQuery and stores it in a variant array.
+    /// </summary>
+    /// <param name="aQuery">The TFDQuery object containing the data to retrieve.</param>
+    /// <param name="aArray">Returns the variant array containing the retrieved data.</param>
+    /// <param name="aDescription">Returns the description of the retrieved data.</param>
+    /// <returns>A boolean value indicating if the operation was successful.</returns>
     Function GetVarArrayByQuery(aQuery:TFdQuery;out aArray : Variant;out aDescription:String):Boolean;
+
+    /// <summary>
+    /// Log a message with the given function name, description, and log level.
+    /// </summary>         
+    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
   protected
+  
+    /// <summary>
+    /// Returns the SQL script for the database schema.
+    /// </summary>
+    /// <returns>A string containing the SQL script for the database schema.</returns>
     function GetSQLScriptDatabaseSchema: String;override;
+
+    /// <summary>
+    /// Initializes the database connection.
+    /// </summary>    
     procedure InitConnection;override;
+
+    /// <summary>
+    /// Inserts metadata into the database.
+    /// </summary>
+    /// <param name="aName">The name of the metadata to insert.</param>
+    /// <param name="aValue">The value of the metadata to insert.</param>    
     procedure InsertMetadata(const aName: String; aValue: String);override;               
   public
-    Destructor Destroy;override;
+    destructor Destroy;override;
     ///<summary>
     /// Inserts a network packet into the database.
     ///</summary>
@@ -73,6 +110,16 @@ uses
     /// An EDatabaseError exception is raised if an error occurs while inserting the packet.
     ///</exception>
     procedure InsertPacket(const aInternalPacket : PTInternalPacket);  
+
+    /// <summary>
+    /// Resets the insertion counter for the array.
+    /// </summary>
+    procedure ResetCounterIntsert;
+
+    /// <summary>
+    /// Saves the current array to database and clears it from memory.
+    /// </summary>
+    procedure FlushArrayInsert;
     
     /// <summary>
     /// Retrieves the packet data from the database at the specified packet number.
@@ -80,7 +127,7 @@ uses
     /// <param name="aNPacket">The packet number to retrieve the data for.</param>
     /// <param name="aPacketSize">The size of the packet data.</param>
     /// <returns>A pointer to the packet data in memory.</returns>    
-    function GetPacketDataFromDatabase(aNPacket: Integer;var aPacketSize:Integer): PByte;    
+    function GetPacketDataFromDatabase(aNPacket: Integer;var aPacketSize: Integer): PByte;
     
     /// <summary>
     /// Returns a list of string containing the hexadecimal dump of a packet data with
@@ -88,16 +135,70 @@ uses
     /// </summary>
     /// <param name="aNPacket">The number of packet to display (starting from 0)</param>
     /// <returns>A list of string containing the hexadecimal dump of the packet data</returns>
-    function GetListHexPacket(aNPacket,aStartLevel: Integer;var aListDetail:TListHeaderString): TArray<String>;    
+    function GetListHexPacket(aNPacket,aStartLevel: Integer;var aListDetail:TListHeaderString): TArray<String>;  
+
+    /// <summary>
+    /// Inserts distinct labels into database for filter feature
+    /// </summary>
+    /// <param name="aListLabelByLevel">The list containing the labels to be inserted.</param>      
     procedure InsertLabelByLevel(const aListLabelByLevel: TListLabelByLevel);
-    Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
-    function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
-    procedure FlushArrayInsert;
+
+    /// <summary>
+    /// Retrieves the frame number from the database based on the label passed in.
+    /// </summary>
+    /// <param name="aArrFrameNumber">Returns the frame number related to the label.</param>
+    /// <param name="aLabel">The input label to search for in the database.</param>
+    /// <param name="aDescription">Returns the description found for the input label.</param>
+    /// <returns>A boolean value indicating if the operation was successful.</returns>    
     function GetFrameNumberByLabel(var aArrFrameNumber: variant; const aLabel: String;var aDescription:String): boolean;    
-    procedure ResetCounterIntsert;
+    
+    /// <summary>
+    /// Retrieves the flow string for the specified IP addresses and port numbers.
+    /// </summary>
+    /// <param name="aIpSrc">The source IP address for the flow.</param>
+    /// <param name="aIpDst">The destination IP address for the flow.</param>
+    /// <param name="aPortSrc">The source port number for the flow.</param>
+    /// <param name="aPortDst">The destination port number for the flow.</param>
+    /// <param name="aIPProto">The IP protocol number.</param>
+    /// <param name="aColorSrc">The color for the source in the flow string.</param>
+    /// <param name="aColorDst">The color for the destination in the flow string.</param>
+    /// <returns>A TStringList containing the flow string information.</returns>
+    Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
+
+    /// <summary>
+    /// Saves the RTP payload data to a file.
+    /// </summary>
+    /// <param name="aFilename">The name of the file to save the payload data to.</param>
+    /// <param name="aIpSrc">The source IP address of the payload data.</param>
+    /// <param name="aIpDst">The destination IP address of the payload data.</param>
+    /// <param name="aPortSrc">The source port of the payload data.</param>
+    /// <param name="aPortDst">The destination port of the payload data.</param>
+    /// <param name="aSoxCommand">The command to execute for processing the data.</param>
+    /// <returns>A boolean value indicating if the operation was successful.</returns>    
+    function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
+    constructor Create;
+    
     {Property}
-    property MaxInsertCache     : SmallInt  read FMaxInsertCache      write SetMaxInsertCache;
-    property FDQueryLabelList  : TFDQuery  read FFDQueryLabelList    write FFDQueryLabelList;     
+
+    /// <summary>
+    /// The maximum insert cache size.
+    /// </summary>
+    /// <remarks>
+    /// This property specifies the maximum size of the insert cache,
+    /// which is used to store data before it is inserted into the database.
+    /// </remarks>    
+    property MaxInsertCache    : SmallInt     read FMaxInsertCache      write SetMaxInsertCache;
+    
+    /// <summary>
+    /// The TFDQuery object used for return list of labels.
+    /// </summary>    
+    property FDQueryLabelList  : TFDQuery     read FFDQueryLabelList    write FFDQueryLabelList; 
+
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>        
+    property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;    
+      
   End;
 implementation
 
@@ -135,12 +236,12 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  DST_LONGITUDE FLOAT,                          '+sLineBreak+    
                       '  PACKET_RAW_TEXT TEXT,                         '+sLineBreak+  
                       '  XML_PACKET_DETAIL TEXT,                       '+sLineBreak+  
-                      '  NOTE_PACKET TEXT,                                    '+sLineBreak+  
+                      '  NOTE_PACKET TEXT,                             '+sLineBreak+  
                       '  PACKET_DATA BLOB                              '+sLineBreak+
                       ');                                              ';
 
-           SQL_DB_METADATA =  'CREATE TABLE %S(                     '+sLineBreak+
-                              '  %S TEXT,                               '+sLineBreak+
+           SQL_DB_METADATA =  'CREATE TABLE %S(                        '+sLineBreak+
+                              '  %S TEXT,                              '+sLineBreak+
                               '  %s TEXT                               '+sLineBreak+
                               ');';      
 
@@ -175,12 +276,14 @@ begin
 
   Result := SQL_TABLE            +sLineBreak+
             SQL_INDEX            +sLineBreak+
-            SQL_VIEW             +sLineBreak+
+            SQL_VIEW             +sLineBreak+            
             SQL_DB_LABEL_FILTER  +sLineBreak+
             SQL_INDEX_LF_1       +sLineBreak+
             SQL_INDEX_LF_2       +sLineBreak+
             Format(SQL_DB_METADATA,[GetMetadataTableName,GetMetadataCOLUMN_NAME_NAME,GetMetadataCOLUMN_NAME_VALUE]);
 end;
+
+    
 
 procedure TWPcapDBSqLitePacket.InitConnection;
 {$REGION 'SQL insert}
@@ -402,32 +505,31 @@ begin
   FFDQueryInsertLabel.Params.ArraySize := aListLabelByLevel.Count;
   Literator := aListLabelByLevel.GetEnumerator();  
 
-  
-  // Popolare i parametri per ogni riga nella batch
   i := 0;
   Literator.MoveNext;
   while I < aListLabelByLevel.Count -1 do
     AddLabelFilter(0,Literator.Current.Value.Level,I); 
   Try    
     FFDQueryInsertLabel.Execute(FFDQueryInsertLabel.Params.ArraySize); // esegue la batch insert        
-  except 
+  except on e: Exception do 
+    DoLog('TWPcapDBSqLitePacket.InsertLabelByLevel',e.message,TWLLException);
   end;
 end;
-
 
 procedure TWPcapDBSqLitePacket.FlushArrayInsert;
 begin
   if FInsertToArchive > -1 then
+  begin
+    DoLog('TWPcapDBSqLitePacket.FlushArrayInsert',Format('Insert [%d] elements',[FInsertToArchive]),TWLLInfo);
     FFDQueryInsert.Execute(FInsertToArchive);
+  end;
   ResetCounterIntsert;
 end;
-
 
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
 
 begin
-  {TODO use Batch insert}
   if not FFDQueryInsert.Prepared then
   begin
     FFDQueryInsert.Prepare;
@@ -504,13 +606,10 @@ begin
   FFDQueryInsert.ParamByName('pXMLInfo').AsStrings[FInsertToArchive]       := aInternalPacket.XML_Detail;
   FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiStrings[FInsertToArchive] := aInternalPacket.RAW_Text;
 
-
   LMemoryStream := TMemoryStream.Create; 
   Try
     LMemoryStream.WriteBuffer(aInternalPacket.PacketData^,aInternalPacket.PacketSize);
-
     FFDQueryInsert.ParamByName('pPacket').LoadFromStream(LMemoryStream,ftBlob,FInsertToArchive);
-
   Finally
     FreeAndNil(LMemoryStream);
   End;  
@@ -610,7 +709,10 @@ begin
                 LPayloadSize := TWPcapProtocolBaseUDP.UDPPayLoadLength(LUDPHdr)            
               end
           else
-            raise Exception.Create('Error invalid protocolo only TCP and UP protocol are supported');
+            begin
+              DoLog('TWPcapDBSqLitePacket.GetFlowString',Format('Error invalid protocol [%d] only TCP and UP protocol are supported',[aIPProto]),TWLLException);
+              raise Exception.Create('Error invalid protocol only TCP and UP protocol are supported');
+            end;
           end;
 
           if LCurrentIP <> FFDQueryFlow.FieldByName('IP_SRC').AsString then
@@ -703,12 +805,16 @@ begin
   FFDQuerySession.Close;  
 end;
 
+constructor TWPcapDBSqLitePacket.Create;
+begin
+  inherited;
+end;
+
 destructor TWPcapDBSqLitePacket.Destroy;
 begin
   FreeAndNil(FFDQuerySession);
   FreeAndNil(FFDQueryInsert);  
   FreeAndNil(FFDQueryInsertLabel);
-  
   FreeAndNil(FFDQueryFlow);
   inherited;
 end;
@@ -727,9 +833,19 @@ begin
   FFDQueryInsert.Params.ArraySize := FMaxInsertCache;  
 end;
 
+procedure TWPcapDBSqLitePacket.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel)
+
+end;
+
 procedure TWPcapDBSqLitePacket.ResetCounterIntsert;
 begin
   FInsertToArchive := -1;
 end;
 
 end.
+
+
+

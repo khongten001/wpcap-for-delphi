@@ -158,7 +158,6 @@ type
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
     FWpcapGeoLite  : TWpcapGEOLITE;
-    FPCAPUtils     : TPCAPUtils;
     FFFormMap      : TFormMap;
     FPcapImport    : TPCAP2SQLite;
     FLastPercProg  : Byte;
@@ -402,7 +401,7 @@ begin
       end;
 
       if LListPacket.Count > 0 then
-        FPCAPUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
+        FPcapImport.PcapUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
     Finally
       FreeAndNil(LListPacket);
     End;
@@ -490,7 +489,7 @@ begin
               end;
 
               if LListPacket.Count > 0 then
-                FPCAPUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
+                FPcapImport.PcapUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
             Finally
               FreeAndNil(LListPacket);
             End;

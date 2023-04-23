@@ -147,7 +147,7 @@ Type
     ///</summary>
     procedure InsertMetadata(const aName: String; aValue: String);virtual;    
    public
-    constructor Create;reintroduce;      
+    constructor Create;reintroduce;virtual;      
     destructor Destroy;override;   
     
     

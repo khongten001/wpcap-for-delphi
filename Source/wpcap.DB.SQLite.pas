@@ -47,11 +47,20 @@ type
     var FDriverLink : TFDPhysSQLiteDriverLink;   
 
   protected
-
-    procedure InsertVersion;virtual;     
-  
+    /// <summary>
+    /// Inserts version into Metadata table in database.
+    /// </summary>    
+    procedure InsertVersion;virtual;   
+        
     procedure CreateFDDriverLink;override;
+
+    /// <summary>
+    /// Inserts metadata into the database.
+    /// </summary>
+    /// <param name="aName">The name of the metadata to insert.</param>
+    /// <param name="aValue">The value of the metadata to insert.</param>      
     procedure InsertMetadata(const aName: String; aValue: String);override;       
+
     function GetDriverIDName:String;override;
     procedure DestroyFDDriverLink;override;  
     procedure SetCredentialConnection(const aUsername,aPassword:String); override;    

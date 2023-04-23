@@ -422,18 +422,18 @@ begin
   { ciaddr  4  Client IP address; only filled in if client is in
                BOUND, RENEW or REBINDING state and can respond
                to ARP requests.}  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ClientIP)), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ClientIP)), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
 
   { yiaddr  4  'your' (client) IP address.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.YourIP)), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.YourIP)), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
 
   { siaddr  4  IP address of next server to use in bootstrap;
                returned in DHCPOFFER, DHCPACK by server.      }
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.ServerIP)), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.ServerIP)), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
 
  { giaddr   4  Relay agent IP address, used in booting via a
                relay agent.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:', MakeDWordIntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.RelayAgentIP)), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.RelayAgentIP)), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
 
   {chaddr   16  Client hardware address.  }
   SetLength(LBytesTmp,LHeaderDHCP.HLen);
@@ -494,7 +494,7 @@ begin
           begin
             for I := 0 to (LLen div 4 ) -1 do
               ParserUint32Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),
-                              AListDetail, MakeDWordIntoIPv4AddressInternal, True, LCurrentPos);
+                              AListDetail, MakeUint32IntoIPv4AddressInternal, True, LCurrentPos);
           end;
 
         {String}  

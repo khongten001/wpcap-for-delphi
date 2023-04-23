@@ -34,28 +34,78 @@ uses
   System.Variants,wpcap.Types,wpcap.BufferUtils,System.Classes,wpcap.IpUtils,Winapi.Windows;
 
 Type
-
-
   /// <summary>
   /// Base class for all protocols in a packet capture. 
   /// This class defines the base behavior that each protocol should implement.
   /// </summary>
   TWPcapProtocolBase = class(TWpcapEthHeader)
   private
-  protected
-     class var FIsFilterMode           : Boolean;
      class var FOnFoundMalformedPacket : TNotifyEvent;
+     class var FOnLog                  : TWpcapLog;     //Event for logging      
+  protected
+     class var FIsFilterMode : Boolean;
+     
+     /// <summary>
+     /// Log a message with the given function name, description, and log level.
+     /// </summary>     
+     class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog);
+
+		 /// <summary>
+		 /// Convert a Uint8 value to a string representing its size.
+		 /// </summary>     
      class function SizeaUint8ToStr(const aUint8: UInt8): String;
-     class function SizeCardinalToStr(const aCardinal: UInt32): String; 
+
+		 /// <summary>
+     ///Convert a Uint32 (cardinal) value to a string representing its size.
+		 /// </summary>
+     class function SizeCardinalToStr(const aCardinal: UInt32): String;
+
+		 /// <summary>
+     ///Convert a Uint16 (word) value to a string representing its size.
+		 /// </summary>     
+     class function SizeWordToStr(const aWord: UInt16): String;     
+     
+     /// <summary>
+     /// Convert a byte value to a binary string.
+ 	 	 /// </summary>
      class function ByteToBinaryStringInternal(const AByte: UInt8): string;     
+
+     /// <summary>
+		 /// Convert an array of bytes to a hexadecimal string.
+     /// </summary>     
      class function BytesToHex(const ABytes: TidBytes): string;          
-     class function SizeWordToStr(const aWord: UInt16): String;
+
+		 /// <summary>
+		 /// Convert a byte value to a String representation of a boolean value.
+ 		 /// </summary>     
      class Function ByteToBooleanStr(const aValue:Uint8):String;
-     class function MakeDWordIntoIPv4AddressInternal(const ADWord: UInt32): string;    
+
+ 		 /// <summary>
+     /// Convert an array of bytes to a string without locale
+ 		 /// </summary>     
      class function BytesToStringRawInternal(const ABytes: TidBytes): string;
-     class function IPv6AddressToStringInternal(const ABytes: TidBytes): string;
+     
+		 /// <summary>
+ 		 /// Convert a Uinr32 value to a string representing an IPv4 address.
+		 /// </summary>
+     class function MakeUint32IntoIPv4AddressInternal(const aValue: UInt32): string;    
+     
+		 /// <summary>
+		 /// Convert an array of bytes representing an IPv6 address to a string representation.
+ 		 /// </summary>
+     class function IPv6AddressToStringInternal(const ABytes: TidBytes): string;     
+
+		 /// <summary>
+		 /// Check if the specified length is valid within the given actual position and maximum length.
+     /// if not valid call event FOnFoundMalformedPacket
+		 /// </summary>     
      class function isValidLen(const aActualPos, aMaxLen: Integer; aLen: Integer): Boolean; static;
+
+     /// <summary>
+		 /// Check if the given test port matches either the source or destination port.
+		 /// </summary>
      class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
+
      class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint8;  
      class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint16;
      class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;     
@@ -103,17 +153,26 @@ Type
 
 
     class function AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;static;
+
     /// <summary>
     /// Checks whether the packet has the default port for the protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;overload; virtual;
-    
+
     {Property}
     class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
     
     {Event}
+    /// <summary>
+    /// Gets or sets event for malformed packet.
+    /// </summary>    
     class property OnFoundMalformedPacket : TNotifyEvent   read FOnFoundMalformedPacket write FOnFoundMalformedPacket;
+    
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>        
+    class property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;
   end;
   
 implementation
@@ -185,7 +244,6 @@ begin
    aAcronymName     := AcronymName;
    aIdProtoDetected := IDDetectProto;   
 end;
-
 
 class function TWPcapProtocolBase.IsValidByDefaultPort(aSrcPort, aDstPort: integer;
   var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
@@ -442,11 +500,6 @@ begin
   Result := True;
 end;
 
-class function TWPcapProtocolBase.MakeDWordIntoIPv4AddressInternal(const ADWord: UInt32): string;
-begin
-  Result :=  MakeUInt32IntoIPv4Address(ADWord)
-end;
-
 class function TWPcapProtocolBase.SizeCardinalToStr(const aCardinal:UInt32):String;
 begin
   Result := SizeToStr(aCardinal);
@@ -485,14 +538,21 @@ begin
   Result := BytesToStringRaw(ABytes)
 end;
 
+class function TWPcapProtocolBase.MakeUint32IntoIPv4AddressInternal(const aValue: UInt32): string;
+begin
+  Result :=  MakeUInt32IntoIPv4Address(aValue)
+end;
+
 class function TWPcapProtocolBase.IPv6AddressToStringInternal(const ABytes: TidBytes): string;
 begin
   Result := IPv6AddressToString(ABytes)
 end;
 
-
-
-
-
+class procedure TWPcapProtocolBase.DoLog(const aFunctionName,
+  aDescription: String; aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel);
+end;
 
 end.

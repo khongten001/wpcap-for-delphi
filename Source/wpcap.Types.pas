@@ -486,6 +486,10 @@ type
   ///<param name="aAcronym">Acronym of protocol (example HTTP)</param>
   ///<param name="aSkypPacket">Indicates whether the packet should be skipped (True) or not (False)</param>
   TWpcapProtocolDetected = procedure(const aAcronym:String;var aSkypPacket:Boolean) of object;  
+
+  TWpcapLvlLog = (TWLLException,TWLLError,TWLLWarning,TWLLInfo,TWLLTiming,TWLLDebug);
+  
+  TWpcapLog = procedure(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog) of object; 
      
 implementation
 

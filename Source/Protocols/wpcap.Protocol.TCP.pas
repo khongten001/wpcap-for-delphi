@@ -209,6 +209,7 @@ begin
 
   for I := 0 to FListProtolsTCPDetected.Count-1 do
   begin
+    FListProtolsTCPDetected[I].OnLog := DoLog;
     if FListProtolsTCPDetected[I].IsValid(aData,aSize,aArcronymName,aIdProtoDetected) then
     begin
       Result := True;

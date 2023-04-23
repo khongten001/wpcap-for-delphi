@@ -32,7 +32,7 @@ interface
 uses
   System.Generics.Collections, wpcap.Packet,  wpcap.StrUtils,wpcap.Protocol.ICMP,wpcap.Protocol.IGMP,
   wpcap.Conts, System.SysUtils, wpcap.Level.Eth, wpcap.IANA.DbPort,Variants,wpcap.IpUtils,idGlobal,
-  wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2;
+  wpcap.Protocol.UDP, wpcap.Protocol.TCP,wpcap.BufferUtils,wpcap.Types,winsock2,System.Diagnostics;
 
 
 type  
@@ -241,7 +241,7 @@ type
     /// <param name="aPacketData">A pointer to the start of the packet data.</param>
     /// <param name="aPacketSize">The size of the packet data in bytes.</param>
     /// <param name="aInternalIP">A pointer to the internal IP record to be populated with the analysis results.</param>
-    class procedure AnalyzeIPProtocol(const aPacketData: PByte; aPacketSize: Integer; aInternalIP: PTInternalIP);
+    class procedure AnalyzeIPProtocol(const aPacketData: PByte; aPacketSize: Integer; aInternalIP: PTInternalIP;aLogging:Boolean);
     class function DecodeDifferentiatedServices(TOS: Byte): TDifferentiatedServices; static;
     class function GetIpFlag(aFlags: byte;AListDetail:TListHeaderString;aStartLevel:Integer): string;
     class function HeaderLenConvert(const aVerLen: Word): Word; static;
@@ -295,7 +295,7 @@ type
     ///  <param name="aIANADictionary">A dictionary containing IANA protocol information</param>
     ///  <param name="aInternalIP">A pointer to the InternalIP record to be filled with the analysis result</param>
     ///  <returns>True if the IP header analysis is successful, False otherwise</returns>
-    class function InternalIP(const aPacketData: PByte; aPacketSize: Integer; aIANADictionary: TDictionary<String, TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel:Boolean=True): Boolean;static;
+    class function InternalIP(const aPacketData: PByte; aPacketSize: Integer; aIANADictionary: TDictionary<String, TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel,aLogging:Boolean): Boolean;static;
 
     /// <summary>
     /// This function takes a 16-bit IPv6 protocol number and returns its name as a string. 
@@ -467,7 +467,6 @@ begin
   end;
 end;
 
-
 class Function TWpcapIPHeader.GetNextBufferHeader(const aPacketData: PByte;aPacketSize,aHeaderPrevLen,aNewIpProto: Integer;var aNewPacketLen: Integer;aCheckNextHeader:Boolean):PByte;
 var lHeaderEthLen    : Integer;
 begin
@@ -511,7 +510,7 @@ begin
   FisFilterMode := aisFilterMode;
   new(LInternalIP);
   Try
-    if not InternalIP(aPacketData,aPacketSize,nil,LInternalIP,False) then exit;
+    if not InternalIP(aPacketData,aPacketSize,nil,LInternalIP,False,False) then exit;
     
     if not Assigned(AListDetail) then
       AListDetail := TListHeaderString.Create;
@@ -753,13 +752,20 @@ begin
     ExtentionHeader(aPacketData,aStartLevel,aCurrentPos,aIpProto,AListDetail); 
 end;
 
-class Procedure TWpcapIPHeader.AnalyzeIPProtocol(const aPacketData: PByte;aPacketSize: Integer; aInternalIP: PTInternalIP);
+class Procedure TWpcapIPHeader.AnalyzeIPProtocol(const aPacketData: PByte;aPacketSize: Integer; aInternalIP: PTInternalIP;aLogging:Boolean);
+var LStopwatch : TStopwatch;
 begin
+  LStopwatch := TStopwatch.Create;
+  LStopwatch := LStopwatch.StartNew;
+  TWPcapProtocolBaseTCP.OnLog := OnLog;          
+  TWPcapProtocolBaseUDP.OnLog := OnLog;            
   if not TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto) then
     TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
+  if aLogging  then    
+    DoLog('TWpcapIPHeader.AnalyzeIPProtocol',Format('Execute in [ %d ms ]',[LStopwatch.ElapsedMilliseconds]),TWLLTiming);                   
 end;
 
-class function TWpcapIPHeader.InternalIP(const aPacketData: PByte;aPacketSize: Integer;aIANADictionary:TDictionary<String,TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel:Boolean=True): Boolean;
+class function TWpcapIPHeader.InternalIP(const aPacketData: PByte;aPacketSize: Integer;aIANADictionary:TDictionary<String,TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel,aLogging:Boolean): Boolean;
 var LheaderIpV4    : PTIPHeader;
     LheaderIpV6    : PIpv6Header;
     LUdpPhdr       : PUDPHdr;
@@ -788,9 +794,10 @@ begin
 
         if (aInternalIP.IpProto = IPPROTO_IPV6) and aFallowIpLevel then
         begin
+          DoLog('TWpcapIPHeader.InternalIP','Found IPv4 link to Next IPv6 header',TWLLInfo);               
           LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IPV6,LNewPacketSize,False);
           Try
-            Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP);
+            Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP,True,True);
           Finally
             FreeMem(LNewPacket);
           End;              
@@ -801,7 +808,7 @@ begin
         aInternalIP.ProtoAcronym   := GetIPv4ProtocolName(aInternalIP.IpProto);
         aInternalIP.Src            := MakeUInt32IntoIPv4Address(wpcapntohl(LheaderIpV4.SrcIP.Addr));
         aInternalIP.Dst            := MakeUInt32IntoIPv4Address(wpcapntohl(LheaderIpV4.DestIP.Addr));
-        AnalyzeIPProtocol(aPacketData,aPacketSize,aInternalIP);         
+        AnalyzeIPProtocol(aPacketData,aPacketSize,aInternalIP,aLogging);         
         Result := True;
       end;
    imtIpv6:
@@ -814,36 +821,40 @@ begin
 
         if (aInternalIP.IpProto = IPPROTO_IP) and aFallowIpLevel then
         begin
+          DoLog('TWpcapIPHeader.InternalIP','Found IPv6 link to Next IPv4 header',TWLLInfo);       
           LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IP,LNewPacketSize,False);
           Try
-            Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP);
+            Result := InternalIP(LNewPacket, LNewPacketSize,aIANADictionary,aInternalIP,True,True);
           Finally
             FreeMem(LNewPacket);
           End;              
           Exit;
         end;
-
-                   
+                           
         aInternalIP.ProtoAcronym    := GetIPv6ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.IpPrototr       := GetIPv6ProtocolName(aInternalIP.IpProto);                    
         aInternalIP.Src             := IPv6AddressToString(LheaderIpV6.SourceAddress);
         aInternalIP.Dst             := IPv6AddressToString(LheaderIpV6.DestinationAddress);
         aInternalIP.IsIPv6          := True;
-        AnalyzeIPProtocol(aPacketData,aPacketSize,aInternalIP); 
+        AnalyzeIPProtocol(aPacketData,aPacketSize,aInternalIP,aLogging); 
         Result := True;    
       end;      
   end;
-
+  if aLogging then  
+    DoLog('TWpcapIPHeader.InternalIP',Format('Found IpProto [ %d --> %s ]',[aInternalIP.IpProto,aInternalIP.ProtoAcronym]),TWLLInfo);
   case aInternalIP.IpProto of
 
     IPPROTO_ICMP,
-    IPPROTO_ICMPV6  : TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
+    IPPROTO_ICMPV6  : 
+      begin
+        TWPcapProtocolICMP.OnLog := OnLog;
+        TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
+      end;
     
     IPPROTO_TCP     : 
       begin
         if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
         begin
-          
           aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
           aInternalIP.PortDst := TWPcapProtocolBaseTCP.DstPort(LTcpPhdr);    
 
@@ -853,6 +864,7 @@ begin
            aInternalIP.IANAProtoStr := LIANARow.ProtocolName
         end;      
       end;
+      
     IPPROTO_UDP     : 
       begin
         if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
@@ -868,10 +880,17 @@ begin
            aInternalIP.IANAProtoStr := LIANARow.ProtocolName
         end     
       end;
-    IPPROTO_IGMP    : TWPcapProtocolIGMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
-    IPPROTO_GGP     :;    
+
+    IPPROTO_IGMP    : 
+      begin
+        TWPcapProtocolIGMP.OnLog := OnLog;
+        TWPcapProtocolIGMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
+      end;
+
     IPPROTO_IPV6    :
       begin
+        TWPcapProtocolBaseUDP.OnLog := OnLog;
+        TWPcapProtocolBaseTCP.OnLog := OnLog;        
         if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
         begin
           aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);
@@ -883,11 +902,9 @@ begin
            aInternalIP.IANAProtoStr := LIANARow.ProtocolName
           else if aIANADictionary.TryGetValue(Format('%d_%d',[aInternalIP.PortSrc,IPPROTO_IANA_UDP]),LIANARow) then
            aInternalIP.IANAProtoStr := LIANARow.ProtocolName
-        end else 
-        if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
-        begin
-
-          
+        end 
+        else if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
+        begin          
           aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
           aInternalIP.PortDst := TWPcapProtocolBaseTCP.DstPort(LTcpPhdr);    
 
@@ -897,15 +914,19 @@ begin
            aInternalIP.IANAProtoStr := LIANARow.ProtocolName
         end;               
       end;
-    IPPROTO_PUP     :;
-    IPPROTO_IDP     :;
-    IPPROTO_GRE     :;
-    IPPROTO_ESP     :;
-    IPPROTO_AH      :;
-    IPPROTO_ROUTING :;
-    IPPROTO_PGM     :;
-    IPPROTO_SCTP    :;
-    IPPROTO_RAW     :;
+      
+    IPPROTO_GGP     ,
+    IPPROTO_PUP     ,
+    IPPROTO_IDP     ,
+    IPPROTO_GRE     ,
+    IPPROTO_ESP     ,
+    IPPROTO_AH      ,
+    IPPROTO_ROUTING ,
+    IPPROTO_PGM     ,
+    IPPROTO_SCTP    ,    
+    IPPROTO_RAW     : 
+      if aLogging then      
+        DoLog('TWpcapIPHeader.InternalIP',Format('IpProto [ %d --> %s ] not implemented',[aInternalIP.IpProto,aInternalIP.ProtoAcronym]),TWLLWarning);
   end;  
 end;
 

@@ -858,7 +858,7 @@ begin
 
           LIPAddr  := PLongword(@LDataRss[LInternalOffset])^;
           LCaption := 'A address';
-          LRssName := AnsiString(MakeDWordIntoIPv4AddressInternal(LIPAddr));
+          LRssName := AnsiString(MakeUint32IntoIPv4AddressInternal(LIPAddr));
           Inc(LInternalOffset, SizeOf(LIPAddr));
         end;
         

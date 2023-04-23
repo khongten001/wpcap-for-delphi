@@ -29,7 +29,9 @@ unit wpcap.Pcap.SQLite;
 
 interface
 
-uses wpcap.Pcap,System.SysUtils,wpcap.DB.SQLite.Packet,wpcap.Packet,wpcap.GEOLite2,Wpcap.Types;
+uses
+  wpcap.Pcap, System.SysUtils, wpcap.DB.SQLite.Packet, wpcap.Packet,
+  wpcap.GEOLite2, Wpcap.Types, wpcap.Logger,vcl.Forms;
 
 type
   TPCAP2SQLite = class
@@ -38,11 +40,21 @@ type
     FPCAPCallBackEnd  : TPCAPCallBackEnd;
     FPCAPCallBackError: TPCAPCallBackError;
     FPcapUtils        : TPCAPUtils;
+    FLogger           : TwpcapLogger;        
     procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
     procedure DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
     procedure DoPCAPCallBackError(const aFileName, aError: String);
     procedure SetAbort(const Value: Boolean);
+
+    /// <summary>
+    /// Logs the given message with the specified log level.
+    /// </summary>
+    /// <param name="aFunctionName">The name of the function that called the log message.</param>
+    /// <param name="aDescription">The description of the log message.</param>
+    /// <param name="aLevel">The log level of the message.</param>
+    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);        
    public
+    constructor Create;reintroduce;
     destructor Destroy; override;
     ///<summary>
     /// Converts an offline packet capture file to an SQLite database using a specified set of callbacks.
@@ -77,6 +89,14 @@ type
                               aPCAPCallBackEnd     : TPCAPCallBackEnd;
                               aPCAPCallBackProgress: TPCAPCallBackProgress = nil);
     property Abort : Boolean write SetAbort;
+
+    property PcapUtils : TPCAPUtils   read FPcapUtils write FPcapUtils;  
+
+
+    /// <summary>
+    /// The logger object used for writing log data.
+    /// </summary>    
+    property Logger            : TWpcapLogger read FLogger;      
   end;
 
 implementation
@@ -145,7 +165,8 @@ begin
         FPcapUtils.OnPCAPCallBackError      := DoPCAPCallBackError;
         FPcapUtils.OnPCAPCallBackProgress   := aPCAPCallBackProgress;
         FPcapUtils.OnPCAPCallBackPacket     := DoPCAPCallBackPacket;
-        FPcapUtils.OnPCAPCallBeforeBackEnd  := DoPCAPCallBeforeBackEnd;                    
+        FPcapUtils.OnPCAPCallBeforeBackEnd  := DoPCAPCallBeforeBackEnd;    
+        FPcapUtils.OnLog                    := DoLog;                
         FPcapUtils.AnalyzePCAPOffline(aFileName,afilter,aGeoLiteDB);          
       finally
         
@@ -161,6 +182,7 @@ end;
 
 destructor TPCAP2SQLite.Destroy;
 begin
+  FreeAndNil(FLogger);    
   if Assigned(FPcapUtils) then
     FreeAndNil(FPcapUtils);
   if Assigned(FWPcapDBSqLite) then
@@ -172,6 +194,21 @@ procedure TPCAP2SQLite.SetAbort(const Value: Boolean);
 begin
   if Assigned(FPcapUtils) then
     FPcapUtils.Abort := True;  
+end;
+
+constructor TPCAP2SQLite.Create;
+begin
+  inherited;
+  FLogger           := TWpcapLogger.Create(nil);
+  FLogger.PathLog   := Format('%sLog\',[ExtractFilePath(Application.ExeName)]);
+  FLogger.MaxDayLog := 7;
+  FLogger.Active    := True;
+  FLogger.Debug     := False;  
+end;
+
+procedure TPCAP2SQLite.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
+begin
+  FLogger.LOG__WriteiLog(aFunctionName,aDescription,aLevel);
 end;
 
 end.

@@ -62,17 +62,22 @@ type
   /// </summary>
   TWpcapEthHeader = class
    private
-
-
+     class var FOnLog  : TWpcapLog; // event for logging  
+      
     /// <summary>
     /// This function checks if the size of the packet is valid. 
     //It takes an integer representing the size of the packet as a parameter and returns a Boolean value indicating whether the size is valid.
     /// </summary>
     class function isValidSize(aPacketSize: Integer): Boolean; overload;
+    
     class procedure AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean);
   protected
     class var FIsFilterMode : Boolean;  
     class var FisMalformed  : Boolean;
+     /// <summary>
+     /// Log a message with the given function name, description, and log level.
+     /// </summary>     
+     class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog);    
   public
 
     /// <summary>
@@ -97,7 +102,7 @@ type
     /// This function returns a Boolean value indicating whether the packet is a valid Ethernet packet and fills out an internal Ethernet record. 
     //It takes a pointer to the packet data, an integer representing the size of the packet, and a pointer to an internal Ethernet record as parameters, and returns a Boolean value indicating whether the packet is a valid Ethernet packet.
     /// </summary>
-    class function InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const  aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer): Boolean; static;
+    class function InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const  aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=true): Boolean; static;
 
     /// <summary>
     /// This function returns the IP class type for the packet (IPv4 or IPv6). 
@@ -118,11 +123,18 @@ type
     class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
     class property isMalformed            : Boolean        read FisMalformed;
 
+    {event}
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>    
+    class property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;
   end;
 
 implementation
 
-uses wpcap.Level.Ip,wpcap.Protocol.ARP,wpcap.Protocol.UDP,wpcap.Protocol.TCp,wpcap.protocol;
+uses
+  wpcap.Level.Ip, wpcap.Protocol.ARP, wpcap.Protocol.UDP, wpcap.Protocol.TCp,
+  wpcap.protocol;
 
 { TEthHeader }
 
@@ -206,7 +218,7 @@ begin
   new(LInternalPacket);
   Try
     FIsFilterMode := aIsFilterMode;
-    if not InternalPacket(aPacketData,aPacketSize,nil,LInternalPacket,LLikLayersSize) then exit;
+    if not InternalPacket(aPacketData,aPacketSize,nil,LInternalPacket,LLikLayersSize,False) then exit;
     Try    
       
       LHeader := HeaderEth(aPacketData,aPacketSize);
@@ -237,7 +249,6 @@ begin
   finally               
     Dispose(LInternalPacket)
   end;
-
 end;
 
 class procedure TWpcapEthHeader.AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean);
@@ -348,7 +359,7 @@ begin
       end;    
 end;
 
-class function TWpcapEthHeader.InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer): Boolean;
+class function TWpcapEthHeader.InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=True): Boolean;
 var LPETHHdr      : PETHHdr;
     I             : Integer;    
     LNewSize      : Integer;
@@ -392,12 +403,17 @@ begin
   aInternalPacket.Eth.SrcAddr   := MACAddrToStr(LPETHHdr.SrcAddr);
   aInternalPacket.Eth.DestAddr  := MACAddrToStr(LPETHHdr.DestAddr);  
   aInternalPacket.Eth.Acronym   := GetEthAcronymName(aInternalPacket.Eth.EtherType);
-
+  if aLogging then  
+    DoLog('TWpcapEthHeader.InternalPacket',Format('EtherType [ %d --> %s ]',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLInfo);     
   case aInternalPacket.Eth.EtherType of
 
     
     ETH_P_IP,  
-    ETH_P_IPV6  : TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,aIANADictionary,@(aInternalPacket.IP));
+    ETH_P_IPV6  : 
+      begin
+        TWpcapIPHeader.OnLog := OnLog;
+        TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,aIANADictionary,@(aInternalPacket.IP),True,aLogging);
+      end;
  
     ETH_P_PPP_SES :
       begin
@@ -406,7 +422,12 @@ begin
         LDataPos     := HeaderEthSize(aInternalPacket.PacketData,aInternalPacket.PacketSize);
         LP2PProtocol := wpcapntohs(PUint16(aInternalPacket.PacketData + LDataPos)^); 
         case LP2PProtocol of
-          33  : LEthType  := ntohs(ETH_P_IP);
+          33  : 
+                begin
+                  if aLogging then  
+                    DoLog('TWpcapEthHeader.InternalPacket','Found link PPP-over-Ethernet new eth header is IPv4',TWLLInfo);    
+                  LEthType  := ntohs(ETH_P_IP);
+                end;
           6   : LEthType  := ntohs(ETH_P_IPV6);
         end;
 
@@ -426,12 +447,14 @@ begin
           InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
         end;            
       end;
+
+    ETH_P_ARP:; //nothing;
     
     ETH_P_LOOP,
     ETH_P_PUP,      
     ETH_P_PUPAT,             
     ETH_P_X25,      
-    ETH_P_ARP,      
+
     ETH_P_BPQ,
     ETH_P_DEC,      
     ETH_P_DNA_DL,
@@ -464,7 +487,9 @@ begin
     ETH_P_EDSA,     
     ETH_P_802_3,    
     ETH_P_AX25,     
-    ETH_P_ALL:  ;
+    ETH_P_ALL:  
+      if aLogging then  
+        DoLog('TWpcapEthHeader',Format('Ethernet type [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);       
     
   else           
     begin
@@ -472,7 +497,9 @@ begin
       LOffSet   := 0;
       LEthType  := 0;
       if Pbyte(aPacketData)^ = 2 then     
-      begin         
+      begin    
+        if aLogging then         
+          DoLog('TWpcapEthHeader.InternalPacket','Found link layer loopback packet',TWLLInfo);
         LEthType  := ntohs(ETH_P_IP);  {Loopback}
         LOffSet   := 4;
       end;      
@@ -482,8 +509,17 @@ begin
         LIpFlagVersion  := Pbyte(aPacketData+LOffSet)^ shr 4;   
       
         case LIpFlagVersion of
-          4  : LEthType  := ntohs(ETH_P_IP);
-          6  : LEthType  := ntohs(ETH_P_IPV6);
+          4  :begin 
+                if aLogging then         
+                  DoLog('TWpcapEthHeader.InternalPacket','Found link laye rpacket new eth header is IPv4',TWLLInfo);    
+                LEthType  := ntohs(ETH_P_IP);
+              end;
+          6  : 
+              begin
+                if aLogging then                       
+                  DoLog('TWpcapEthHeader.InternalPacket','Found link layer packet new eth header is IPv6',TWLLInfo);    
+                LEthType  := ntohs(ETH_P_IPV6);
+              end;
         end;
       end;
 
@@ -504,7 +540,10 @@ begin
         Move( (aPacketData+LOffSet)^, (LNewData + SizeOf(TETHHdr))^, aPacketSize-LOffSet);
         Move(LPETHHdr^, LNewData^, SizeOf(TETHHdr));
         InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
-      end;
+      end
+      else
+        if aLogging then               
+          DoLog('TWpcapEthHeader',Format('Ethernet type or link layer [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);       
           
     end;
   end;
@@ -554,6 +593,13 @@ end;
 class procedure TWpcapEthHeader.DoOnMalformedPacket(sendert: TObject);
 begin
   FisMalformed := True;
+end;
+
+class procedure TWpcapEthHeader.DoLog(const aFunctionName, aDescription: String;
+  aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel);
 end;
 
 end.
