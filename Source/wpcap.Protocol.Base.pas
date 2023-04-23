@@ -45,44 +45,44 @@ Type
   protected
      class var FIsFilterMode : Boolean;
      
-     /// <summary>
-     /// Log a message with the given function name, description, and log level.
-     /// </summary>     
-     class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog);
+    /// <summary>
+    /// Log a message with the given function name, description, and log level.
+    /// </summary>
+    class procedure DoLog(const aFunctionName, aDescription: string; aLevel: TWpcapLvlLog);
 
-		 /// <summary>
-		 /// Convert a Uint8 value to a string representing its size.
-		 /// </summary>     
-     class function SizeaUint8ToStr(const aUint8: UInt8): String;
+    /// <summary>
+    /// Convert a Uint8 value to a string representing its size.
+    /// </summary>
+    class function SizeaUint8ToStr(const aUint8: UInt8): string;
 
-		 /// <summary>
-     ///Convert a Uint32 (cardinal) value to a string representing its size.
-		 /// </summary>
-     class function SizeCardinalToStr(const aCardinal: UInt32): String;
+    /// <summary>
+    ///Convert a Uint32 (cardinal) value to a string representing its size.
+    /// </summary>
+    class function SizeCardinalToStr(const aCardinal: UInt32): string;
 
-		 /// <summary>
-     ///Convert a Uint16 (word) value to a string representing its size.
-		 /// </summary>     
-     class function SizeWordToStr(const aWord: UInt16): String;     
-     
-     /// <summary>
-     /// Convert a byte value to a binary string.
- 	 	 /// </summary>
-     class function ByteToBinaryStringInternal(const AByte: UInt8): string;     
+    /// <summary>
+    ///Convert a Uint16 (word) value to a string representing its size.
+    /// </summary>
+    class function SizeWordToStr(const aWord: UInt16): string;
+          
+    /// <summary>
+    /// Convert a byte value to a binary string.
+    /// </summary>
+    class function ByteToBinaryStringInternal(const AByte: UInt8): string;
 
-     /// <summary>
-		 /// Convert an array of bytes to a hexadecimal string.
-     /// </summary>     
-     class function BytesToHex(const ABytes: TidBytes): string;          
-
-		 /// <summary>
-		 /// Convert a byte value to a String representation of a boolean value.
- 		 /// </summary>     
-     class Function ByteToBooleanStr(const aValue:Uint8):String;
+    /// <summary>
+    /// Convert an array of bytes to a hexadecimal string.  
+    /// </summary>
+    class function BytesToHex(const ABytes: TidBytes): string;
+            
+    /// <summary>
+    /// Convert a byte value to a String representation of a boolean value.
+    /// </summary>
+    class function ByteToBooleanStr(const aValue: Uint8): string;
 
  		 /// <summary>
      /// Convert an array of bytes to a string without locale
- 		 /// </summary>     
+ 		 /// </summary>
      class function BytesToStringRawInternal(const ABytes: TidBytes): string;
      
 		 /// <summary>
@@ -102,8 +102,8 @@ Type
      class function isValidLen(const aActualPos, aMaxLen: Integer; aLen: Integer): Boolean; static;
 
      /// <summary>
-		 /// Check if the given test port matches either the source or destination port.
-		 /// </summary>
+     /// Check if the given test port matches either the source or destination port.
+     /// </summary>
      class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
 
      class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint8;  
