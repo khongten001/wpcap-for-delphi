@@ -52,8 +52,8 @@ uses
   /// <param name="aHeader">A pointer to the packet header.</param>
   /// <param name="aGeoLiteDB">Link for MaxMind geoIp database.</param>  
   /// <param name="aListLabelByLevel">Internal list for label filter.</param>  
-  /// <param name="aLogFunctoin">Function log.</param>  
-  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog): PTInternalPacket;
+  /// <param name="aLogFunctoin">Function log.</param>
+  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aTCPSessionInfo:TTCPSessionInfo): PTInternalPacket;
 
 type
   ///<summary>
@@ -81,11 +81,12 @@ type
     FonWpcapIpFound          : TWpcapIPFound;           // event for IP found
     FOnWpcapProtocolDetected : TWpcapProtocolDetected;  // event for protocol detected      
     FOnLog                   : TWpcapLog;               // event for logging      
+    FTCPSessionInfo          : TTCPSessionInfo;
   protected
     FFilename               : string;
     FFilter                 : string;  
     FOwner                  : TObject;
-    
+    Procedure DoCreate;
     ///<summary>
     /// Invokes an error event with the given error message
     ///</summary>
@@ -98,6 +99,7 @@ type
      /// </summary>         
     procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);               
   public
+    destructor Destroy; override;    
     ///<summary>
     /// Stops the thread from capturing packets
     ///</summary>
@@ -181,7 +183,9 @@ type
     /// <summary>
     /// Gets or sets the TWpcapLog event for logging.
     /// </summary>        
-    property OnLog                    : TWpcapLog               read FOnLog                       write FOnLog;         
+    property OnLog                    : TWpcapLog               read FOnLog                       write FOnLog;       
+
+    property TCPSessionInfo           : TTCPSessionInfo         read FTCPSessionInfo              write FTCPSessionInfo;           
   end;
 
   ///<summary>
@@ -447,7 +451,7 @@ begin
       if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
         SetLength(PacketBuffer,LPacketLen);
 
-      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel,TPCAPCaptureRT(aUser).OnLog);
+      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,TPCAPCaptureRT(aUser).ListLabelByLevel,TPCAPCaptureRT(aUser).OnLog,TPCAPCaptureRT(aUser).TCPSessionInfo);
       
       if Assigned(LTInternalPacket) then
       begin
@@ -480,17 +484,19 @@ begin
   Result := 0;
 end;
 
-function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog) : PTInternalPacket;
+function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aTCPSessionInfo:TTCPSessionInfo) : PTInternalPacket;
 var LLen              : Integer;
     LListDetail       : TListHeaderString;
     LLikLayersSize    : Integer;
     LEthParser        : TWpcapEthHeader;
+    aAdditionalInfo   : TAdditionalInfo;
 begin
   Result := nil;
   if not Assigned(aPacketData) then Exit;
   LEthParser :=  TWpcapEthHeader.Create;
   Try
-    LEthParser.OnLog  := aLogFunctoin;
+    LEthParser.TCPSessionInfo := aTCPSessionInfo; 
+    LEthParser.OnLog          := aLogFunctoin;
     New(Result); 
     Result.PacketDate                 := UnixToDateTime(aHeader.ts.tv_sec,false);    
     LLen                              := aHeader.len;
@@ -510,8 +516,9 @@ begin
     Try
 
     
-     if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True) then 
+     if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@aAdditionalInfo) then 
      begin         
+        Result.AdditionalInfo := aAdditionalInfo;
         Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
      end
      else
@@ -817,6 +824,19 @@ begin
     end);
 end;
 
+
+procedure TThreadPcap.DoCreate;
+begin
+  FTCPSessionInfo  := TTCPSessionInfo.Create;
+end;
+
+destructor TThreadPcap.Destroy;
+begin
+  FreeAndNil(FTCPSessionInfo);
+  inherited;
+end;
+
+{TPCAPCaptureRT}
 constructor TPCAPCaptureRT.Create(const aOwner: Tobject;const aFilename, aFilter, aInterfaceName,aIP: string; aPromisc, aSavePcapDump: Boolean; aTimeoutMs,aMaxSizePacket: Integer; aTimeRecoStop: TTime);
 begin
   inherited Create(True);
@@ -832,6 +852,7 @@ begin
   FTimeRecoStop     := aTimeRecoStop;
   FAbort            := False;
   FListLabelByLevel := TListLabelByLevel.Create;
+  DoCreate;
 end;
 
 destructor TPCAPCaptureRT.Destroy;
@@ -927,6 +948,7 @@ begin
   FOwner         := aOwner;
   FFilter        := aFilter;
   FGeoLiteDB     := aGeoLiteDB;
+  DoCreate;  
 end;
 
 procedure TPCAPLoadFile.Execute;
@@ -977,7 +999,7 @@ begin
                   DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d]',[LIndex]),TWLLInfo);                                  
                   Inc(LLenAnalyze,LHeader^.Len);
                   {Does using parallel to parse pcap make the management of TCP retransmissions and sequence numbers complicated?}
-                  LTInternalPacket  := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel,FOnLog);    
+                  LTInternalPacket  := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel,FOnLog,TCPSessionInfo);    
                   if Assigned(LTInternalPacket) then
                   begin
                     Try

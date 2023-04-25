@@ -127,7 +127,7 @@ uses
     /// <param name="aNPacket">The packet number to retrieve the data for.</param>
     /// <param name="aPacketSize">The size of the packet data.</param>
     /// <returns>A pointer to the packet data in memory.</returns>    
-    function GetPacketDataFromDatabase(aNPacket: Integer;var aPacketSize: Integer): PByte;
+    function GetPacketDataFromDatabase(aNPacket: Integer;var aPacketSize: Integer;aAdditionInfo: PTAdditionalInfo): PByte;
     
     /// <summary>
     /// Returns a list of string containing the hexadecimal dump of a packet data with
@@ -223,6 +223,8 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  IP_DST TEXT,                                  '+sLineBreak+
                       '  PORT_SRC INTEGER,                             '+sLineBreak+ {TCP/UDP}  
                       '  PORT_DST INTEGER,                             '+sLineBreak+
+                      '  IS_RETRASMISSION INTEGER,                     '+sLineBreak+ {TCP Additional}                     
+                      '  SEQ_NUMBER INTEGER,                           '+sLineBreak+ 
                       '  IANA_PROTO TEXT,                              '+sLineBreak+ {IANA}                         
                       '  SRC_ASN TEXT,                                 '+sLineBreak+ {GEOIP SRC}      
                       '  SRC_ORGANIZZATION TEXT,                       '+sLineBreak+       
@@ -234,10 +236,11 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  DST_LOCATION TEXT,                            '+sLineBreak+       
                       '  DST_LATITUDE FLOAT,                           '+sLineBreak+       
                       '  DST_LONGITUDE FLOAT,                          '+sLineBreak+    
-                      '  PACKET_RAW_TEXT TEXT,                         '+sLineBreak+  
+                      '  PACKET_RAW_TEXT TEXT,                         '+sLineBreak+ {Filter}
                       '  XML_PACKET_DETAIL TEXT,                       '+sLineBreak+  
-                      '  NOTE_PACKET TEXT,                             '+sLineBreak+  
-                      '  PACKET_DATA BLOB                              '+sLineBreak+
+                      '  PACKET_INFO TEXT,                             '+sLineBreak+                        
+                      '  NOTE_PACKET TEXT,                             '+sLineBreak+ {Note} 
+                      '  PACKET_DATA BLOB                              '+sLineBreak+ {Data}
                       ');                                              ';
 
            SQL_DB_METADATA =  'CREATE TABLE %S(                        '+sLineBreak+
@@ -265,15 +268,15 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                        '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                        '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
                        '  PORT_SRC, PORT_DST ,                                                                   ' +sLineBreak+   {TCP/UDP}   
+                       '  IS_RETRASMISSION, SEQ_NUMBER ,                                                         ' +sLineBreak+   {TCP additional}  
                        '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                        '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                       '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+    {GEOIP DST} 
-                       '  NOTE_PACKET                                                                            ' +sLineBreak+      
+                       '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST} 
+                       '  NOTE_PACKET,PACKET_INFO                                                                ' +sLineBreak+      
                        '  FROM PACKETS;';
 
 {$ENDREGION}
 begin
-
   Result := SQL_TABLE            +sLineBreak+
             SQL_INDEX            +sLineBreak+
             SQL_VIEW             +sLineBreak+            
@@ -293,18 +296,23 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
                    '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
                    '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
+                   '  IS_RETRASMISSION, SEQ_NUMBER ,                                                         ' +sLineBreak+   {TCP additional}                     
                    '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                    '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                   '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE )                ' +sLineBreak+   {GEOIP DST}   
+                   '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST}   
+                   '  PACKET_INFO                                                                            ' +sLineBreak+
+                   ' )                                                                                       ' +sLineBreak+   
                    'VALUES                                                                                   ' +slineBreak+
                    ' (:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,:pIsMalformed ,                            ' +sLineBreak+   {Packet}
                    '  :pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIsIPV6,                                         ' +sLineBreak+   {EThernet}
                    '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
                    '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
                    '  :pPortSrc,:pPortDst,                                                                   ' +sLineBreak+   {TCP/UDP}   
+                   '  :pIsRetrasmission, :pSeqNumber ,                                                       ' +sLineBreak+   {TCP additional}                     
                    '  :pProtoIANA,                                                                           ' +sLineBreak+   {IANA} 
                    '  :pSrcAsn,:pSrcOrg,:pSrcLoc,:pSrcLat,:pSrcLong,                                         ' +sLineBreak+   {GEOIP SRC}
-                   '  :pDstAsn,:pDstOrg,:pDstLoc,:pDstLat,:pDstLong                                          ' +sLineBreak+   {GEOIP DST} 
+                   '  :pDstAsn,:pDstOrg,:pDstLoc,:pDstLat,:pDstLong,                                         ' +sLineBreak+   {GEOIP DST} 
+                   '  :pPacketInfo                                                                           ' +sLineBreak+
                    ')';
 {$ENDREGION}
 begin
@@ -339,6 +347,8 @@ begin
   FFDQueryInsert.ParamByName('pIpDst').DataType             := ftString;        
   FFDQueryInsert.ParamByName('pPortSrc').DataType           := ftInteger; {TCP/UDP}      
   FFDQueryInsert.ParamByName('pPortDst').DataType           := ftInteger;   
+  FFDQueryInsert.ParamByName('pIsRetrasmission').DataType   := ftInteger; {TCP/additional}      
+  FFDQueryInsert.ParamByName('pSeqNumber').DataType         := ftInteger;   
   FFDQueryInsert.ParamByName('pProtoIANA').DataType         := ftString;  {IANA}
   FFDQueryInsert.ParamByName('pSrcLoc').DataType            := ftString;  {GEOIP SRC} 
   FFDQueryInsert.ParamByName('pSrcOrg').DataType            := ftString;  
@@ -350,22 +360,25 @@ begin
   FFDQueryInsert.ParamByName('pDstAsn').DataType            := ftString;
   FFDQueryInsert.ParamByName('pXMLInfo').DataType           := ftString;  
   FFDQueryInsert.ParamByName('pPacketRaw').DataType         := ftString;    
+  FFDQueryInsert.ParamByName('pPacketRaw').DataType         := ftString;    
   FFDQueryInsert.ParamByName('pDstLat').DataType            := ftFloat;   
   FFDQueryInsert.ParamByName('pDstLong').DataType           := ftFloat;
-  FFDQueryInsert.ParamByName('pPacket').DataType            := ftBlob;    
+  FFDQueryInsert.ParamByName('pPacketInfo').DataType        := ftString;    
+  FFDQueryInsert.ParamByName('pPacket').DataType            := ftblob;   
   FFDQueryInsert.CachedUpdates                              := True;   
   FFDQueryGrid.SQL.Text                                     := 
                                                                  'SELECT                                                                                 ' +sLineBreak+ 
-                                                               '  NPACKET, PACKET_LEN, PACKET_DATE,IS_MALFORMED,                                                      ' +sLineBreak+ 
+                                                               '  NPACKET, PACKET_LEN, PACKET_DATE,IS_MALFORMED,PACKET_INFO,                              ' +sLineBreak+ 
                                                                '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                                                                '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                                                                '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
                                                                '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
+                                                               '  IS_RETRASMISSION, SEQ_NUMBER ,                                                         ' +sLineBreak+   {TCP additional}                                                                
                                                                '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                                                                '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                                                                '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET                  ' +sLineBreak+   {GEOIP DST} 
                                                                '  FROM VST_PACKETS ORDER BY NPACKET ';            
-  FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA FROM PACKETS WHERE NPACKET = :pNPACKET '; 
+  FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA,IS_RETRASMISSION,SEQ_NUMBER,PACKET_INFO FROM PACKETS WHERE NPACKET = :pNPACKET '; 
 
   FFDQueryFlow                                              := TFDQuery.Create(nil);
   FFDQueryFlow.Connection                                   := FConnection;
@@ -587,9 +600,18 @@ begin
     FFDQueryInsert.ParamByName('pPortDst').AsIntegers[FInsertToArchive] := aInternalPacket.IP.PortDst
   else
     FFDQueryInsert.ParamByName('pPortDst').Clear(FInsertToArchive);
+
+  {TCP additional}      
+  FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.isRetrasmission,1,0);  
+
+  if aInternalPacket.IP.PortDst > 0 then  
+    FFDQueryInsert.ParamByName('pSeqNumber').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.SequenceNumber
+  else
+    FFDQueryInsert.ParamByName('pSeqNumber').Clear(FInsertToArchive);
   
   {IANA} 
   FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.IP.IANAProtoStr;   
+
         
   {GEOIP SRC}
   FFDQueryInsert.ParamByName('pSrcLoc').AsStrings[FInsertToArchive]        := aInternalPacket.IP.SrcGeoIP.Location;
@@ -603,9 +625,11 @@ begin
   FFDQueryInsert.ParamByName('pDstAsn').AsStrings[FInsertToArchive]        := aInternalPacket.IP.DestGeoIP.ASNumber;    
   FFDQueryInsert.ParamByName('pDstLat').AsFloats[FInsertToArchive]         := aInternalPacket.IP.DestGeoIP.Latitude;
   FFDQueryInsert.ParamByName('pDstLong').AsFloats[FInsertToArchive]        := aInternalPacket.IP.DestGeoIP.Longitude;
+  {Filter}
   FFDQueryInsert.ParamByName('pXMLInfo').AsStrings[FInsertToArchive]       := aInternalPacket.XML_Detail;
-  FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiStrings[FInsertToArchive] := aInternalPacket.RAW_Text;
-
+  FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiStrings[FInsertToArchive] := aInternalPacket.RAW_Text;  
+  {Info}
+  FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.AdditionalInfo.Info;   
   LMemoryStream := TMemoryStream.Create; 
   Try
     LMemoryStream.WriteBuffer(aInternalPacket.PacketData^,aInternalPacket.PacketSize);
@@ -615,7 +639,7 @@ begin
   End;  
 end;
 
-Function TWPcapDBSqLitePacket.GetPacketDataFromDatabase(aNPacket:Integer;var aPacketSize:Integer):PByte;
+Function TWPcapDBSqLitePacket.GetPacketDataFromDatabase(aNPacket:Integer;var aPacketSize:Integer;aAdditionInfo: PTAdditionalInfo):PByte;
 var LStream    : TMemoryStream;
 begin
   Result      := nil;
@@ -632,7 +656,10 @@ begin
       aPacketSize := LStream.Size;
       GetMem(Result, aPacketSize);
       LStream.Seek(0, soBeginning);
-      LStream.ReadBuffer(Result^, aPacketSize);      
+      LStream.ReadBuffer(Result^, aPacketSize); 
+      aAdditionInfo.isRetrasmission := FFDGetDataByID.FieldByName('IS_RETRASMISSION').AsInteger = 1;     
+      aAdditionInfo.SequenceNumber  := FFDGetDataByID.FieldByName('SEQ_NUMBER').AsInteger;
+      aAdditionInfo.Info            := FFDGetDataByID.FieldByName('PACKET_INFO').AsString;
     finally
       LStream.Free;
     end;    
@@ -643,15 +670,16 @@ end;
 Function TWPcapDBSqLitePacket.GetListHexPacket(aNPacket,aStartLevel:Integer;var aListDetail:TListHeaderString):TArray<String>;
 var LPacket           : PByte;
     LPacketSize       : Integer;
+    LAdditionInfo     : TAdditionalInfo;
 begin
   SetLength(Result,0);
 
-  LPacket := GetPacketDataFromDatabase(aNPacket,LPacketSize);
+  LPacket := GetPacketDataFromDatabase(aNPacket,LPacketSize,@LAdditionInfo);
   Try
     if Assigned(LPacket) then
     begin
       Result := DisplayHexData(LPacket,LPacketSize);
-      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aStartLevel,aListDetail);
+      TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aStartLevel,aListDetail,False,@LAdditionInfo);
     end;
   Finally
      FreeMem(LPacket);

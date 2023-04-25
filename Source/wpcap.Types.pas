@@ -487,9 +487,26 @@ type
   ///<param name="aSkypPacket">Indicates whether the packet should be skipped (True) or not (False)</param>
   TWpcapProtocolDetected = procedure(const aAcronym:String;var aSkypPacket:Boolean) of object;  
 
+  /// <summary>
+  /// Log levels for TWpcapLog.
+  /// </summary>
   TWpcapLvlLog = (TWLLException,TWLLError,TWLLWarning,TWLLInfo,TWLLTiming,TWLLDebug);
+
+  /// <summary>
+  /// Type of procedure for logging.
+  /// </summary>
+  /// <param name="aFunctionName">The name of the function to be logged.</param>
+  /// <param name="aDescription">The description of the log.</param>
+  /// <param name="aLevel">The log level.</param>
+  TWpcapLog = procedure(const aFunctionName, aDescription: String; aLevel: TWpcapLvlLog) of object;
+
+  TCPVariableInfo = record
+    prevSeqNum: LongWord;
+    prevAckNum: LongWord;
+  end;
+
+  TTCPSessionInfo = Class(TDictionary<string, TCPVariableInfo>);
   
-  TWpcapLog = procedure(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog) of object; 
      
 implementation
 

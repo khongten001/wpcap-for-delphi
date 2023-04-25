@@ -30,7 +30,7 @@ unit wpcap.Protocol.Telnet;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.StrUtils,idGlobal,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.StrUtils,idGlobal,wpcap.packet,
   Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils,System.Math;
 
 type
@@ -146,7 +146,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;            
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
   end;
 
 
@@ -346,7 +346,7 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Data',[AcronymName]), 'Data:',LDataStr, @LDataStr,Length(LDataStr)));      
 end;
 
-class function TWPcapProtocolTelnet.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolTelnet.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad        : PByte;
     LTCPPHdr           : PTCPHdr;
     LDataSize          : Integer;

@@ -30,7 +30,7 @@ unit wpcap.Protocol.NTP;
 interface
 
 uses
-  wpcap.Protocol.UDP, wpcap.Conts, wpcap.Types, wpcap.BufferUtils,WinApi.Windows,
+  wpcap.Protocol.UDP, wpcap.Conts, wpcap.Types, wpcap.BufferUtils,WinApi.Windows,wpcap.packet,
   System.SysUtils, System.Variants,System.Math,winsock,DateUtils;
 
 type
@@ -155,7 +155,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>    
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;     
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;     
 end;
 
 
@@ -205,7 +205,7 @@ begin
 end;
 
 
-class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;  
+class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;  
 var LHeaderNTP     : PNTPHeader;
     LPUDPHdr       : PUDPHdr;
     LUDPPayLoad    : PByte;

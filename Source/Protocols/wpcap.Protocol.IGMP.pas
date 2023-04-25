@@ -30,7 +30,7 @@ unit wpcap.Protocol.IGMP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.Classes,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.Classes,wpcap.Packet,
   System.Variants, wpcap.BufferUtils,WinSock,WinSock2,wpcap.IpUtils;
 
 type
@@ -109,7 +109,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;      
   end;
 
 
@@ -154,7 +154,7 @@ begin
   end;
 end;
   
-class function TWPcapProtocolIGMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolIGMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LHeader        : PTIGMPHeader;
     LGroupRec      : PTIGMPGroupRecord;
     LSizeEthIP     : Integer;

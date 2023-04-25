@@ -30,7 +30,7 @@ unit wpcap.Protocol.TLS;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, Wpcap.protocol.TCP, wpcap.StrUtils,system.Variants,idGlobal,System.Math,
+  wpcap.Protocol.Base, wpcap.Conts, Wpcap.protocol.TCP, wpcap.StrUtils,system.Variants,idGlobal,System.Math, wpcap.packet,
   wpcap.Types, Vcl.Dialogs, System.StrUtils, System.Classes,system.SysUtils,wpcap.BufferUtils;
   
 type  
@@ -172,7 +172,7 @@ type
     /// Checks whether the packet is valid for the TLS protocol.
     /// </summary>
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override; 
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;override;       
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;       
 End;
 
 
@@ -801,7 +801,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolTLS.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolTLS.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LOffset         : Integer;
     LRecord         : PTTLSRecordHeader;    
     LTCPHdr         : PTCPHdr;
@@ -1304,6 +1304,7 @@ begin
                   end   
                 
             else
+                DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] invalid',[LTypeRecord,LTypeRecordStr]),TWLLError);                  
                Inc(LOffset,LContectLen); 
             end;
           
@@ -1325,7 +1326,7 @@ begin
           
       else
         begin
-          DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] invalid',[LTypeRecord,LTypeRecordStr]),TWLLError);      
+          DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record  ContentType [%d ] invalid',[LRecord.ContentType]),TWLLError);      
           Inc(LOffset,LContectLen); // TODO invalid
         end;
       end;

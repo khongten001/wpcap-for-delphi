@@ -30,7 +30,7 @@ unit wpcap.Protocol.DHCP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils, wpcap.StrUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils, wpcap.StrUtils,wpcap.packet,
   idGlobal, Wpcap.protocol.UDP, WinApi.Windows, wpcap.BufferUtils, Variants,winSock2,
   wpcap.IPUtils, System.StrUtils;
 
@@ -299,7 +299,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function HeaderLength(aFlag:byte): word; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: UInt8): Boolean; override;        
   end;
 
@@ -352,7 +352,7 @@ begin
 end;
 
 
-class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad         : PByte;
     LPUDPHdr            : PUDPHdr;
     LHeaderDHCP         : PTDHCPHeader;

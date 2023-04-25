@@ -30,7 +30,7 @@ unit wpcap.Protocol.FTP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,wpcap.packet,
   Wpcap.protocol.TCP,System.Variants,Wpcap.BufferUtils,wpcap.StrUtils;
 
 type
@@ -60,23 +60,27 @@ type
     class function ResponseToString(const aResponse: Uint16): String; static;     // Abort transfer  
   protected
   public
+
     /// <summary>
     /// Returns the default FTP port (110).
     /// </summary>
     class function DefaultPort: Word; override;
+
     /// <summary>
     /// Returns the ID number of the FTP protocol.
     /// </summary>
     class function IDDetectProto: byte; override;
+    
     /// <summary>
     /// Returns the name of the FTP protocol.
     /// </summary>
     class function ProtoName: String; override;
+
     /// <summary>
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;    
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;    
   end;
 
 
@@ -105,7 +109,7 @@ begin
   Result := 'FTP';
 end;
 
-class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
     LTCPPHdr       : PTCPHdr;

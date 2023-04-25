@@ -30,7 +30,7 @@ unit wpcap.Protocol.RTP;
 interface
 
 uses
-  wpcap.Protocol.UDP, wpcap.Protocol.Base, wpcap.Conts, wpcap.Types,
+  wpcap.Protocol.UDP, wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, wpcap.packet,
   System.SysUtils, wpcap.BufferUtils, system.Variants,wpcap.StrUtils;
 
 type
@@ -156,7 +156,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
     class function GetPayLoadRTP(const aPacketData: PByte;aPacketSize: Integer;var aSize:Integer): PByte; static;
     class function GetSoxCommandDecode(const aPacketData:PByte;aPacketSize:Integer): String; static;      
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
@@ -198,7 +198,7 @@ begin
   Result := PTRTPHeader(aUDPPayLoad);
 end;
 
-class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LInternalHeader : PTRTPHeaderInternal;
     LHeaderRTP      : PTRTPHeader;
     LUDPPayLoad     : PByte;

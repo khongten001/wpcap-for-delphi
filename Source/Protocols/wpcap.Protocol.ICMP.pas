@@ -30,7 +30,7 @@ unit wpcap.Protocol.ICMP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.Classes,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,System.Classes,wpcap.Packet,
   System.Variants, wpcap.BufferUtils,WinSock,WinSock2,wpcap.IpUtils;
 
 type
@@ -127,7 +127,7 @@ type
     class function AcronymName: String; override;
     class Function TypeToString(const aType:Byte):String;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;      
   end;
 
 
@@ -186,7 +186,7 @@ begin
 end;
 
   
-class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LHeader         : PTICMPHeader;
     LNewPacketData  : Pbyte;
     LNewPacketLen   : Integer;
@@ -264,7 +264,7 @@ begin
 
         LNewPacketData := GetNextIpHeader(aPacketData,aPacketSize,0,LNewPacketLen);
         Try
-          TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail);
+          TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail,IsFilterMode,aAdditionalInfo);
         Finally
           FreeMem(LNewPacketData);
         End;      

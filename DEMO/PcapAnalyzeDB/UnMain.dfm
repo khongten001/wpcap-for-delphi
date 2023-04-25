@@ -129,6 +129,18 @@ object FormMain: TFormMain
         Properties.ValueUnchecked = '0'
         Options.Editing = False
       end
+      object GridPcapDBTableView1IS_RETRASMISSION: TcxGridDBColumn
+        Caption = 'Retrasmission'
+        DataBinding.FieldName = 'IS_RETRASMISSION'
+        PropertiesClassName = 'TcxCheckBoxProperties'
+        Properties.ValueChecked = '1'
+        Properties.ValueUnchecked = '0'
+      end
+      object GridPcapDBTableView1PACKET_INFO: TcxGridDBColumn
+        Caption = 'Info'
+        DataBinding.FieldName = 'PACKET_INFO'
+        Width = 200
+      end
       object GridPcapDBTableView1ETH_TYPE: TcxGridDBColumn
         DataBinding.FieldName = 'ETH_TYPE'
         Visible = False

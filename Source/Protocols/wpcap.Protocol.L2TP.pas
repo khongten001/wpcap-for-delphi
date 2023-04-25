@@ -30,7 +30,7 @@ unit wpcap.Protocol.L2TP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, WinSock2, wpcap.Protocol.UDP, wpcap.Types,idGlobal,
+  wpcap.Protocol.Base, wpcap.Conts, WinSock2, wpcap.Protocol.UDP, wpcap.Types,idGlobal,wpcap.packet,
   System.StrUtils, System.Rtti, System.SysUtils, System.Variants, WinApi.Windows,
   wpcap.BufferUtils, System.Win.ScktComp, DateUtils,wpcap.IpUtils,System.Generics.Collections;
 
@@ -160,7 +160,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override; 
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override; 
   end;  
 
 
@@ -613,7 +613,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Priority',[AcronymName]), 'Priority:',GetBitValue(aFlags,8)=1, @aFlags,SizeOf(aFlags), GetBitValue(aFlags,8) ));  
 end;
 
-class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; 
+class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; 
 var LHeaderL2TP   : PTL2TPHdrInternal;
     LPUDPHdr      : PUDPHdr;
     LUDPPayLoad   : PByte;

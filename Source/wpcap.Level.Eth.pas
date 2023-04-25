@@ -62,15 +62,15 @@ type
   /// </summary>
   TWpcapEthHeader = class
    private
-     class var FOnLog  : TWpcapLog; // event for logging  
-      
+     class var FOnLog          : TWpcapLog; // event for logging  
+     class var FTCPSessionInfo : TTCPSessionInfo ;      
     /// <summary>
     /// This function checks if the size of the packet is valid. 
     //It takes an integer representing the size of the packet as a parameter and returns a Boolean value indicating whether the size is valid.
     /// </summary>
     class function isValidSize(aPacketSize: Integer): Boolean; overload;
     
-    class procedure AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean);
+    class procedure AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo:PTAdditionalInfo);
   protected
     class var FIsFilterMode : Boolean;  
     class var FisMalformed  : Boolean;
@@ -96,7 +96,7 @@ type
     /// This function returns a dictionary of strings representing the fields in the Ethernet header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;virtual;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;virtual;
 
     /// <summary>
     /// This function returns a Boolean value indicating whether the packet is a valid Ethernet packet and fills out an internal Ethernet record. 
@@ -117,17 +117,19 @@ type
     ///  If the protocol is not recognized, the string "<unknown>" is returned.
     /// </summary>
     class function GetEthAcronymName(protocol: Word): string;static; 
+    
     class procedure DoOnMalformedPacket(sendert: TObject);
     
     {property}
-    class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
-    class property isMalformed            : Boolean        read FisMalformed;
-
+    class property isMalformed            : Boolean         read FisMalformed;
+    class property IsFilterMode           : Boolean         read FIsFilterMode    write FIsFilterMode default false;
+    class property TCPSessionInfo         : TTCPSessionInfo read FTCPSessionInfo  write FTCPSessionInfo;     
     {event}
     /// <summary>
     /// Gets or sets the TWpcapLog event for logging.
     /// </summary>    
     class property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;
+    
   end;
 
 implementation
@@ -207,14 +209,14 @@ begin
     end;
 end;
 
-class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LInternalPacket   : PTInternalPacket;
     LHeader           : PETHHdr;
     LLikLayersSize    : Integer;  
 begin
   Result       := False;
   FisMalformed := False;
-  
+
   new(LInternalPacket);
   Try
     FIsFilterMode := aIsFilterMode;
@@ -240,7 +242,7 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Type','Type:',LInternalPacket.Eth.Acronym,@LHeader.EtherType,SizeOf(LHeader.EtherType),LInternalPacket.Eth.EtherType));   
       end;
     
-      AddEthType(LInternalPacket.Eth.EtherType,LInternalPacket,aStartLevel,AListDetail,aIsFilterMode);
+      AddEthType(LInternalPacket.Eth.EtherType,LInternalPacket,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);
       Result := True;
     Finally
       if LLikLayersSize > 0 then
@@ -251,7 +253,7 @@ begin
   end;
 end;
 
-class procedure TWpcapEthHeader.AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean);
+class procedure TWpcapEthHeader.AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo:PTAdditionalInfo);
 var LUDPProtoDetected : TWPcapProtocolBaseUDP;	
     LTCPProtoDetected : TWPcapProtocolBaseTCP;	
     LHeaderPPPSes     : PTPPPoE_Session;
@@ -263,13 +265,14 @@ begin
         ETH_P_IP,  
         ETH_P_IPV6:
           begin
-            if TWpcapIPHeader.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,aListDetail,aIsFilterMode) then
+            TWpcapIPHeader.TCPSessionInfo := FTCPSessionInfo;               
+            if TWpcapIPHeader.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,aListDetail,aIsFilterMode,aAdditionalInfo) then
             begin
               LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(aInternalPacket.IP.DetectedIPProto);
               if Assigned(LUDPProtoDetected) then
               begin
                 LUDPProtoDetected.OnFoundMalformedPacket := DoOnMalformedPacket;
-                LUDPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode)
+                LUDPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo)
               end
               else
               begin
@@ -278,7 +281,7 @@ begin
                 if Assigned(LTCPProtoDetected) then
                 begin
                   LTCPProtoDetected.OnFoundMalformedPacket := DoOnMalformedPacket;
-                  LTCPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode);
+                  LTCPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);
                 end;
               end;
             end
@@ -310,7 +313,7 @@ begin
                 LUin16Value := wpcapntohs(PUint16(aInternalPacket.PacketData+LCurrentPos)^) ;
                 AListDetail.Add(AddHeaderInfo(aStartLevel,'P2PProtocol','Point-to-Point Protocol',null,@LUin16Value,SizeOf(LUin16Value)));  
                 AListDetail.Add(AddHeaderInfo(aStartLevel+1,'P2PProtocol.Protocol','Protocol',LUin16Value,@LUin16Value,SizeOf(LUin16Value)));  
-                AddEthType(LUin16Value,aInternalPacket,aStartLevel,AListDetail,aIsFilterMode);                  
+                AddEthType(LUin16Value,aInternalPacket,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);                  
              end;
           end;
         end;
@@ -320,7 +323,7 @@ begin
         ETH_P_PUPAT,             
         ETH_P_X25:;      
       
-        ETH_P_ARP:  TWPcapProtocolARP.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode);     
+        ETH_P_ARP:  TWPcapProtocolARP.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);     
 
         ETH_P_BPQ,
         ETH_P_DEC,      
@@ -371,31 +374,34 @@ var LPETHHdr      : PETHHdr;
     LPETHHdrNEw   : PETHHdr;
     LDataPos      : Integer;
 begin
-  Result                                      := False;
-  aInternalPacket.PacketData                  := aPacketData;
-  aInternalPacket.PacketSize                  := aPacketSize;
-  aInternalPacket.IsMalformed                 := False;
-  aInternalPacket.IP.IpPrototr                := String.Empty;
-  aInternalPacket.IP.ProtoAcronym             := String.Empty;
-  aInternalPacket.IP.IpProto                  := 0;
-  aInternalPacket.IP.Src                      := String.Empty;  
-  aInternalPacket.IP.Dst                      := String.Empty;
-  aInternalPacket.IP.PortSrc                  := 0;
-  aInternalPacket.IP.PortDst                  := 0;
-  aInternalPacket.IP.IsIPv6                   := False;
-  aInternalPacket.IP.DetectedIPProto          := 0;  
-  aInternalPacket.IP.IANAProtoStr             := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.ASNumber        := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.ASOrganization  := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.Location        := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.Latitude        := 0;
-  aInternalPacket.IP.SrcGeoIP.Longitude       := 0;
-  aInternalPacket.IP.DestGeoIP.ASNumber       := String.Empty;  
-  aInternalPacket.IP.DestGeoIP.ASOrganization := String.Empty;  
-  aInternalPacket.IP.DestGeoIP.Location       := String.Empty;  
-  aInternalPacket.IP.DestGeoIP.Latitude       := 0;
-  aInternalPacket.IP.DestGeoIP.Longitude      := 0;
-  LPETHHdr                                    := HeaderEth(aPacketData,aPacketSize);
+  Result                                          := False;
+  aInternalPacket.PacketData                      := aPacketData;
+  aInternalPacket.PacketSize                      := aPacketSize;
+  aInternalPacket.IsMalformed                     := False;
+  aInternalPacket.IP.IpPrototr                    := String.Empty;
+  aInternalPacket.IP.ProtoAcronym                 := String.Empty;
+  aInternalPacket.IP.IpProto                      := 0;
+  aInternalPacket.IP.Src                          := String.Empty;  
+  aInternalPacket.IP.Dst                          := String.Empty;
+  aInternalPacket.IP.PortSrc                      := 0;
+  aInternalPacket.IP.PortDst                      := 0;
+  aInternalPacket.IP.IsIPv6                       := False;
+  aInternalPacket.IP.DetectedIPProto              := 0;  
+  aInternalPacket.IP.IANAProtoStr                 := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.ASNumber            := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.ASOrganization      := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.Location            := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.Latitude            := 0;
+  aInternalPacket.IP.SrcGeoIP.Longitude           := 0;
+  aInternalPacket.IP.DestGeoIP.ASNumber           := String.Empty;  
+  aInternalPacket.IP.DestGeoIP.ASOrganization     := String.Empty;  
+  aInternalPacket.IP.DestGeoIP.Location           := String.Empty;  
+  aInternalPacket.IP.DestGeoIP.Latitude           := 0;
+  aInternalPacket.IP.DestGeoIP.Longitude          := 0;
+  aInternalPacket.AdditionalInfo.isRetrasmission  := False;
+  aInternalPacket.AdditionalInfo.SequenceNumber   := 0;
+  aInternalPacket.AdditionalInfo.Info             := String.Empty;
+  LPETHHdr                                        := HeaderEth(aPacketData,aPacketSize);
   
   if not Assigned(LPETHHdr) then exit;
 

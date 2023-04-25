@@ -4,7 +4,7 @@ interface
                                                             
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,System.UITypes,
-  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,Wpcap.types, 
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,Wpcap.types,wpcap.Packet, 
   Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,wpcap.Graphics,
   cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,DateUtils,wpcap.conts,
   cxGrid,  cxLookAndFeels,wpcap.Wrapper,wpcap.Filter,System.Generics.Collections,
@@ -112,6 +112,8 @@ type
     BSubWhoise: TdxBarSubItem;
     BWhoiseServer: TdxBarButton;
     BWhoiseClient: TdxBarButton;
+    GridPcapDBTableView1IS_RETRASMISSION: TcxGridDBColumn;
+    GridPcapDBTableView1PACKET_INFO: TcxGridDBColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -379,6 +381,7 @@ var I                : Integer;
     LPacket          : PByte;
     LPcketSize       : Integer;
     LPacketToDump    : PTPacketToDump;
+    LAdditionalInfo  : TAdditionalInfo;
 begin
   SaveDialog1.Filter     := 'Pcap file|*.pcap';
   SaveDialog1.DefaultExt := '.pcap'; 
@@ -389,7 +392,7 @@ begin
       for I := 0 to GridPcapDBTableView1.ViewData.RecordCount -1 do
       begin
           
-        LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.ViewData.Rows[I].Values[GridPcapDBTableView1NPACKET.Index],LPcketSize);
+        LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.ViewData.Rows[I].Values[GridPcapDBTableView1NPACKET.Index],LPcketSize,@LAdditionalInfo);
         if Assigned(LPacket) then
         begin
           New(LPacketToDump);
@@ -463,6 +466,7 @@ var LListPacket      : TList<PTPacketToDump>;
     LPacket          : PByte;
     LPcketSize       : Integer;
     LPacketToDump    : PTPacketToDump;
+    LAdditionalInfo  : TAdditionalInfo;
 begin
   SaveDialog1.Filter     := 'Pcap file|*.pcap|Text file|*.txt';
   SaveDialog1.DefaultExt := '.pcap'; 
@@ -478,7 +482,7 @@ begin
         
             LListPacket := TList<PTPacketToDump>.Create;
             Try
-              LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.Controller.SelectedRows[0].Values[GridPcapDBTableView1NPACKET.Index],LPcketSize);
+              LPacket := FWPcapDBSqLite.GetPacketDataFromDatabase(GridPcapDBTableView1.Controller.SelectedRows[0].Values[GridPcapDBTableView1NPACKET.Index],LPcketSize,@LAdditionalInfo);
               if Assigned(LPacket) then
               begin
                 New(LPacketToDump);

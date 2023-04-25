@@ -30,7 +30,7 @@ interface
 
 uses
   wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils, wpcap.StrUtils,
-  System.StrUtils, Wpcap.protocol.UDP, WinApi.Windows, wpcap.BufferUtils,
+  System.StrUtils, Wpcap.protocol.UDP, WinApi.Windows, wpcap.BufferUtils,wpcap.packet,
   Variants, idGlobal, wpcap.IPUtils, winsock2,wpcap.MCC,IdGlobalProtocols;
 
 type
@@ -350,7 +350,7 @@ type
     /// Returns the acronym name of the GTP protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -409,7 +409,7 @@ begin
   Result := 'GTP';
 end;
 
-class function TWPcapProtocolGTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
+class function TWPcapProtocolGTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad        : PByte;
     LPUDPHdr           : PUDPHdr;
     LVersion           : UInt8;

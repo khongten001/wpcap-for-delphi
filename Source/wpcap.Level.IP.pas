@@ -225,6 +225,7 @@ type
   Strict private
     
   private
+     class var FTCPSessionInfo : TTCPSessionInfo ;
     /// <summary>
     ///   Determines if the given packet size is valid for an Ethernet frame with an IPv4 or IPv6 header.
     /// </summary>
@@ -282,7 +283,7 @@ type
     ///   Returns a dictionary containing the string representation of each field in the IP header, as well as its value in the provided packet data.
     /// </summary>
     /// <returns>A dictionary containing the string representation of each field in the IP header, as well as its value in the provided packet data.</returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;
 
     ///  <summary>
     ///  Analyzes the IP header of the packet data and stores the result in the given InternalIP record.
@@ -314,7 +315,9 @@ type
     /// The well-known protocols include ICMP, TCP, UDP, and more.
     /// </summary>
     class function GetIPv4ProtocolName(aProtocol: Word): string;static;
-    class function GetNextBufferHeader(const aPacketData: PByte; aPacketSize,aHeaderPrevLen,aNewIpProto: Integer; var aNewPacketLen: Integer;aCheckNextHeader:Boolean): PByte; static;    
+    class function GetNextBufferHeader(const aPacketData: PByte; aPacketSize,aHeaderPrevLen,aNewIpProto: Integer; var aNewPacketLen: Integer;aCheckNextHeader:Boolean): PByte; static; 
+    {Property}  
+    class property TCPSessionInfo : TTCPSessionInfo read FTCPSessionInfo  write FTCPSessionInfo;     
   end;
 
 implementation
@@ -490,7 +493,7 @@ begin
   Result := (aVerLen and $0F) * 4;
 end;
 
-class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;  
+class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;  
 var LHederInfo         : THeaderString;
     LInternalIP        : PTInternalIP;
     LHeaderV4          : PTIPHeader;
@@ -593,10 +596,14 @@ begin
       case LInternalIP.IpProto of
  
         IPPROTO_ICMP,
-        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
-        IPPROTO_TCP     : TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
-        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
-        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode);
+        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+        IPPROTO_TCP     : 
+        begin
+          TWPcapProtocolBaseTCP.TCPSessionInfo := FTCPSessionInfo;
+          TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+        end;
+        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
         IPPROTO_GGP     :;  
         IPPROTO_IP      :
           begin  
@@ -604,7 +611,7 @@ begin
             if Assigned(LNewPacket) then
               begin
               Try
-                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode);
+                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
               Finally
                 FreeMem(LNewPacket);
               End;           
@@ -617,7 +624,7 @@ begin
           if Assigned(LNewPacket) then
           begin
             Try
-              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode);
+              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
             Finally
               FreeMem(LNewPacket);
             End;        
@@ -757,7 +764,7 @@ var LStopwatch : TStopwatch;
 begin
   LStopwatch := TStopwatch.Create;
   LStopwatch := LStopwatch.StartNew;
-  TWPcapProtocolBaseTCP.OnLog := OnLog;          
+  TWPcapProtocolBaseTCP.OnLog := OnLog;
   TWPcapProtocolBaseUDP.OnLog := OnLog;            
   if not TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto) then
     TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
@@ -853,6 +860,7 @@ begin
     
     IPPROTO_TCP     : 
       begin
+        TWPcapProtocolBaseTCP.OnLog := OnLog;
         if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
         begin
           aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
@@ -867,6 +875,7 @@ begin
       
     IPPROTO_UDP     : 
       begin
+        TWPcapProtocolBaseTCP.OnLog := OnLog;      
         if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
         begin
           aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);

@@ -31,7 +31,7 @@ interface
 
 uses
   wpcap.Conts, wpcap.Types, wpcap.BufferUtils, System.Types, wpcap.Protocol.Base,
-  System.Variants, System.SysUtils, wpcap.StrUtils,winsock;
+  System.Variants, System.SysUtils, wpcap.StrUtils,winsock,wpcap.Packet;
 
 type
   //https://datatracker.ietf.org/doc/html/rfc793#page-15
@@ -79,7 +79,7 @@ type
   /// </summary>
   TWPcapProtocolBaseTCP = Class(TWPcapProtocolBase)
   private
-    
+
   const
     TCP_OPTION_EOL            = 0;  //(End of Option List, Kind = 0): Indicates the end of the options list.
     TCP_OPTION_NOP            = 1;  //(No-Operation, Kind = 1): Used for padding and alignment.
@@ -89,24 +89,40 @@ type
     TCP_OPTION_SACK           = 5;  // (Selective Acknowledgment, Kind = 5): Used to acknowledge non-contiguous blocks of data.
     TCP_OPTION_ECHO           = 6;  // (Echo, Kind = 6): Used to carry a timestamp from the sender to the receiver.
     TCP_OPTION_ECHOREPLY      = 7;  // (Echo Reply, Kind = 7): Used to carry a timestamp from the receiver back to the sender.
-    TCP_OPTION_TIMESTAMP      = 8;   // (Timestamps, Kind = 8): Used to carry two timestamps: one from the sender to the receiver and one from the receiver back to the sender.
+    TCP_OPTION_TIMESTAMP      = 8;  // (Timestamps, Kind = 8): Used to carry two timestamps: one from the sender to the receiver and one from the receiver back to the sender.
+
+    class var FTCPSessionInfo : TTCPSessionInfo ;
     class function TCPKindToString(const aKind: Uint8): string;
+    class procedure UpdateTCPInfo(const aSrcAddr, aDstAddr: string; aSrcPort,
+      aDstPort: Uint16; aTCPFlags: Uint8; aSeqNum, aAckNum: Uint32;
+      var aIsRetransmission: Boolean; var aRelativeSeqNumber: Integer); static;
   protected
     class function GetDataOFFSetBytes(const aDataOFFset: Byte): integer; 
-    
-  protected
+
     /// <summary>
     /// Checks whether the length of the payload is valid for the protocol.
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function PayLoadLengthIsValid(const aTCPPtr: PTCPHdr;const aPacketData:PByte;aPacketSize:Word): Boolean; virtual;    
-
   public
     class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;  
+
+    /// <summary>
+    /// Returns the acronym name of the POP3 protocol.
+    /// </summary>    
     class function AcronymName: String; override;
+
+    /// <summary>
+    /// Returns the default 0 for TCP
+    /// </summary>    
     class function DefaultPort: Word; override;
     class function HeaderLength(aFlag:Byte): word; override;
+
+    /// <summary>
+    /// Returns the ID number of the TCP protocol.
+    /// </summary>    
     class function IDDetectProto: byte; override;
+    
     /// <summary>
     /// Returns the length of the TCP payload.
     /// </summary>
@@ -127,6 +143,7 @@ type
     /// Returns the destination port number for the TCP packet.
     /// </summary>
     class function DstPort(const aTCPPtr: PTCPHdr): Word; static;   
+    
     /// <summary>
     /// Checks whether the packet has the default port for the protocol.
     /// </summary>
@@ -168,8 +185,12 @@ type
     ///    True if a supported protocol was detected, False otherwise.
     ///  </returns>
     class function AnalyzeTCPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;static;  
-    class function GetTCPFlagsV6(Flags: Uint8): string;static;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;override;      
+    
+    class function GetTCPFlags(aFlags: Uint8): string;static;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;      
+
+    {property}
+    class property TCPSessionInfo : TTCPSessionInfo read FTCPSessionInfo  write FTCPSessionInfo;
   end;      
 
 
@@ -177,6 +198,52 @@ type
 implementation
 
 uses wpcap.Level.Ip,wpcap.protocol;
+
+class procedure TWPcapProtocolBaseTCP.UpdateTCPInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aTCPFlags:Uint8; aSeqNum, aAckNum: Uint32;var aIsRetransmission:Boolean;var aRelativeSeqNumber:Integer);
+var LKey   : string; 
+    LInfo  : TCPVariableInfo;
+    LFound : Boolean;
+begin
+  if not Assigned(FTCPSessionInfo) then Exit;
+  
+  aIsRetransmission := False;
+  LFound            := False;
+  LKey              := Format('%s:%d-%s:%d', [aSrcAddr, aSrcPort, aDstAddr, aDstPort]);
+  if FTCPSessionInfo.TryGetValue(LKey, LInfo) then
+    LFound := True
+  else
+  begin
+    LKey   := Format('%s:%d-%s:%d', [aDstAddr, aSrcPort,aSrcAddr ,aDstPort]);
+    if FTCPSessionInfo.TryGetValue(LKey, LInfo) then
+      LFound := True
+  end;
+
+  // Check if session already exists in the dictionary
+  if LFound then
+  begin
+    // If the ackNum is less than or equal to the previous ackNum, assume it is a retransmission
+    if aAckNum <= LInfo.prevAckNum then   
+      aIsRetransmission := True;            {Some false retrasmission, TODO add timeout and Check for seq number ??}
+    
+    LInfo.prevSeqNum := aSeqNum;
+    LInfo.prevAckNum := aAckNum;
+        
+    // Update the dictionary entry
+    FTCPSessionInfo.AddOrSetValue(LKey, LInfo);
+  end
+  else
+  begin
+    // Add new session to the dictionary
+    LInfo.prevSeqNum := aSeqNum;
+    LInfo.prevAckNum := aAckNum;
+    
+    FTCPSessionInfo.Add(LKey, LInfo);
+  end;
+
+  if ( aTCPFlags and $04 > 0 ) or //RST
+     ( aTCPFlags and $01 > 0 ) then// 'FIN,';   {TODO add timeout }
+    FTCPSessionInfo.Remove(LKey);
+end;
 
 class function TWPcapProtocolBaseTCP.DefaultPort: Word;
 begin
@@ -370,52 +437,75 @@ begin
   end;
 end;
 
-class function TWPcapProtocolBaseTCP.GetTCPFlagsV6(Flags: Uint8): string;
+class function TWPcapProtocolBaseTCP.GetTCPFlags(aFlags: Uint8): string;
 begin
   Result := String.Empty;
-  if Flags and $80 > 0 then Result := Result + 'CWR,';
-  if Flags and $40 > 0 then Result := Result + 'ECE,';
-  if Flags and $20 > 0 then Result := Result + 'URG,';
-  if Flags and $10 > 0 then Result := Result + 'ACK,';
-  if Flags and $08 > 0 then Result := Result + 'PSH,';
-  if Flags and $04 > 0 then Result := Result + 'RST,';
-  if Flags and $02 > 0 then Result := Result + 'SYN,';
-  if Flags and $01 > 0 then Result := Result + 'FIN,';
+  if aFlags and $80 > 0 then Result := Result + 'CWR,';
+  if aFlags and $40 > 0 then Result := Result + 'ECE,';
+  if aFlags and $20 > 0 then Result := Result + 'URG,';
+  if aFlags and $10 > 0 then Result := Result + 'ACK,';
+  if aFlags and $08 > 0 then Result := Result + 'PSH,';
+  if aFlags and $04 > 0 then Result := Result + 'RST,';
+  if aFlags and $02 > 0 then Result := Result + 'SYN,';
+  if aFlags and $01 > 0 then Result := Result + 'FIN,';
   if Result <> '' then
     Result := Copy(Result, 1, Length(Result) - 1);
 end;
 
-class function TWPcapProtocolBaseTCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean=False): Boolean;
-var LPTCPHdr      : PTCPHdr;
-    LesBits       : Integer;
-    LHeaderLen    : Integer;
-    LOffset       : Integer;
-    LBckOffSet    : Integer;
-    LEthandIpSize : Integer;
-    LUint8Value   : Uint8;
-    LOptionKind   : Uint8;    
+class function TWPcapProtocolBaseTCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+var LPTCPHdr             : PTCPHdr;
+    LesBits              : Integer;
+    LHeaderLen           : Integer;
+    LOffset              : Integer;
+    LBckOffSet           : Integer;
+    LEthandIpSize        : Integer;
+    LUint8Value          : Uint8;
+    LOptionKind          : Uint8;  
+    LSrcPort             : Uint16;  
+    LDstPort             : Uint16;   
+    LSeqNum              : Uint32;
+    LAckNum              : Uint32;
+    LIsRetransmission    : Boolean;
+    LRelativeSeqNumber   : Integer;
+    LHeaderIPv4          : PTIPHeader;
+    LInternalIP          : TInternalIP;
 begin
   Result := False;
   FIsFilterMode := aisFilterMode;
+  
   if not HeaderTCP(aPacketData,aPacketSize,LPTCPHdr) then exit;
+
   LEthAndIpSize := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LHeaderLen    := GetDataOFFSetBytes(LPTCPHdr^.DataOff) *4;
-  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName,'Transmission Control Protocol',Format('Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[SrcPort(LPTCPHdr),DstPort(LPTCPHdr),
-                                   ntohl(LPTCPHdr.SeqNum),ntohl(LPTCPHdr.AckNum),SizeTostr(LPTCPHdr.DataOff shr 4)]),PByte(aPacketData+LEthAndIpSize),LHeaderLen));  
+  LSrcPort      := wpcapntohs(LPTCPHdr.SrcPort);
+  LDstPort      := wpcapntohs(LPTCPHdr.DstPort);
+  LAckNum       := wpcapntohl(LPTCPHdr.AckNum);
+  LSeqNum       := wpcapntohl(LPTCPHdr.SeqNum);
+
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName,'Transmission Control Protocol',Format('Src Port: %d, Dst %d: 80, Seq: %d, Ack: %d, Len: %s',[LSrcPort,LDstPort,
+                                                                                        LSeqNum,LAckNum,SizeTostr(LPTCPHdr.DataOff shr 4)]),PByte(aPacketData+LEthAndIpSize),LHeaderLen));  
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Header length:',SizeToStr(LHeaderLen), PByte(@LPTCPHdr.DataOff),2));              
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Source',[AcronymName]), 'Source:',wpcapntohs(LPTCPHdr.SrcPort), PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Destination',[AcronymName]), 'Destination:',wpcapntohs(LPTCPHdr.DstPort), PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));      
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberRaw',[AcronymName]), 'Sequence number(RAW):',wpcapntohl(LPTCPHdr.SeqNum), PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AcknowledgmentNumberRaw',[AcronymName]), 'Acknowledgment number(RAW):',wpcapntohl(LPTCPHdr.AckNum), PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Source',[AcronymName]), 'Source:',LSrcPort, PByte(@LPTCPHdr.SrcPort),SizeOf(LPTCPHdr.SrcPort)));    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Destination',[AcronymName]), 'Destination:',LDstPort, PByte(@LPTCPHdr.DstPort),SizeOf(LPTCPHdr.DstPort)));   
+  TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
+
+  if IsFilterMode then  
+    UpdateTCPInfo(LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,LPTCPHdr.Flags,LSeqNum,LAckNum,aAdditionalInfo.isRetrasmission,aAdditionalInfo.SequenceNumber);
+
+  if aAdditionalInfo.isRetrasmission then
+    AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Retransmission',[AcronymName]), 'Retransmission','True',nil,0));      
+    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumberRaw',[AcronymName]), 'Sequence number(RAW):',LSeqNum, PByte(@LPTCPHdr.SeqNum),SizeOf(LPTCPHdr.SeqNum)));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AcknowledgmentNumberRaw',[AcronymName]), 'Acknowledgment number(RAW):',LAckNum, PByte(@LPTCPHdr.AckNum),SizeOf(LPTCPHdr.AckNum)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.MsgLen',[AcronymName]), 'Data offset:',GetDataOFFSetBytes(LPTCPHdr^.DataOff), PByte(@LPTCPHdr.DataOff),2));          
   LesBits := (LPTCPHdr.DataOff and $0F) shl 2; 
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ReservedBits',[AcronymName]), 'Reserved bits:',LesBits,PByte(LesBits),2));          
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',Format('%s %S [%s]',[ByteToBinaryString(GetByteFromWord(LPTCPHdr.Flags,0)),ByteToBinaryString(GetByteFromWord(LPTCPHdr.Flags,1)),GetTCPFlagsV6(LPTCPHdr.Flags)]), PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags), LPTCPHdr.Flags ));   
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',Format('%s %S [%s]',[ByteToBinaryString(GetByteFromWord(LPTCPHdr.Flags,0)),ByteToBinaryString(GetByteFromWord(LPTCPHdr.Flags,1)),GetTCPFlags(LPTCPHdr.Flags)]), PByte(@LPTCPHdr.Flags),SizeOf(LPTCPHdr.Flags), LPTCPHdr.Flags ));   
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.WindowSize',[AcronymName]), 'Window size:',wpcapntohs(LPTCPHdr.WindowSize), PByte(@LPTCPHdr.WindowSize),SizeOf(LPTCPHdr.WindowSize)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPTCPHdr.Checksum), PByte(@LPTCPHdr.Checksum),SizeOf(LPTCPHdr.Checksum)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.UrgentPointer',[AcronymName]), 'Urgent pointer:',wpcapntohs(LPTCPHdr.UrgPtr), PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));   
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize)), PByte(@LPTCPHdr.UrgPtr),SizeOf(LPTCPHdr.UrgPtr)));     
-  
+    
   LOffset       := SizeOf(TCPHdr)+LEthAndIpSize; 
   inc(LHeaderLen,LEthAndIpSize);
   if LHeaderLen > LOffset then
@@ -472,8 +562,8 @@ begin
                 
               end;
               
-            TCP_OPTION_ECHO      : DoLog('TWPcapProtocolBaseTCP.HeaderToString','TCP_OPTION_ECHO not impleented',TWLLWarning) {TODO};  
-            TCP_OPTION_ECHOREPLY : DoLog('TWPcapProtocolBaseTCP.HeaderToString','TCP_OPTION_ECHOREPLY not impleented',TWLLWarning) {TODO};  
+            TCP_OPTION_ECHO      : DoLog('TWPcapProtocolBaseTCP.HeaderToString','TCP_OPTION_ECHO not implemented',TWLLWarning) {TODO};  
+            TCP_OPTION_ECHOREPLY : DoLog('TWPcapProtocolBaseTCP.HeaderToString','TCP_OPTION_ECHOREPLY not implemented',TWLLWarning) {TODO};  
             
             TCP_OPTION_TIMESTAMP :
               begin
