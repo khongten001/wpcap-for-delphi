@@ -31,7 +31,7 @@ interface
 
 uses
   wpcap.Conts, wpcap.Types, WinSock, wpcap.BufferUtils, wpcap.Protocol.Base,wpcap.Packet,
-  System.SysUtils, System.Variants, wpcap.StrUtils;
+  System.SysUtils, System.Variants, wpcap.StrUtils,System.DateUtils;
 
 type
   //In this structure for UPD packet, the fields are:
@@ -54,6 +54,8 @@ type
   /// </summary>
   TWPcapProtocolBaseUDP = Class(TWPcapProtocolBase)
   private
+    class procedure UpdateUDPInfo(const aSrcAddr, aDstAddr: string; aSrcPort,
+      aDstPort: Uint16; aAdditionalInfo: PTAdditionalInfo); static;
 
   protected
     /// <summary>
@@ -270,17 +272,65 @@ begin
   end;
 end;
 
-class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
-var LPUDPHdr : PUDPHdr;
+class procedure TWPcapProtocolBaseUDP.UpdateUDPInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aAdditionalInfo: PTAdditionalInfo);
+CONST TIMEOUT_DELTA_MIN = 15;
+var LKey     : string; 
+    LInfo    : TFlowInfo;
+    LFound   : Boolean;
+    LDeltaMin: Int64;
 begin
-  Result := False;
+  if not Assigned(FlowInfoList) then Exit;
+  
+  LFound  := GetInfoFlow(aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LInfo);
+
+  if LFound then
+  begin
+
+    LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate));        
+    if ( LDeltaMin > TIMEOUT_DELTA_MIN) then   
+      LInfo.FLowId           := GetNewFlowID; 
+    aAdditionalInfo.FlowID := LInfo.FLowId;     
+    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
+    FlowInfoList.AddOrSetValue(LKey, LInfo);    
+  end
+  else
+  begin
+    LInfo.SrcIP            := aSrcAddr;
+    LInfo.DstIP            := aDstAddr;    
+    LInfo.prevSeqNum       := 0;
+    LInfo.prevAckNum       := 0;
+    LInfo.FirstSeqNum      := 0;
+    LInfo.FirstAckNum      := 0;      
+    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
+    LInfo.FLowId           := GetNewFlowID;
+    aAdditionalInfo.FlowID := LInfo.FLowId;
+    FlowInfoList.Add(LKey, LInfo);  
+  end;
+  
+end;
+
+class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+var LPUDPHdr     : PUDPHdr;
+    LSrcPort     : Uint16;
+    LDstPort     : Uint16;    
+    LInternalIP  : TInternalIP;    
+begin
+  Result        := False;
   FisFilterMode := aisFilterMode;
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then exit;
-  
+
+  LSrcPort := SrcPort(LPUDPHdr);
+  LDstPort := DstPort(LPUDPHdr);
+  if IsFilterMode then  
+  begin
+    TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
+    UpdateUDPInfo(LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,aAdditionalInfo);
+  end;
+    
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName ,'User Datagram Protocol', Format('Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]), Pbyte(LPUDPHdr),HeaderLength(0) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HaderLen',[AcronymName]), 'Header length:',HeaderLength(0),nil,0));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SrcPort',[AcronymName]), 'Source port:',SrcPort(LPUDPHdr), @(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort) ));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstPort',[AcronymName]), 'Destination port:',DstPort(LPUDPHdr), @(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort) ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SrcPort',[AcronymName]), 'Source port:',LSrcPort, @(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort) ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstPort',[AcronymName]), 'Destination port:',LDstPort, @(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)), @(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length) ));  
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPUDPHdr.CheckSum), @(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum) ));    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8), nil,0 ));      

@@ -417,6 +417,7 @@ var LUDPPayLoad        : PByte;
     LGTPHeaderV2       : PTGTPHeaderV2;
     LCurrentPos        : Integer;            
     LMessageType       : UInt8;
+    LMessageTypeStr    : String;
     LPayLoadLen        : Integer;    
 begin
   Result := False;
@@ -442,8 +443,9 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.NextExtHeaderPresent',[AcronymName]), 'Next extension header present:', GetBitValue(LGTPHeaderV1.Flags,6)=1, @LGTPHeaderV1.Flags,sizeOf(LGTPHeaderV1.Flags), GetBitValue(LGTPHeaderV1.Flags,6) ));                        
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.SeqNumberPresent',[AcronymName]), 'Seq number present:', GetBitValue(LGTPHeaderV1.Flags,7)=1, @LGTPHeaderV1.Flags,sizeOf(LGTPHeaderV1.Flags), GetBitValue(LGTPHeaderV1.Flags,7)));                
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.NPDUNumberPresent',[AcronymName]), 'N-PDU number present:', GetBitValue(LGTPHeaderV1.Flags,8)=1, @LGTPHeaderV1.Flags,sizeOf(LGTPHeaderV1.Flags), GetBitValue(LGTPHeaderV1.Flags,8)));                        
-        LMessageType := LGTPHeaderV1.MessageType;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:', MessageTypeToString(LMessageType), @LMessageType,sizeOf(LMessageType), LMessageType ));
+        LMessageType    := LGTPHeaderV1.MessageType;
+        LMessageTypeStr := MessageTypeToString(LMessageType);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:', LMessageTypeStr, @LMessageType,sizeOf(LMessageType), LMessageType ));
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length:', wpcapntohs( LGTPHeaderV1.MessageLen ), @LGTPHeaderV1.MessageLen,sizeOf(LGTPHeaderV1.MessageLen) ));        
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TEID',[AcronymName]), 'TEID:', wpcapntohl( LGTPHeaderV1.TEID ), @LGTPHeaderV1.TEID,sizeOf(LGTPHeaderV1.TEID) ));  
          
@@ -484,8 +486,9 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Piggybacking',[AcronymName]), 'Piggybacking flag (P):', GetBitValue(LGTPHeaderV2.Flags,4)=1, @LGTPHeaderV2.Flags,sizeOf(LGTPHeaderV2.Flags), GetBitValue(LGTPHeaderV2.Flags,4) ));
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.TEID',[AcronymName]), 'TEID flag (T):', GetBitValue(LGTPHeaderV2.Flags,5)=1, @LGTPHeaderV2.Flags,sizeOf(LGTPHeaderV2.Flags), GetBitValue(LGTPHeaderV2.Flags,5) ));        
         AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.MP',[AcronymName]), 'Message Priority(MP):', GetBitValue(LGTPHeaderV2.Flags,6)=1, @LGTPHeaderV2.Flags,sizeOf(LGTPHeaderV2.Flags), GetBitValue(LGTPHeaderV2.Flags,6) ));                        
-        LMessageType := LGTPHeaderV2.MessageType;
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:', MessageTypeV2ToString(LMessageType), @LMessageType,sizeOf(LMessageType), LMessageType ));
+        LMessageType    := LGTPHeaderV2.MessageType;
+        LMessageTypeStr := MessageTypeV2ToString(LMessageType);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',LMessageTypeStr , @LMessageType,sizeOf(LMessageType), LMessageType ));
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length:', wpcapntohs( LGTPHeaderV2.MessageLen ), @LGTPHeaderV2.MessageLen,sizeOf(LGTPHeaderV2.MessageLen)));        
 
         LCurrentPos := SizeOf(TGTPHeaderV2);
@@ -506,7 +509,9 @@ begin
       
   else Exit;
   end;
-  Result := True;
+
+  aAdditionalInfo.Info := LMessageTypeStr;
+  Result               := True;
 end;
 
 Class Procedure TWPcapProtocolGTP.ParserIEType(var aCurrentPos:Integer;aMaxLen,aStartLevel : Integer;const aPayload:PByte;AListDetail: TListHeaderString);

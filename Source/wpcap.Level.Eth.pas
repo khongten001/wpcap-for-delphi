@@ -63,7 +63,8 @@ type
   TWpcapEthHeader = class
    private
      class var FOnLog          : TWpcapLog; // event for logging  
-     class var FTCPSessionInfo : TTCPSessionInfo ;      
+     class var FFlowInfoList   : TFlowInfoList;       
+     Class var FOnGetNewFlowID : TWpcapGetNewFlowID; 
     /// <summary>
     /// This function checks if the size of the packet is valid. 
     //It takes an integer representing the size of the packet as a parameter and returns a Boolean value indicating whether the size is valid.
@@ -77,7 +78,9 @@ type
      /// <summary>
      /// Log a message with the given function name, description, and log level.
      /// </summary>     
-     class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog);    
+     class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog); 
+     class function GetNewFlowID : Integer;   
+     class function GetInfoFlow(const aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
   public
 
     /// <summary>
@@ -119,17 +122,23 @@ type
     class function GetEthAcronymName(protocol: Word): string;static; 
     
     class procedure DoOnMalformedPacket(sendert: TObject);
-    
+
     {property}
     class property isMalformed            : Boolean         read FisMalformed;
     class property IsFilterMode           : Boolean         read FIsFilterMode    write FIsFilterMode default false;
-    class property TCPSessionInfo         : TTCPSessionInfo read FTCPSessionInfo  write FTCPSessionInfo;     
+
     {event}
+    
     /// <summary>
     /// Gets or sets the TWpcapLog event for logging.
     /// </summary>    
-    class property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;
+    class property OnLog                  : TWpcapLog             read FOnLog                 write FOnLog;
     
+    /// <summary>
+    /// Gets or sets the TWpcapGetNewFlowID event for get New Flow ID.
+    /// </summary>    
+    class property OnGetNewFlowID         : TWpcapGetNewFlowID    read FOnGetNewFlowID         write FOnGetNewFlowID;
+    class property FlowInfoList           : TFlowInfoList         read FFlowInfoList         write FFlowInfoList;          
   end;
 
 implementation
@@ -265,7 +274,7 @@ begin
         ETH_P_IP,  
         ETH_P_IPV6:
           begin
-            TWpcapIPHeader.TCPSessionInfo := FTCPSessionInfo;               
+            TWpcapIPHeader.FlowInfoList := FFlowInfoList;
             if TWpcapIPHeader.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,aListDetail,aIsFilterMode,aAdditionalInfo) then
             begin
               LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(aInternalPacket.IP.DetectedIPProto);
@@ -409,6 +418,7 @@ begin
   aInternalPacket.Eth.SrcAddr   := MACAddrToStr(LPETHHdr.SrcAddr);
   aInternalPacket.Eth.DestAddr  := MACAddrToStr(LPETHHdr.DestAddr);  
   aInternalPacket.Eth.Acronym   := GetEthAcronymName(aInternalPacket.Eth.EtherType);
+  
   if aLogging then  
     DoLog('TWpcapEthHeader.InternalPacket',Format('EtherType [ %d --> %s ]',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLInfo);     
   case aInternalPacket.Eth.EtherType of
@@ -417,7 +427,8 @@ begin
     ETH_P_IP,  
     ETH_P_IPV6  : 
       begin
-        TWpcapIPHeader.OnLog := OnLog;
+        TWpcapIPHeader.OnLog          := OnLog;
+        TWpcapIPHeader.OnGetNewFlowID := OnGetNewFlowID;
         TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,aIANADictionary,@(aInternalPacket.IP),True,aLogging);
       end;
  
@@ -517,7 +528,7 @@ begin
         case LIpFlagVersion of
           4  :begin 
                 if aLogging then         
-                  DoLog('TWpcapEthHeader.InternalPacket','Found link laye rpacket new eth header is IPv4',TWLLInfo);    
+                  DoLog('TWpcapEthHeader.InternalPacket','Found link layer packet new eth header is IPv4',TWLLInfo);    
                 LEthType  := ntohs(ETH_P_IP);
               end;
           6  : 
@@ -549,11 +560,9 @@ begin
       end
       else
         if aLogging then               
-          DoLog('TWpcapEthHeader',Format('Ethernet type or link layer [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);       
-          
+          DoLog('TWpcapEthHeader',Format('Ethernet type or link layer [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);                 
     end;
-  end;
-  
+  end;  
   Result := True;
 end;
 
@@ -606,6 +615,36 @@ class procedure TWpcapEthHeader.DoLog(const aFunctionName, aDescription: String;
 begin
   if Assigned(FOnLog) then
     FOnLog(aFunctionName,aDescription,aLevel);
+end;
+
+class function TWpcapEthHeader.GetNewFlowID: Integer;
+begin
+  Result := 0;
+  if Assigned(FOnGetNewFlowID) then
+    FOnGetNewFlowID(Result);
+end;
+
+class function TWpcapEthHeader.GetInfoFlow(const aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo): Boolean;
+begin
+  aKey   := Format('%s:%d-%s:%d', [aSrcAddr, aSrcPort, aDstAddr, aDstPort]);
+  if FlowInfoList.TryGetValue(aKey, aInfo^) then
+    Result := True
+  else
+  begin
+    aKey   := Format('%s:%d-%s:%d', [aDstAddr, aDstPort,aSrcAddr ,aSrcPort]);
+    Result := FlowInfoList.TryGetValue(aKey, aInfo^);
+    if not Result then
+    begin
+      aKey   := Format('%s:%d-%s:%d', [aDstAddr, aSrcPort,aSrcAddr ,aDstPort]);
+      Result := FlowInfoList.TryGetValue(aKey, aInfo^);
+      if not Result then
+      begin
+        aKey   := Format('%s:%d-%s:%d', [aSrcAddr, aDstPort,aDstAddr ,aSrcPort]);  
+        Result := FlowInfoList.TryGetValue(aKey, aInfo^);
+      end;
+    end;
+  end;
+
 end;
 
 end.

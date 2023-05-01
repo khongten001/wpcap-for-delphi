@@ -808,6 +808,7 @@ var LOffset         : Integer;
     LTCPPayLoad     : PByte;
     LTCPPayLoadLen  : Integer;
     LContectLen     : Integer;
+    LContentStr     : String;
     LByteValue      : Uint8;
     LByteValue2     : Uint8;
     LTypeRecord     : Uint8;
@@ -1141,12 +1142,19 @@ begin
   if aPacketSize < TCPPayLoadLength(LTCPHdr,aPacketData,aPacketSize)-1+SizeOf(TTLSRecordHeader) then exit;
   
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen ));
-  
+  aAdditionalInfo.Info := String.Empty;
   while LOffset < LTCPPayLoadLen do
   begin
-    LRecord := PTTLSRecordHeader(LTCPPayLoad + LOffset);
-    LContectLen :=  wpcapntohs(LRecord.Length);
+    LRecord      := PTTLSRecordHeader(LTCPPayLoad + LOffset);
+    LContectLen  := wpcapntohs(LRecord.Length);
+    LContentStr  := ContentTypeToString(LRecord.ContentType);
 
+    if aAdditionalInfo.Info.IsEmpty then
+      aAdditionalInfo.Info := LContentStr
+    else if not aAdditionalInfo.Info.Contains(LContentStr) then         
+      aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LContentStr]);
+      
+    
     if LContectLen <= 0 then exit;
     if LContectLen > LTCPPayLoadLen then exit;
         
@@ -1154,10 +1162,9 @@ begin
     Dec(LOffset,LContectLen);
         
     Inc(LOffset, SizeOf(TTLSRecordHeader));
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentType',[AcronymName]), 'Content type', ContentTypeToString(LRecord.ContentType), @LRecord.ContentType, SizeOf(LRecord.ContentType), LRecord.ContentType ));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentType',[AcronymName]), 'Content type', LContentStr, @LRecord.ContentType, SizeOf(LRecord.ContentType), LRecord.ContentType ));
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Version',[AcronymName]), 'Version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion), LRecord.ProtocolVersion ));    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentLen',[AcronymName]), 'Content length',SizeToStr(LContectLen), @LRecord.Length, SizeOf(LRecord.Length),LContectLen ));  
-    
       case LRecord.ContentType of
 
         TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC   :
@@ -1168,8 +1175,11 @@ begin
             
           TLS_CONTENT_TYPE_HANDSHAKE          :
           begin
-            LTypeRecord    := PByte(LTCPPayLoad+LOffset)^;
-            LTypeRecordStr := HandShakeTypeToString(LTypeRecord);
+
+            LTypeRecord          := PByte(LTCPPayLoad+LOffset)^;
+            LTypeRecordStr       := HandShakeTypeToString(LTypeRecord);
+            if not aAdditionalInfo.Info.Contains(LTypeRecordStr) then            
+              aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LTypeRecordStr]);            
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake.%s',[AcronymName,LTypeRecordStr]), Format('Handshake: %s',[LTypeRecordStr]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
             
             ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Type',[AcronymName,LTypeRecordStr]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   

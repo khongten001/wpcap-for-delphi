@@ -86,6 +86,11 @@ object FormMain: TFormMain
         Options.Editing = False
         Width = 120
       end
+      object GridPcapDBTableView1FLOW_ID: TcxGridDBColumn
+        Caption = 'ID. Flow'
+        DataBinding.FieldName = 'FLOW_ID'
+        Options.Editing = False
+      end
       object GridPcapDBTableView1IP_SRC: TcxGridDBColumn
         Caption = 'Source'
         DataBinding.FieldName = 'IP_SRC'
@@ -135,10 +140,12 @@ object FormMain: TFormMain
         PropertiesClassName = 'TcxCheckBoxProperties'
         Properties.ValueChecked = '1'
         Properties.ValueUnchecked = '0'
+        Options.Editing = False
       end
       object GridPcapDBTableView1PACKET_INFO: TcxGridDBColumn
         Caption = 'Info'
         DataBinding.FieldName = 'PACKET_INFO'
+        Options.Editing = False
         Width = 200
       end
       object GridPcapDBTableView1ETH_TYPE: TcxGridDBColumn

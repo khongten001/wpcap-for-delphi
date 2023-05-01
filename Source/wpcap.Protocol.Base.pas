@@ -40,16 +40,9 @@ Type
   /// </summary>
   TWPcapProtocolBase = class(TWpcapEthHeader)
   private
-     class var FOnFoundMalformedPacket : TNotifyEvent;
-     class var FOnLog                  : TWpcapLog;     //Event for logging      
+     class var FOnFoundMalformedPacket : TNotifyEvent;   
   protected
-     class var FIsFilterMode : Boolean;
      
-    /// <summary>
-    /// Log a message with the given function name, description, and log level.
-    /// </summary>
-    class procedure DoLog(const aFunctionName, aDescription: string; aLevel: TWpcapLvlLog);
-
     /// <summary>
     /// Convert a Uint8 value to a string representing its size.
     /// </summary>
@@ -159,20 +152,13 @@ Type
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function IsValidByDefaultPort(aSrcPort, aDstPort: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;overload; virtual;
-
-    {Property}
-    class property IsFilterMode           : Boolean        read FIsFilterMode           write FIsFilterMode default false;
     
     {Event}
     /// <summary>
     /// Gets or sets event for malformed packet.
     /// </summary>    
     class property OnFoundMalformedPacket : TNotifyEvent   read FOnFoundMalformedPacket write FOnFoundMalformedPacket;
-    
-    /// <summary>
-    /// Gets or sets the TWpcapLog event for logging.
-    /// </summary>        
-    class property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;
+   
   end;
   
 implementation
@@ -548,11 +534,6 @@ begin
   Result := IPv6AddressToString(ABytes)
 end;
 
-class procedure TWPcapProtocolBase.DoLog(const aFunctionName,
-  aDescription: String; aLevel: TWpcapLvlLog);
-begin
-  if Assigned(FOnLog) then
-    FOnLog(aFunctionName,aDescription,aLevel);
-end;
+
 
 end.

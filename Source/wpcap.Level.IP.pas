@@ -225,7 +225,6 @@ type
   Strict private
     
   private
-     class var FTCPSessionInfo : TTCPSessionInfo ;
     /// <summary>
     ///   Determines if the given packet size is valid for an Ethernet frame with an IPv4 or IPv6 header.
     /// </summary>
@@ -315,9 +314,7 @@ type
     /// The well-known protocols include ICMP, TCP, UDP, and more.
     /// </summary>
     class function GetIPv4ProtocolName(aProtocol: Word): string;static;
-    class function GetNextBufferHeader(const aPacketData: PByte; aPacketSize,aHeaderPrevLen,aNewIpProto: Integer; var aNewPacketLen: Integer;aCheckNextHeader:Boolean): PByte; static; 
-    {Property}  
-    class property TCPSessionInfo : TTCPSessionInfo read FTCPSessionInfo  write FTCPSessionInfo;     
+    class function GetNextBufferHeader(const aPacketData: PByte; aPacketSize,aHeaderPrevLen,aNewIpProto: Integer; var aNewPacketLen: Integer;aCheckNextHeader:Boolean): PByte; static;    
   end;
 
 implementation
@@ -599,7 +596,7 @@ begin
         IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
         IPPROTO_TCP     : 
         begin
-          TWPcapProtocolBaseTCP.TCPSessionInfo := FTCPSessionInfo;
+          TWPcapProtocolBaseTCP.FlowInfoList := FlowInfoList;
           TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
         end;
         IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
@@ -761,15 +758,26 @@ end;
 
 class Procedure TWpcapIPHeader.AnalyzeIPProtocol(const aPacketData: PByte;aPacketSize: Integer; aInternalIP: PTInternalIP;aLogging:Boolean);
 var LStopwatch : TStopwatch;
+    LMsElp     : Int64;
 begin
-  LStopwatch := TStopwatch.Create;
-  LStopwatch := LStopwatch.StartNew;
-  TWPcapProtocolBaseTCP.OnLog := OnLog;
-  TWPcapProtocolBaseUDP.OnLog := OnLog;            
-  if not TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto) then
-    TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
-  if aLogging  then    
-    DoLog('TWpcapIPHeader.AnalyzeIPProtocol',Format('Execute in [ %d ms ]',[LStopwatch.ElapsedMilliseconds]),TWLLTiming);                   
+  LStopwatch  := TStopwatch.Create;
+  Try
+    LStopwatch                           := LStopwatch.StartNew;
+    TWPcapProtocolBaseTCP.OnLog          := OnLog;
+    TWPcapProtocolBaseUDP.OnLog          := OnLog;    
+    TWPcapProtocolBaseUDP.OnGetNewFlowID := OnGetNewFlowID;          
+    TWPcapProtocolBaseTCP.OnGetNewFlowID := OnGetNewFlowID;            
+    if not TWPcapProtocolBaseUDP.AnalyzeUDPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto) then
+      TWPcapProtocolBaseTCP.AnalyzeTCPProtocol(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
+    if aLogging  then    
+    begin
+      LMsElp := LStopwatch.ElapsedMilliseconds;
+      if LMsElp > 0 then    
+        DoLog('TWpcapIPHeader.AnalyzeIPProtocol',Format('Execute in [ %d ms ]',[LMsElp]),TWLLTiming);                   
+    end;
+  Finally
+    LStopwatch.Stop;
+  End;
 end;
 
 class function TWpcapIPHeader.InternalIP(const aPacketData: PByte;aPacketSize: Integer;aIANADictionary:TDictionary<String,TIANARow>; aInternalIP: PTInternalIP;aFallowIpLevel,aLogging:Boolean): Boolean;
@@ -854,13 +862,17 @@ begin
     IPPROTO_ICMP,
     IPPROTO_ICMPV6  : 
       begin
-        TWPcapProtocolICMP.OnLog := OnLog;
+  
+        TWPcapProtocolICMP.OnLog          := OnLog;
+        TWPcapProtocolICMP.OnGetNewFlowID := OnGetNewFlowID;          
         TWPcapProtocolICMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
       end;
     
     IPPROTO_TCP     : 
       begin
-        TWPcapProtocolBaseTCP.OnLog := OnLog;
+        
+        TWPcapProtocolBaseTCP.OnLog          := OnLog;
+        TWPcapProtocolBaseTCP.OnGetNewFlowID := OnGetNewFlowID;            
         if TWPcapProtocolBaseTCP.HeaderTCP(aPacketData,aPacketSize,LTcpPhdr) then
         begin
           aInternalIP.PortSrc := TWPcapProtocolBaseTCP.SrcPort(LTcpPhdr);
@@ -875,7 +887,9 @@ begin
       
     IPPROTO_UDP     : 
       begin
-        TWPcapProtocolBaseTCP.OnLog := OnLog;      
+        TWPcapProtocolBaseUDP.OnGetNewFlowID := OnGetNewFlowID;                  
+        TWPcapProtocolBaseUDP.OnLog          := OnLog;      
+        
         if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
         begin
           aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);
@@ -892,14 +906,17 @@ begin
 
     IPPROTO_IGMP    : 
       begin
-        TWPcapProtocolIGMP.OnLog := OnLog;
+        TWPcapProtocolIGMP.OnGetNewFlowID    := OnGetNewFlowID;  
+        TWPcapProtocolIGMP.OnLog             := OnLog;
         TWPcapProtocolIGMP.IsValid(aPacketData,aPacketSize,aInternalIP.ProtoAcronym,aInternalIP.DetectedIPProto);
       end;
 
     IPPROTO_IPV6    :
       begin
-        TWPcapProtocolBaseUDP.OnLog := OnLog;
-        TWPcapProtocolBaseTCP.OnLog := OnLog;        
+        TWPcapProtocolBaseUDP.OnGetNewFlowID := OnGetNewFlowID;        
+        TWPcapProtocolBaseTCP.OnGetNewFlowID := OnGetNewFlowID;                
+        TWPcapProtocolBaseUDP.OnLog          := OnLog;
+        TWPcapProtocolBaseTCP.OnLog          := OnLog;        
         if TWPcapProtocolBaseUDP.HeaderUDP(aPacketData,aPacketSize,LUdpPhdr) then
         begin
           aInternalIP.PortSrc := TWPcapProtocolBaseUDP.SrcPort(LUdpPhdr);

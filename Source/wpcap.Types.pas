@@ -500,12 +500,21 @@ type
   /// <param name="aLevel">The log level.</param>
   TWpcapLog = procedure(const aFunctionName, aDescription: String; aLevel: TWpcapLvlLog) of object;
 
-  TCPVariableInfo = record
-    prevSeqNum: LongWord;
-    prevAckNum: LongWord;
+  TWpcapGetNewFlowID = procedure(var aNewFlowID:Integer) of object;
+  
+  TFlowInfo = record
+    SrcIP      : String;
+    DstIP      : String;
+    prevSeqNum : Uint32;
+    prevAckNum : Uint32;
+    FirstSeqNum: Uint32;
+    FirstAckNum: Uint32;
+    PacketDate : TDateTime;
+    FLowId     : Integer;
   end;
+  PTFlowInfo = ^TFlowInfo;
 
-  TTCPSessionInfo = Class(TDictionary<string, TCPVariableInfo>);
+  TFlowInfoList = Class(TDictionary<string, TFlowInfo>);
   
      
 implementation

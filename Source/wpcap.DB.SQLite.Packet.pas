@@ -176,7 +176,7 @@ uses
     /// <param name="aSoxCommand">The command to execute for processing the data.</param>
     /// <returns>A boolean value indicating if the operation was successful.</returns>    
     function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
-    constructor Create;
+    constructor Create;override;
     
     {Property}
 
@@ -225,6 +225,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  PORT_DST INTEGER,                             '+sLineBreak+
                       '  IS_RETRASMISSION INTEGER,                     '+sLineBreak+ {TCP Additional}                     
                       '  SEQ_NUMBER INTEGER,                           '+sLineBreak+ 
+                      '  FLOW_ID INTEGER,                              '+sLineBreak+                                             
                       '  IANA_PROTO TEXT,                              '+sLineBreak+ {IANA}                         
                       '  SRC_ASN TEXT,                                 '+sLineBreak+ {GEOIP SRC}      
                       '  SRC_ORGANIZZATION TEXT,                       '+sLineBreak+       
@@ -268,7 +269,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                        '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                        '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
                        '  PORT_SRC, PORT_DST ,                                                                   ' +sLineBreak+   {TCP/UDP}   
-                       '  IS_RETRASMISSION, SEQ_NUMBER ,                                                         ' +sLineBreak+   {TCP additional}  
+                       '  IS_RETRASMISSION, SEQ_NUMBER , FLOW_ID,                                                ' +sLineBreak+   {TCP additional}  
                        '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                        '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                        '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST} 
@@ -296,7 +297,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
                    '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
                    '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
-                   '  IS_RETRASMISSION, SEQ_NUMBER ,                                                         ' +sLineBreak+   {TCP additional}                     
+                   '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID ,                                                ' +sLineBreak+   {TCP additional}                     
                    '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                    '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                    '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST}   
@@ -308,7 +309,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
                    '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
                    '  :pPortSrc,:pPortDst,                                                                   ' +sLineBreak+   {TCP/UDP}   
-                   '  :pIsRetrasmission, :pSeqNumber ,                                                       ' +sLineBreak+   {TCP additional}                     
+                   '  :pIsRetrasmission, :pSeqNumber ,:pFlowID,                                              ' +sLineBreak+   {TCP additional}                     
                    '  :pProtoIANA,                                                                           ' +sLineBreak+   {IANA} 
                    '  :pSrcAsn,:pSrcOrg,:pSrcLoc,:pSrcLat,:pSrcLong,                                         ' +sLineBreak+   {GEOIP SRC}
                    '  :pDstAsn,:pDstOrg,:pDstLoc,:pDstLat,:pDstLong,                                         ' +sLineBreak+   {GEOIP DST} 
@@ -349,6 +350,7 @@ begin
   FFDQueryInsert.ParamByName('pPortDst').DataType           := ftInteger;   
   FFDQueryInsert.ParamByName('pIsRetrasmission').DataType   := ftInteger; {TCP/additional}      
   FFDQueryInsert.ParamByName('pSeqNumber').DataType         := ftInteger;   
+  FFDQueryInsert.ParamByName('pFlowID').DataType            := ftInteger;   
   FFDQueryInsert.ParamByName('pProtoIANA').DataType         := ftString;  {IANA}
   FFDQueryInsert.ParamByName('pSrcLoc').DataType            := ftString;  {GEOIP SRC} 
   FFDQueryInsert.ParamByName('pSrcOrg').DataType            := ftString;  
@@ -373,12 +375,12 @@ begin
                                                                '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
                                                                '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
                                                                '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
-                                                               '  IS_RETRASMISSION, SEQ_NUMBER ,                                                         ' +sLineBreak+   {TCP additional}                                                                
+                                                               '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID,                                                 ' +sLineBreak+   {TCP additional}                                                                
                                                                '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                                                                '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                                                                '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET                  ' +sLineBreak+   {GEOIP DST} 
                                                                '  FROM VST_PACKETS ORDER BY NPACKET ';            
-  FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA,IS_RETRASMISSION,SEQ_NUMBER,PACKET_INFO FROM PACKETS WHERE NPACKET = :pNPACKET '; 
+  FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA,IS_RETRASMISSION,SEQ_NUMBER,PACKET_INFO,PACKET_DATE FROM PACKETS WHERE NPACKET = :pNPACKET '; 
 
   FFDQueryFlow                                              := TFDQuery.Create(nil);
   FFDQueryFlow.Connection                                   := FConnection;
@@ -604,10 +606,15 @@ begin
   {TCP additional}      
   FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.isRetrasmission,1,0);  
 
-  if aInternalPacket.IP.PortDst > 0 then  
+  if aInternalPacket.AdditionalInfo.SequenceNumber > 0 then  
     FFDQueryInsert.ParamByName('pSeqNumber').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.SequenceNumber
   else
     FFDQueryInsert.ParamByName('pSeqNumber').Clear(FInsertToArchive);
+
+  if aInternalPacket.AdditionalInfo.FlowID > 0 then  
+    FFDQueryInsert.ParamByName('pFlowId').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.FlowID
+  else
+    FFDQueryInsert.ParamByName('pFlowId').Clear(FInsertToArchive);
   
   {IANA} 
   FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.IP.IANAProtoStr;   
@@ -629,7 +636,7 @@ begin
   FFDQueryInsert.ParamByName('pXMLInfo').AsStrings[FInsertToArchive]       := aInternalPacket.XML_Detail;
   FFDQueryInsert.ParamByName('pPacketRaw').AsAnsiStrings[FInsertToArchive] := aInternalPacket.RAW_Text;  
   {Info}
-  FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.AdditionalInfo.Info;   
+  FFDQueryInsert.ParamByName('pPacketInfo').AsStrings[FInsertToArchive]    := aInternalPacket.AdditionalInfo.Info;   
   LMemoryStream := TMemoryStream.Create; 
   Try
     LMemoryStream.WriteBuffer(aInternalPacket.PacketData^,aInternalPacket.PacketSize);
@@ -659,6 +666,7 @@ begin
       LStream.ReadBuffer(Result^, aPacketSize); 
       aAdditionInfo.isRetrasmission := FFDGetDataByID.FieldByName('IS_RETRASMISSION').AsInteger = 1;     
       aAdditionInfo.SequenceNumber  := FFDGetDataByID.FieldByName('SEQ_NUMBER').AsInteger;
+      aAdditionInfo.PacketDate      := StrToDateTime(FFDGetDataByID.FieldByName('PACKET_DATE').AsString);
       aAdditionInfo.Info            := FFDGetDataByID.FieldByName('PACKET_INFO').AsString;
     finally
       LStream.Free;

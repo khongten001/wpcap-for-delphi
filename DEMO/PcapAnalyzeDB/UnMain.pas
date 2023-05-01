@@ -114,6 +114,7 @@ type
     BWhoiseClient: TdxBarButton;
     GridPcapDBTableView1IS_RETRASMISSION: TcxGridDBColumn;
     GridPcapDBTableView1PACKET_INFO: TcxGridDBColumn;
+    GridPcapDBTableView1FLOW_ID: TcxGridDBColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);

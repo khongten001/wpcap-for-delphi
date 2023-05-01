@@ -200,7 +200,7 @@ constructor TPCAP2SQLite.Create;
 begin
   inherited;
   FLogger           := TWpcapLogger.Create(nil);
-  FLogger.PathLog   := Format('%sLog\',[ExtractFilePath(Application.ExeName)]);
+  FLogger.PathLog   := AnsiString(Format('%sLog\',[ExtractFilePath(Application.ExeName)]));
   FLogger.MaxDayLog := 7;
   FLogger.Active    := True;
   FLogger.Debug     := False;  
