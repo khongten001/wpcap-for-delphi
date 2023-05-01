@@ -79,7 +79,8 @@ type
     pBuffers: PPAnsiChar;
     pLengths: PULONG;
   end;
-  
+
+ TWpcapMacAddress = array [0..5] of Uint8; 
   //TMacAddress is a structure defined in the WinPcap library that represents a 6-byte Media Access Control (MAC) address.
   //The structure has an Integer of case field that can be used to access the bytes of the address as a 6-byte array (Byte) or as a single dword (DWord).
   TMacAddress = record
@@ -355,6 +356,8 @@ type
     PCAP_D_OUT_NOFILTER   = 5  
  );
 
+   
+ 
   ///<summary>
   /// Type definition for a callback to be called when an offline packet is processed.
   ///</summary>
@@ -470,7 +473,7 @@ type
   ///<param name="aMacsrc">Destination MAC address</param>
   ///<param name="aMacDst">Source MAC address</param>
   ///<param name="aSkypPacket">Indicates whether the packet should be skipped (True) or not (False)</param>
-  TWpcapEthMacFound = procedure(const aMacSrc,aMacDst:String;var aSkypPacket:Boolean) of object;
+  TWpcapEthMacFound = procedure(const aMacSrc,aMacDst:String;var aSkypPacket:Boolean;var aAnonymize:Boolean;var aNewMacSrc:TWpcapMacAddress;var aNewMacDst:TWpcapMacAddress) of object;
 
   ///<summary>
   /// Method notified when an IP is found

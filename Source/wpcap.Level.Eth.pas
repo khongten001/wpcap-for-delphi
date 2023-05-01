@@ -36,6 +36,7 @@ uses
 
 type  
 
+
   // This structure contains three fields:
   //
   // DestAddr : 6 byte array containing destination MAC address
@@ -43,8 +44,8 @@ type
   // EtherType: 16-bit field indicating the type of higher protocol (for example, IPv4 or ARP).
   PETHHdr = ^TETHHdr;
   TETHHdr =  record
-    DestAddr : array [0..5] of Uint8;  // The destination MAC address.
-    SrcAddr  : array [0..5] of Uint8;  // The source MAC address.
+    DestAddr : TWpcapMacAddress;  // The destination MAC address.
+    SrcAddr  : TWpcapMacAddress;  // The source MAC address.
     EtherType: Uint16;                 // The Ethernet type.
   end;  
 

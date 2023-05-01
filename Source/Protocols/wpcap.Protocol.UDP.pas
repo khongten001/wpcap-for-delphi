@@ -288,7 +288,7 @@ begin
 
     LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate));        
     if ( LDeltaMin > TIMEOUT_DELTA_MIN) then   
-      LInfo.FLowId           := GetNewFlowID; 
+      LInfo.FLowId  := GetNewFlowID; 
     aAdditionalInfo.FlowID := LInfo.FLowId;     
     LInfo.PacketDate       := aAdditionalInfo.PacketDate;
     FlowInfoList.AddOrSetValue(LKey, LInfo);    

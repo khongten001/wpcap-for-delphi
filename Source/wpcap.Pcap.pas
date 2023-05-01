@@ -125,7 +125,7 @@ type
     ///</summary>
     ///<param name="aInternalPacket">Pointer to a structure that contains information about the packet</param>
     ///<param name="aSkypPacket">Specifies whether the packet should be skipped</param>    
-    procedure DoEthMacFound(const aInternalPacket: PTInternalPacket;var aSkypPacket:Boolean);                          
+    procedure DoEthMacFound(aInternalPacket: PTInternalPacket;var aSkypPacket:Boolean;var aAnonymize : Boolean;var aNewMacSrc:TWpcapMacAddress;var aNewMacDst:TWpcapMacAddress);                          
 
     ///<summary>
     /// Executes a callback function in the context of the main thread to notify a listener that an IP address has been found
@@ -437,6 +437,9 @@ var PacketBuffer     : TBytes;
     aNewHeader       : PTpcap_pkthdr;
     LTInternalPacket : PTInternalPacket;
     LSkypPacket      : Boolean;
+    LAnonymize       : Boolean;
+    LNewMacSrc       : TWpcapMacAddress;
+    LNewMacDst       : TWpcapMacAddress;        
 begin
   if Assigned(aPacketData) then
   begin
@@ -463,16 +466,19 @@ begin
       begin
         Try
           LSkypPacket := false;
-          TPCAPCaptureRT(aUser).DoEthMacFound(LTInternalPacket,LSkypPacket);  
+          LAnonymize  := True;
+          TPCAPCaptureRT(aUser).DoEthMacFound(LTInternalPacket,LSkypPacket,LAnonymize,LNewMacSrc,LNewMacDst);
 
           if not LSkypPacket then
+          begin
             TPCAPCaptureRT(aUser).DoIpFound(LTInternalPacket,LSkypPacket);
 
-          if not LSkypPacket then
-            TPCAPCaptureRT(aUser).DoProtocolFound(LTInternalPacket,LSkypPacket);            
+            if not LSkypPacket then
+              TPCAPCaptureRT(aUser).DoProtocolFound(LTInternalPacket,LSkypPacket);
              
-          if not LSkypPacket then             
-            TPCAPCaptureRT(aUser).DoPacket(LTInternalPacket);
+            if not LSkypPacket then             
+              TPCAPCaptureRT(aUser).DoPacket(LTInternalPacket);
+          end;
         finally
           Dispose(LTInternalPacket)
         end; 
@@ -495,7 +501,7 @@ var LLen              : Integer;
     LListDetail       : TListHeaderString;
     LLikLayersSize    : Integer;
     LEthParser        : TWpcapEthHeader;
-    aAdditionalInfo   : TAdditionalInfo;
+    LAdditionalInfo   : TAdditionalInfo;
 begin
   Result := nil;
   if not Assigned(aPacketData) then Exit;
@@ -522,16 +528,16 @@ begin
     LListDetail     := TListHeaderString.Create;
     Try
 
-      aAdditionalInfo.isRetrasmission       := False;
-      aAdditionalInfo.SequenceNumber        := 0;
-      aAdditionalInfo.AcknowledgmentNumber  := 0;    
-      aAdditionalInfo.FlowID                := 0;                        
-      aAdditionalInfo.Info                  := String.Empty;
-      aAdditionalInfo.PacketDate            := Result.PacketDate;
+      LAdditionalInfo.isRetrasmission       := False;
+      LAdditionalInfo.SequenceNumber        := 0;
+      LAdditionalInfo.AcknowledgmentNumber  := 0;    
+      LAdditionalInfo.FlowID                := 0;                        
+      LAdditionalInfo.Info                  := String.Empty;
+      LAdditionalInfo.PacketDate            := Result.PacketDate;
      
-      if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@aAdditionalInfo) then 
+      if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@LAdditionalInfo) then 
       begin         
-        Result.AdditionalInfo := aAdditionalInfo;
+        Result.AdditionalInfo := LAdditionalInfo;
         Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
       end
       else
@@ -813,18 +819,36 @@ begin
   end;  
 end;
 
-procedure TThreadPcap.DoEthMacFound(const aInternalPacket : PTInternalPacket;var aSkypPacket:Boolean);
-var LSkyp : Boolean;
+procedure TThreadPcap.DoEthMacFound(aInternalPacket : PTInternalPacket;var aSkypPacket:Boolean;var aAnonymize : Boolean;var aNewMacSrc:TWpcapMacAddress;var aNewMacDst:TWpcapMacAddress);
+var LSkyp       : Boolean;
+    LAnonymize  : Boolean;
+    LNewMacSrc  : TWpcapMacAddress;
+    LNewMacDst  : TWpcapMacAddress;    
+    
 begin
   if Assigned(FonWpcapEthMacFound) then
   begin
-    LSkyp := aSkypPacket;    
+    LSkyp      := aSkypPacket;  
+    LAnonymize := aAnonymize;  
+    LNewMacSrc := aNewMacSrc;
+    LNewMacDst := aNewMacDst;
     TThread.Synchronize(nil,
       procedure
       begin                    
-        FonWpcapEthMacFound(aInternalPacket.Eth.SrcAddr,aInternalPacket.Eth.SrcAddr,LSkyp);
+        FonWpcapEthMacFound(aInternalPacket.Eth.SrcAddr,aInternalPacket.Eth.SrcAddr,LSkyp,LAnonymize,LNewMacSrc,LNewMacDst);
       end);
-    aSkypPacket := LSkyp;          
+    aSkypPacket := LSkyp;        
+    aAnonymize  := LAnonymize;
+    aNewMacSrc  := LNewMacSrc;
+    aNewMacDst  := LNewMacDst;
+
+    if not LSkyp and LAnonymize then
+    begin
+      aInternalPacket.Eth.SrcAddr                  := MACAddrToStr(LNewMacSrc);
+      aInternalPacket.Eth.DestAddr                 := MACAddrToStr(LNewMacDst);
+      PETHHdr(aInternalPacket.PacketData).DestAddr := LNewMacSrc;
+      PETHHdr(aInternalPacket.PacketData).DestAddr := LNewMacDst;
+    end;
   end;
 end;
 
@@ -978,6 +1002,9 @@ var LHandlePcap      : Ppcap_t;
     LListLabelByLevel: TListLabelByLevel;
     LIndex           : Integer;
     LSkypPacket      : boolean;
+    LAnonymize       : Boolean;
+    LNewMacSrc       : TWpcapMacAddress;
+    LNewMacDst       : TWpcapMacAddress;    
     LStopwatch       : TStopwatch;
     LMsElp           : Int64;
 begin
@@ -1023,13 +1050,13 @@ begin
                     begin
                       Try
                         LSkypPacket := false;
-                        DoEthMacFound(LTInternalPacket,LSkypPacket);  
+                        DoEthMacFound(LTInternalPacket,LSkypPacket,LAnonymize,LNewMacSrc,LNewMacDst);  
 
                         if not LSkypPacket then
                           DoIpFound(LTInternalPacket,LSkypPacket);
 
                         if not LSkypPacket then
-                          DoProtocolFound(LTInternalPacket,LSkypPacket);                     
+                          DoProtocolFound(LTInternalPacket,LSkypPacket);
                         DoPacket(LTInternalPacket);
                       finally
                         Dispose(LTInternalPacket)
