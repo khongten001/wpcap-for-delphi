@@ -155,10 +155,7 @@ uses
     /// <summary>
     /// Retrieves the flow string for the specified IP addresses and port numbers.
     /// </summary>
-    /// <param name="aIpSrc">The source IP address for the flow.</param>
-    /// <param name="aIpDst">The destination IP address for the flow.</param>
-    /// <param name="aPortSrc">The source port number for the flow.</param>
-    /// <param name="aPortDst">The destination port number for the flow.</param>
+    /// <param name="aFlowId">Id of flow.</param>
     /// <param name="aIPProto">The IP protocol number.</param>
     /// <param name="aColorSrc">The color for the source in the flow string.</param>
     /// <param name="aColorDst">The color for the destination in the flow string.</param>
@@ -169,10 +166,7 @@ uses
     /// Saves the RTP payload data to a file.
     /// </summary>
     /// <param name="aFilename">The name of the file to save the payload data to.</param>
-    /// <param name="aIpSrc">The source IP address of the payload data.</param>
-    /// <param name="aIpDst">The destination IP address of the payload data.</param>
-    /// <param name="aPortSrc">The source port of the payload data.</param>
-    /// <param name="aPortDst">The destination port of the payload data.</param>
+    /// <param name="aFlowID">id of flow.</param>
     /// <param name="aSoxCommand">The command to execute for processing the data.</param>
     /// <returns>A boolean value indicating if the operation was successful.</returns>    
     function SaveRTPPayloadToFile(const aFilename : String;const aFlowID: Integer;var aSoxCommand:String): Boolean;
