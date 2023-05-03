@@ -230,48 +230,71 @@ class procedure TWPcapProtocolBaseTCP.UpdateTCPInfo(const aSrcAddr, aDstAddr: st
 CONST TIMEOUT_DELTA_MIN = 5;
 var LKey     : string; 
     LInfo    : TFlowInfo;
-    LFound   : Boolean;
+    LFlowFound   : Boolean;
     LDeltaMin: Int64;
+
+    Procedure CheckisRetrasmission;
+    begin
+      LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate)); 
+      // If the ackNum is less than or equal to the previous ackNum, assume it is a retransmission
+      {TODO CHECK WINDOWS SLIDE} 
+      {TODO PREv ACNUM AND SEQ NUMB list search} 
+      if ( aAckNum <= LInfo.prevAckNum) and ( aSeqNum <= LInfo.prevSeqNum) and ( LDeltaMin < TIMEOUT_DELTA_MIN) then   
+          aAdditionalInfo.isRetrasmission := True;       {Some false retrasmission} 		    
+            
+      if aAdditionalInfo.isRetrasmission then
+      begin
+        aAdditionalInfo.SequenceNumber       := 0;
+        aAdditionalInfo.AcknowledgmentNumber := 0;             
+      end;
+    end;
+
+    function FlagRSTorFINPresent:Boolean;
+    begin
+      Result :=  ( ( aTCPFlags and $04 > 0 ) or //RST
+                   ( aTCPFlags and $01 > 0 ) ) // 'FIN
+    end;
 begin
   if not Assigned(FlowInfoList) then Exit;
   
-  LFound  := GetInfoFlow(aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LInfo);
+  LFlowFound  := GetInfoFlow(aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LInfo);
 
   // Check if session already exists in the dictionary
-  if LFound then
+  if LFlowFound then
   begin  
-
-
     if ( aTCPFlags and $10 > 0 ) then // Check if ACK flag is set
     begin
       if (aTCPFlags and $02 > 0) then // Check if SYN flag is set
       begin
-        // This is the first packet of a new session, reset previous sequence and acknowledgement numbers
-        LInfo.SrcIP                          := aSrcAddr;
-        LInfo.DstIP                          := aDstAddr;
-        LInfo.FirstSeqNum                    := aSeqNum;
-        LInfo.FirstAckNum                    := aAckNum;
-        LInfo.prevSeqNum                     := 0;
-        LInfo.prevAckNum                     := 0;
-        LInfo.FLowId                         := GetNewFlowID;
-        LInfo.PacketDate                     := aAdditionalInfo.PacketDate;
-        aAdditionalInfo.isRetrasmission      := False;
-        aAdditionalInfo.SequenceNumber       := 1;
-        aAdditionalInfo.AcknowledgmentNumber := 1;        
-        aAdditionalInfo.FlowID               := LInfo.FLowId; 
-        FlowInfoList.Remove(LKey);
-        FlowInfoList.AddOrSetValue(LKey, LInfo);        
+        CheckisRetrasmission;
+        if not aAdditionalInfo.isRetrasmission  then        
+        begin
+          // This is the first packet of a new session, reset previous sequence and acknowledgement numbers
+          LInfo.SrcIP                          := aSrcAddr;
+          LInfo.DstIP                          := aDstAddr;
+          LInfo.FirstSeqNum                    := aSeqNum;
+          LInfo.FirstAckNum                    := aAckNum;
+          LInfo.prevSeqNum                     := 0;
+          LInfo.prevAckNum                     := 0;
+          LInfo.FLowId                         := GetNewFlowID;
+          LInfo.PacketDate                     := aAdditionalInfo.PacketDate;
+          aAdditionalInfo.isRetrasmission      := False;
+          aAdditionalInfo.SequenceNumber       := 1;
+          aAdditionalInfo.AcknowledgmentNumber := 1;        
+          aAdditionalInfo.FlowID               := LInfo.FLowId; 
+          FlowInfoList.Remove(LKey);
+          FlowInfoList.AddOrSetValue(LKey, LInfo);
+        end;
+            
         Exit;
       end
       else // Normal packet with ACK flag set
-      begin      
-        // If the ackNum is less than or equal to the previous ackNum, assume it is a retransmission
-        if ( aAckNum <= LInfo.prevAckNum) and ( aSeqNum <= LInfo.prevSeqNum) and ( LDeltaMin < TIMEOUT_DELTA_MIN) then   
-            aAdditionalInfo.isRetrasmission := True;       {Some false retrasmission}
-
+      begin   
+		    {TODO CHECK WINDOWS SLIDE}
+        CheckisRetrasmission;
         if not aAdditionalInfo.isRetrasmission then
         begin
-          LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate));        
+                 
           if ( LDeltaMin < TIMEOUT_DELTA_MIN) then   
           begin
             if aSrcAddr = LInfo.SrcIP then
@@ -291,11 +314,6 @@ begin
             aAdditionalInfo.AcknowledgmentNumber := 1;
             LInfo.FLowId                         := GetNewFlowID;
           end;
-        end
-        else
-        begin
-          aAdditionalInfo.SequenceNumber       := 0;
-          aAdditionalInfo.AcknowledgmentNumber := 0;        
         end;
         LInfo.prevSeqNum  := aSeqNum;
         LInfo.prevAckNum  := aAckNum;        
@@ -307,20 +325,19 @@ begin
       aAdditionalInfo.SequenceNumber       := 0;
       aAdditionalInfo.AcknowledgmentNumber := 0;
       aAdditionalInfo.isRetrasmission      := False;           
+    end;    
+    
+    aAdditionalInfo.FlowID := LInfo.FLowId;      
+                                                                          
+    if FlagRSTorFINPresent or ( LDeltaMin >= TIMEOUT_DELTA_MIN) then
+    begin
+      FlowInfoList.Remove(LKey);
+      exit;
     end;
     
-    aAdditionalInfo.FlowID := LInfo.FLowId;                                                                        
-    // Update the dictionary entry
-    if ( ( aTCPFlags and $04 > 0 ) or //RST
-         ( aTCPFlags and $01 > 0 ) or // 'FIN
-         ( LDeltaMin >= TIMEOUT_DELTA_MIN) )  //Timeout
-    then    
-      FlowInfoList.Remove(LKey)
-    else
-    begin
-      LInfo.PacketDate  := aAdditionalInfo.PacketDate;
-      FlowInfoList.AddOrSetValue(LKey, LInfo);
-    end;
+    // Update the dictionary entry if session are not finished
+    LInfo.PacketDate  := aAdditionalInfo.PacketDate;
+    FlowInfoList.AddOrSetValue(LKey, LInfo);
   end
   else
   begin
@@ -328,22 +345,18 @@ begin
     aAdditionalInfo.SequenceNumber       := 1;
     aAdditionalInfo.AcknowledgmentNumber := 1;          
 
-    if not ( ( aTCPFlags and $04 > 0 ) or //RST
-             ( aTCPFlags and $01 > 0 ) ) // 'FIN
-    then
-    begin
-      LInfo.SrcIP            := aSrcAddr;
-      LInfo.DstIP            := aDstAddr;    
-      LInfo.prevSeqNum       := aSeqNum;
-      LInfo.prevAckNum       := aAckNum;
-      LInfo.FirstSeqNum      := aSeqNum;
-      LInfo.FirstAckNum      := aAckNum;
-      
-      LInfo.PacketDate       := aAdditionalInfo.PacketDate;
-      LInfo.FLowId           := GetNewFlowID;
-      aAdditionalInfo.FlowID := LInfo.FLowId;
-      FlowInfoList.Add(LKey, LInfo);
-    end;
+    if FlagRSTorFINPresent then Exit;
+    
+    LInfo.SrcIP            := aSrcAddr;
+    LInfo.DstIP            := aDstAddr;    
+    LInfo.FirstSeqNum      := aSeqNum;
+    LInfo.FirstAckNum      := aAckNum;  
+    LInfo.prevSeqNum       := aSeqNum;
+    LInfo.prevAckNum       := aAckNum;    
+    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
+    LInfo.FLowId           := GetNewFlowID;
+    aAdditionalInfo.FlowID := LInfo.FLowId;
+    FlowInfoList.Add(LKey, LInfo);
   end;
 end;
 

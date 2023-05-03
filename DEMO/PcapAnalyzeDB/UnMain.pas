@@ -587,10 +587,7 @@ begin
     LFormFlow := TFormFlow.Create(nil);
     Try
       LFormFlow.LoadHTML(
-      FWPcapDBSqLite.GetFlowString( GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_SRC.Index],
-                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_DST.Index],
-                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_SRC.Index],
-                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_DST.Index],
+      FWPcapDBSqLite.GetFlowString( GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1FLOW_ID.Index],
                                     GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IPPROTO.Index],
                                     clRed,clBlue
                                   ).Text);
@@ -663,10 +660,7 @@ begin
       LFileWave:= ChangeFileExt(LFileRaw,'.wav');
       ForceDirectories(GetTmpPath);
       
-      if FWPcapDBSqLite.SaveRTPPayloadToFile(LFileRaw, GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_SRC.Index],
-                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1IP_DST.Index],
-                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_SRC.Index],
-                                    GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PORT_DST.Index],LSoxCommand) 
+      if FWPcapDBSqLite.SaveRTPPayloadToFile(LFileRaw, GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1FLOW_ID.Index],LSoxCommand) 
       then
       begin                               
         if LSoxCommand.IsEmpty then
@@ -718,7 +712,6 @@ end;
 
 procedure TFormMain.BLoadPCAPClick(Sender: TObject);
 var LFormOpenDialog: TFormOpenDialog;
-
 begin
   LFormOpenDialog := TFormOpenDialog.Create(nil);
   Try
@@ -726,9 +719,7 @@ begin
     LFormOpenDialog.ShowModal;
     if LFormOpenDialog.ModalResult = mrOK then
     begin
-
       pProgressImport.Visible := True;  
-
       SetButtonGrid(False);
       FWPcapDBSqLite.Connection.Close;
       FWPcapDBSqLite.FDQueryGrid.Close;

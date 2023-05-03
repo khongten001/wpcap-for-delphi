@@ -442,6 +442,7 @@ var LCopYStart     : Integer;
                  if LValueField.ToLower.Contains(HTTP_COMPRESS_CONTENT_VALUE[I]) then
                  begin
                    LCompressType := I;
+                   DoLog('TWPcapProtocolBase.ParserByEndOfLine',Format('Found zip content [%s]',[HTTP_COMPRESS_CONTENT_VALUE[I]]),TWLLWarning);
                    break;
                  end;
 

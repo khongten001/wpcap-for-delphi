@@ -163,7 +163,7 @@ uses
     /// <param name="aColorSrc">The color for the source in the flow string.</param>
     /// <param name="aColorDst">The color for the destination in the flow string.</param>
     /// <returns>A TStringList containing the flow string information.</returns>
-    Function GetFlowString(const aIpSrc,aIpDst:String;aPortSrc,aPortDst,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
+    Function GetFlowString(const aFlowId,aIPProto:Integer;aColorSrc,aColorDst:TColor):TStringList;
 
     /// <summary>
     /// Saves the RTP payload data to a file.
@@ -175,7 +175,7 @@ uses
     /// <param name="aPortDst">The destination port of the payload data.</param>
     /// <param name="aSoxCommand">The command to execute for processing the data.</param>
     /// <returns>A boolean value indicating if the operation was successful.</returns>    
-    function SaveRTPPayloadToFile(const aFilename, aIpSrc, aIpDst: String;aPortSrc, aPortDst: Integer;var aSoxCommand:String): Boolean;
+    function SaveRTPPayloadToFile(const aFilename : String;const aFlowID: Integer;var aSoxCommand:String): Boolean;
     constructor Create;override;
     
     {Property}
@@ -385,16 +385,12 @@ begin
   FFDQueryFlow                                              := TFDQuery.Create(nil);
   FFDQueryFlow.Connection                                   := FConnection;
   FFDQueryFlow.SQL.Text                                     := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                  '+sLineBreak+ 
-                                                               'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) OR (IP_SRC = :pIpDst AND IP_DST= :pIpSrc )  )                 '+sLineBreak+ 
-                                                               'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst ) OR (PORT_SRC = :pPortDst AND PORT_DST= :pPortSrc )  ) '+sLineBreak+
-                                                               'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';
+                                                               'WHERE FLOW_ID = :pFlowID ORDER BY PACKET_DATE ASC';
 
   FFDQuerySession                                            := TFDQuery.Create(nil);
   FFDQuerySession.Connection                                 := FConnection;
   FFDQuerySession.SQL.Text                                   := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS   '+sLineBreak+ 
-                                                               'WHERE  ( ( IP_SRC = :pIpSrc AND IP_DST = :pIpDst ) )              '+sLineBreak+ 
-                                                               'AND    ( ( PORT_SRC = :pPortSrc AND PORT_DST = :pPortDst )  )     '+sLineBreak+
-                                                               'AND IPPROTO = :pIpProto ORDER BY PACKET_DATE ASC';     
+                                                               'WHERE  FLOW_ID = :pFlowID ORDER BY PACKET_DATE ASC';     
 
   FFDQueryInsertLabel                                        := TFDQuery.Create(nil);
   FFDQueryInsertLabel.Connection                             := FConnection;
@@ -694,7 +690,7 @@ begin
   End;
 end;
 
-function TWPcapDBSqLitePacket.GetFlowString(const aIpSrc, aIpDst: String;aPortSrc, aPortDst,aIPProto: Integer; aColorSrc, aColorDst: TColor): TStringList;
+function TWPcapDBSqLitePacket.GetFlowString(const aFlowId,aIPProto: Integer; aColorSrc, aColorDst: TColor): TStringList;
 CONST HTML_FORMAT = '<pre class="%s">%s</pre>';
 var LPacketSize : Integer;
     LPacketData : PByte;
@@ -708,11 +704,7 @@ var LPacketSize : Integer;
 begin
   Result      := TStringList.Create;
   FFDQueryFlow.Close;
-  FFDQueryFlow.ParamByName('pIpSrc').AsString    := aIpSrc; 
-  FFDQueryFlow.ParamByName('pIpDst').AsString    := aIpDst; 
-  FFDQueryFlow.ParamByName('pPortSrc').AsInteger := aPortSrc; 
-  FFDQueryFlow.ParamByName('pPortDst').AsInteger := aPortDst;    
-  FFDQueryFlow.ParamByName('pIpProto').AsInteger := aIPProto;      
+  FFDQueryFlow.ParamByName('pFlowID').AsInteger := aFlowId;   
   FFDQueryFlow.Open;
   
   LCurrentIP   := String.Empty;
@@ -785,7 +777,7 @@ begin
   FFDQueryFlow.Close;  
 end;
 
-function TWPcapDBSqLitePacket.SaveRTPPayloadToFile(const aFilename,aIpSrc, aIpDst: String;aPortSrc, aPortDst:Integer;var aSoxCommand:String): Boolean;
+function TWPcapDBSqLitePacket.SaveRTPPayloadToFile(const aFilename : String;const aFlowID:Integer;var aSoxCommand:String): Boolean;
 var LPacketSize : Integer;
     LPacketData : PByte;
     LStream     : TMemoryStream;
@@ -796,11 +788,7 @@ begin
   Result      := False;
   aSoxCommand := String.Empty;
   FFDQuerySession.Close;
-  FFDQuerySession.ParamByName('pIpSrc').AsString    := aIpSrc; 
-  FFDQuerySession.ParamByName('pIpDst').AsString    := aIpDst; 
-  FFDQuerySession.ParamByName('pPortSrc').AsInteger := aPortSrc; 
-  FFDQuerySession.ParamByName('pPortDst').AsInteger := aPortDst;    
-  FFDQuerySession.ParamByName('pIpProto').AsInteger := IPPROTO_UDP;      
+  FFDQuerySession.ParamByName('pFlowId').asInteger    := aFlowID;       
   FFDQuerySession.Open;
 
   if not FFDQuerySession.IsEmpty then
