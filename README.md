@@ -70,6 +70,13 @@ In my library, I provide information on TCP and UDP flow streams as part of the 
 
 Whois service provided by IANA has been integrated into wpcap-for-delphi! This will definitely come in handy when searching for domain information.
 
+# HTTP content extractor enrichment
+
+Extract HTTP Content
+
+![image](https://user-images.githubusercontent.com/11525545/236351284-50cc6d7f-3a39-4547-a820-115e082fcda7.png)
+
+
 # DEMO
 
 The demo project uses DevExpress libraries at moment only Database demo is supported
