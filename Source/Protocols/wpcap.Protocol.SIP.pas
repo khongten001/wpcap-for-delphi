@@ -99,21 +99,18 @@ end;
 
 class function TWPcapProtocolSIP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad        : PByte;
-    LPUDPHdr           : PUDPHdr;
+    LDummy             : Integer;
     LUDPPayLoadLen     : Integer; 
     LOffSet            : Integer;
 begin
-  Result := False;
-
-  if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
-
-  LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
-  LUDPPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8; 
+  Result         := False;
+  LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUDPPayLoadLen,LDummy); 
   FIsFilterMode  := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
 
-  LOffSet    := 0;  
-  Result     := ParserByEndOfLine(aStartLevel,LUDPPayLoadLen,LUDPPayLoad,AListDetail,LOffSet);
+  LOffSet              := 0;  
+  aAdditionalInfo.Info := String.Empty;  
+  Result               := ParserByEndOfLine(aStartLevel,LUDPPayLoadLen,LUDPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
 end;
 
 

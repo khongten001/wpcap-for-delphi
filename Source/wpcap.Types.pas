@@ -36,7 +36,7 @@ uses
 
 type
 
-  TWcapEnrichmentType =( WetNone ,WetIP,WetMCC,WetMNC,WetIMSI);
+  TWcapEnrichmentType =( WetNone ,WetIP,WetMCC,WetMNC,WetIMSI,WetContent);
 
   bpf_u_int32 = LongWord;  
   Ppcap_t = Pointer;

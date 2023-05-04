@@ -189,7 +189,7 @@ end;
 
 class function TWPcapProtocolTFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad        : PByte;
-    LPUDPHdr           : PUDPHdr;
+    LDummy             : Integer;
     LOpCode            : Uint16;
     LTFTPHeaderRRQ_WRQ : PTTFTPHeaderRRQ_WRQ;
     LTFTPHeaderData    : PTTFTPHeaderData;
@@ -200,14 +200,10 @@ var LUDPPayLoad        : PByte;
     LDataArray         : TArray<Uint8>;
     LUdpPayLoadLen     : integer;
 begin
-  Result := False;
-
-  if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
-
-  LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
+  Result         := False;
+  LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUdpPayLoadLen,LDummy); 
   LOpCode        := wpcapntohs(PUint16(LUDPPayLoad)^);    
   FIsFilterMode  := aIsFilterMode;
-  LUdpPayLoadLen := UDPPayLoadLength(LPUDPHdr)-SizeOf(LOpCode)-8;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUdpPayLoadLen));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OpCode',[AcronymName]), 'OpCode:',OpcodeToString(LOpCode) , @LOpCode, SizeOf(LOpCode), LOpCode ));
 

@@ -61,6 +61,7 @@ type
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;    
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;          
+    class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer;var aSize,aSizeTotal:Integer): PByte; override;    
   end;
 
 
@@ -117,6 +118,7 @@ var LTCPPayLoad    : PByte;
     LBytes         : TIdBytes;
     LTmpResult     : Boolean;
     I              : Integer;
+    LDummy         : Integer;
 begin
   Result := False;
   if not HeaderTCP(aPacket,aPacketSize,LTCPPHdr) then exit;   
@@ -130,8 +132,7 @@ begin
   if Result then
   begin
     LTmpResult      := False;
-    LTCPPayLoad     := GetTCPPayLoad(aPacket,aPacketSize);
-    LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacket,aPacketSize);
+    LTCPPayLoad     := inherited GetPayLoad(aPacket,aPacketSize,LTCPPayLoadLen,LDummy);
     LOffset         := 0;  
     LCopYStart      := 0;
     while LOffset+1 < LTCPPayLoadLen do
@@ -170,24 +171,68 @@ end;
 class function TWPcapProtocolHTTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
-    LTCPPHdr       : PTCPHdr;
+    LDummy         : Integer;
     LOffset        : Integer;
 begin
-  Result := False;
-
-  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
-
-  LTCPPayLoad     := GetTCPPayLoad(aPacketData,aPacketSize);
-  LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  Result          := False;
+  LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
   FIsFilterMode   := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
-  LOffSet    := 0;  
-  Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);
+  LOffSet              := 0;  
+  aAdditionalInfo.Info := String.Empty;
+  Result               := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
 end;
 
- 
+class function TWPcapProtocolHTTP.GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte;
+var LTCPPayLoad     : PByte;
+    LDummy          : Integer; 
+    LTCPPayLoadLen  : Integer;
+    LOffset         : Integer;
+    LCopYStart      : Integer;
+    LtmpLen         : Integer;
+    LBytes          : TIdBytes;
+    LValue          : String;
+begin
+  Result          := nil;
+  LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
+  LOffset         := 0;
+  LCopYStart      := 0;
+  while LOffset+1 < LTCPPayLoadLen do
+  begin
+    if (LTCPPayLoad[LOffset+1] = $0A )  then
+    begin
+      Inc(LOffset); 
+      LtmpLen := LOffset-LCopYStart;
+       
+      if isValidLen(LCopYStart,LTCPPayLoadLen,LtmpLen)  then 
+      begin
+        SetLength(LBytes,LtmpLen);
+        Move(LTCPPayLoad[LCopYStart],LBytes[0],LtmpLen);             
+        LValue          := BytesToString(LBytes);
+        Inc(LCopYStart,LtmpLen);
+        if LValue.Trim.IsEmpty then  
+        begin
+          Inc(LOffset,LtmpLen-1);
+          break;
+        end
+        else
+          if (aSizeTotal = 0) and LValue.Contains('Content-Length') then
+            aSizeTotal := Copy(LValue,Pos(':',LValue)+1).Trim.ToInteger;
+          
+      end;
+    end;
 
-
+    Inc(LOffset);
+  end;
+  
+  aSize  := LTCPPayLoadLen-LOffset ;
+  if ( aSize > 0 ) and (aSize < aPacketSize) then
+  begin
+    Result := AllocMem(aSize);
+    Move(LTCPPayLoad[LOffset], Result^, ASize);
+  end;
+    
+end;
 
 end.
                                                  

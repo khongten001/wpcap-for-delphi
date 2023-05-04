@@ -79,6 +79,10 @@ Type
     Info                  : String;
     FlowID                : Integer;
     PacketDate            : TDateTime;
+    EnrichmentPresent     : Boolean;
+    ContentExt            : String;
+    FrameNumber           : Integer;
+    CompressType          : Integer;
   end;
   PTAdditionalInfo = ^TAdditionalInfo;
 

@@ -348,7 +348,7 @@ end;
 
 class function TWPcapProtocolTelnet.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad        : PByte;
-    LTCPPHdr           : PTCPHdr;
+    LDummy             : Integer;
     LDataSize          : Integer;
     LCurrentPos        : Integer;
     LCommand           : Uint8;
@@ -362,12 +362,9 @@ var LTCPPayLoad        : PByte;
     LValueBuffer       : PByte;
     LBckCurrentPos     : Integer;
 begin
-  Result := False;
-
-  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
-  FIsFilterMode := aIsFilterMode;
-  LTCPPayLoad   := GetTCPPayLoad(aPacketData,aPacketSize);
-  LDataSize     := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  Result          := False;
+  FIsFilterMode   := aIsFilterMode;
+  LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LDataSize,LDummy);
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LDataSize));
 
   LCurrentPos := 0;

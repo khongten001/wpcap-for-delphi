@@ -30,7 +30,7 @@ unit wpcap.Protocol.Base;
 interface
 
 uses
-  System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,idGlobal,
+  System.SysUtils, WinSock, System.Types, wpcap.Level.Eth, wpcap.StrUtils,idGlobal,wpcap.Packet,
   System.Variants,wpcap.Types,wpcap.BufferUtils,System.Classes,wpcap.IpUtils,Winapi.Windows;
 
 Type
@@ -106,7 +106,7 @@ Type
      class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint64;     
      class procedure ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer);
      class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigIndian: Boolean; var aCurrentPos: Integer):Integer;
-     class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer): Boolean;   
+     class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;   
   public
     /// <summary>
     /// Returns the default port number for the protocol.
@@ -159,6 +159,8 @@ Type
     /// </summary>    
     class property OnFoundMalformedPacket : TNotifyEvent   read FOnFoundMalformedPacket write FOnFoundMalformedPacket;
    
+    Class function GetPayLoad(const aPacketData: PByte;aPacketSize:Integer;var aSize,aSizeTotal:Integer):PByte;virtual;
+
   end;
   
 implementation
@@ -171,9 +173,14 @@ begin
   Result := String.Empty;
 end;
 
+class function TWPcapProtocolBase.GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte;
+begin
+  raise Exception.Create('TWPcapProtocolBase.GetPayLoad - Non implemented in base class - please override this method');
+end;
+
 class function TWPcapProtocolBase.DefaultPort: Word;
 begin
-  raise Exception.Create('TWPcapProtocolBase.DefaultPort- Non implemented in base class - please override this method');
+  raise Exception.Create('TWPcapProtocolBase.DefaultPort - Non implemented in base class - please override this method');
 end;
 
 class function TWPcapProtocolBase.IDDetectProto: byte;
@@ -405,15 +412,17 @@ begin
   end;
 end;
                                                 
-class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer): Boolean;
+class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;
 CONST HTTP_COMPRESS_CONTENT_VALUE : array [0..3] of string= ( 'gzip','deflate','identity','br');
-var LCopYStart     : Integer;
-    LValue         : String;
-    LBytes         : TIdBytes;
-    LtmpLen        : Integer;
-    LCompressType  : ShortInt;
+var LCopYStart       : Integer;
+    LValue           : String;
+    LExt             : String;  
+    LBytes           : TIdBytes;
+    LtmpLen          : Integer;
+    LCompressType    : ShortInt;
+    LEnrichmentType  : TWcapEnrichmentType;
 
-    Function ParserValue(const aSep:char;aCheckCount:Boolean): Boolean;
+    Function ParserValue(const aSep:String): Boolean;
     var LValueArray : Tarray<String>; 
         LField      : String;
         LValueField : String;
@@ -421,27 +430,45 @@ var LCopYStart     : Integer;
     begin 
       Result := False;
       if LValue.Contains(aSep) then
-      begin
-
-        if aCheckCount then
-          if LValue.CountChar(aSep) > 1 then exit;
-          
+      begin          
         Result      := True;
         LValueArray := LValue.Split([aSep]); 
         LField      := LValueArray[0].Trim;
         LValueField := LValueArray[1].Trim;
+        
         if not LField.IsEmpty then
         begin
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,LField]),LField,LValueField, @LBytes, Length(LBytes) ));              
+          if aAdditionalInfo.Info.IsEmpty then
+            aAdditionalInfo.Info := LValue;
+          
+          if SameText(LField,'Content-Type') then
+          begin
+            aAdditionalInfo.Info              := Format('%s %s',[aAdditionalInfo.Info,LValue]).Trim;
+            aAdditionalInfo.EnrichmentPresent := True;
+            LEnrichmentType                   := WetContent;
+            LExt                              :=LValueField.Trim;
+            if LExt.Contains(';') then
+              LExt := LExt.Split([';'])[0];
+            if LExt.Contains('/') then
+              LExt := LExt.Split(['/'])[1].Trim;
+            aAdditionalInfo.ContentExt := LExt;              
+          end;
+
+          if SameText(LField,'User-Agent') then
+            aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LValue]).Trim;
+            
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,LField]),LField,LValueField, @LBytes, Length(LBytes),-1,LEnrichmentType ));              
           if LCompressType = -1 then
           begin
             if SameText(LField,'Content-Encoding') then
             begin
+               aAdditionalInfo.Info :=  Format('%s %s',[aAdditionalInfo.Info,LValue]).Trim;
                for I := Low(HTTP_COMPRESS_CONTENT_VALUE) to High(HTTP_COMPRESS_CONTENT_VALUE) do
                begin
                  if LValueField.ToLower.Contains(HTTP_COMPRESS_CONTENT_VALUE[I]) then
                  begin
-                   LCompressType := I;
+                   aAdditionalInfo.CompressType := I; 
+                   LCompressType                := I;
                    DoLog('TWPcapProtocolBase.ParserByEndOfLine',Format('Found zip content [%s]',[HTTP_COMPRESS_CONTENT_VALUE[I]]),TWLLWarning);
                    break;
                  end;
@@ -451,7 +478,7 @@ var LCopYStart     : Integer;
           end;
         end
         else
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes) ));              
+          AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes),-1,WetContent ));              
       end
     end;
 begin
@@ -468,15 +495,21 @@ begin
       begin
         SetLength(LBytes,LtmpLen);
         Move(aPayLoad[LCopYStart],LBytes[0],LtmpLen);             
-        LValue := BytesToString(LBytes);
+        LValue          := BytesToString(LBytes);
+        LEnrichmentType := WetNone;
         if not LValue.Trim.IsEmpty then  
         begin
-          if not ParserValue(':',false) then
+          if not ParserValue(':') then
           begin
-            if not ParserValue('/',True)  then
-              AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes) ));            
+            if not ParserValue(' /')  then
+            begin
+              if aAdditionalInfo.Info.IsEmpty then
+                aAdditionalInfo.Info := LValue;            
+              AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes),-1,LEnrichmentType ));            
+            end;  
           end;
-        end;         
+        end
+        else break;         
         Inc(LCopYStart,LtmpLen)
       end;
     end;
@@ -534,6 +567,7 @@ class function TWPcapProtocolBase.IPv6AddressToStringInternal(const ABytes: TidB
 begin
   Result := IPv6AddressToString(ABytes)
 end;
+
 
 
 

@@ -73,7 +73,7 @@ uses
     /// </summary>         
     procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
   protected
-  
+
     /// <summary>
     /// Returns the SQL script for the database schema.
     /// </summary>
@@ -170,6 +170,9 @@ uses
     /// <param name="aSoxCommand">The command to execute for processing the data.</param>
     /// <returns>A boolean value indicating if the operation was successful.</returns>    
     function SaveRTPPayloadToFile(const aFilename : String;const aFlowID: Integer;var aSoxCommand:String): Boolean;
+
+    function GetContent(const aPathFile: String; const aFlowID,aPacketNumber: Integer;var aFilename: String): Boolean;
+    
     constructor Create;override;
     
     {Property}
@@ -233,6 +236,10 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  DST_LONGITUDE FLOAT,                          '+sLineBreak+    
                       '  PACKET_RAW_TEXT TEXT,                         '+sLineBreak+ {Filter}
                       '  XML_PACKET_DETAIL TEXT,                       '+sLineBreak+  
+                      '  IGNORE INTEGER,                               '+sLineBreak+  
+                      '  COMPRESSION_TYE INTEGER,                      '+sLineBreak+      
+                      '  CONTENT_EXT TEXT,                             '+sLineBreak+                                                   
+                      '  ENRICHMENT_PRESENT INTEGER,                   '+sLineBreak+                                                               
                       '  PACKET_INFO TEXT,                             '+sLineBreak+                        
                       '  NOTE_PACKET TEXT,                             '+sLineBreak+ {Note} 
                       '  PACKET_DATA BLOB                              '+sLineBreak+ {Data}
@@ -267,6 +274,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                        '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                        '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                        '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST} 
+                       '  ENRICHMENT_PRESENT,COMPRESSION_TYE,CONTENT_EXT,                                        ' +sLineBreak+   {Others} 
                        '  NOTE_PACKET,PACKET_INFO                                                                ' +sLineBreak+      
                        '  FROM PACKETS;';
 
@@ -295,6 +303,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                    '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                    '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST}   
+                   '  ENRICHMENT_PRESENT,COMPRESSION_TYE,IGNORE, CONTENT_EXT,                                ' +sLineBreak+   {Others}                    
                    '  PACKET_INFO                                                                            ' +sLineBreak+
                    ' )                                                                                       ' +sLineBreak+   
                    'VALUES                                                                                   ' +slineBreak+
@@ -307,6 +316,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  :pProtoIANA,                                                                           ' +sLineBreak+   {IANA} 
                    '  :pSrcAsn,:pSrcOrg,:pSrcLoc,:pSrcLat,:pSrcLong,                                         ' +sLineBreak+   {GEOIP SRC}
                    '  :pDstAsn,:pDstOrg,:pDstLoc,:pDstLat,:pDstLong,                                         ' +sLineBreak+   {GEOIP DST} 
+                   '  :pEnrichmentPresent,:pCopressionType,:pIgnore,:pContentExt,                            ' +sLineBreak+
                    '  :pPacketInfo                                                                           ' +sLineBreak+
                    ')';
 {$ENDREGION}
@@ -360,6 +370,10 @@ begin
   FFDQueryInsert.ParamByName('pDstLat').DataType            := ftFloat;   
   FFDQueryInsert.ParamByName('pDstLong').DataType           := ftFloat;
   FFDQueryInsert.ParamByName('pPacketInfo').DataType        := ftString;    
+  FFDQueryInsert.ParamByName('pEnrichmentPresent').DataType := ftInteger;
+  FFDQueryInsert.ParamByName('pCopressionType').DataType    := ftInteger;
+  FFDQueryInsert.ParamByName('pContentExt').DataType        := ftString;    
+  FFDQueryInsert.ParamByName('pIgnore').DataType            := ftInteger;      
   FFDQueryInsert.ParamByName('pPacket').DataType            := ftblob;   
   FFDQueryInsert.CachedUpdates                              := True;   
   FFDQueryGrid.SQL.Text                                     := 
@@ -372,19 +386,20 @@ begin
                                                                '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID,                                                 ' +sLineBreak+   {TCP additional}                                                                
                                                                '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
                                                                '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                                                               '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET                  ' +sLineBreak+   {GEOIP DST} 
+                                                               '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET,     ' +sLineBreak+   {GEOIP DST} 
+                                                               '  ENRICHMENT_PRESENT,COMPRESSION_TYE ,CONTENT_EXT                                        ' +sLineBreak+ 
                                                                '  FROM VST_PACKETS ORDER BY NPACKET ';            
   FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA,IS_RETRASMISSION,SEQ_NUMBER,PACKET_INFO,PACKET_DATE FROM PACKETS WHERE NPACKET = :pNPACKET '; 
 
   FFDQueryFlow                                              := TFDQuery.Create(nil);
   FFDQueryFlow.Connection                                   := FConnection;
-  FFDQueryFlow.SQL.Text                                     := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS                                                  '+sLineBreak+ 
-                                                               'WHERE FLOW_ID = :pFlowID ORDER BY PACKET_DATE ASC';
+  FFDQueryFlow.SQL.Text                                     := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA,COMPRESSION_TYE FROM PACKETS          '+sLineBreak+ 
+                                                               'WHERE FLOW_ID = :pFlowID AND IGNORE = 0 ORDER BY PACKET_DATE ASC';
 
   FFDQuerySession                                            := TFDQuery.Create(nil);
   FFDQuerySession.Connection                                 := FConnection;
-  FFDQuerySession.SQL.Text                                   := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA FROM PACKETS   '+sLineBreak+ 
-                                                               'WHERE  FLOW_ID = :pFlowID ORDER BY PACKET_DATE ASC';     
+  FFDQuerySession.SQL.Text                                   := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA,PROTO_DETECT,COMPRESSION_TYE,CONTENT_EXT,NPACKET FROM PACKETS   '+sLineBreak+ 
+                                                                'WHERE  FLOW_ID = :pFlowID AND IGNORE = 0 ORDER BY PACKET_DATE ASC';     
 
   FFDQueryInsertLabel                                        := TFDQuery.Create(nil);
   FFDQueryInsertLabel.Connection                             := FConnection;
@@ -593,9 +608,17 @@ begin
   else
     FFDQueryInsert.ParamByName('pPortDst').Clear(FInsertToArchive);
 
-  {TCP additional}      
-  FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.isRetrasmission,1,0);  
+  {Additional}      
+  FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive]   := ifthen(aInternalPacket.AdditionalInfo.isRetrasmission,1,0);  
+  FFDQueryInsert.ParamByName('pEnrichmentPresent').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.EnrichmentPresent,1,0);  
+  FFDQueryInsert.ParamByName('pContentExt').AsStrings[FInsertToArchive]         := aInternalPacket.AdditionalInfo.ContentExt;
+  FFDQueryInsert.ParamByName('pIgnore').AsIntegers[FInsertToArchive]            := 0; //TODO Retrasmission
 
+  if aInternalPacket.AdditionalInfo.CompressType > -1 then  
+    FFDQueryInsert.ParamByName('pCopressionType').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.CompressType
+  else
+    FFDQueryInsert.ParamByName('pCopressionType').Clear(FInsertToArchive);
+  
   if aInternalPacket.AdditionalInfo.SequenceNumber > 0 then  
     FFDQueryInsert.ParamByName('pSeqNumber').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.SequenceNumber
   else
@@ -608,7 +631,6 @@ begin
   
   {IANA} 
   FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.IP.IANAProtoStr;   
-
         
   {GEOIP SRC}
   FFDQueryInsert.ParamByName('pSrcLoc').AsStrings[FInsertToArchive]        := aInternalPacket.IP.SrcGeoIP.Location;
@@ -691,10 +713,9 @@ var LPacketSize : Integer;
     LStream     : TMemoryStream;
     LPayLoad    : PByte;
     LCurrentIP  : String; 
-    LTCPHdr     : PTCPHdr;
     LIsClient   : Boolean;
     LPayloadSize: Integer;
-    LUDPHdr     : PUDPHdr;
+    LDummy      : Integer;
 begin
   Result      := TStringList.Create;
   FFDQueryFlow.Close;
@@ -718,18 +739,8 @@ begin
           LStream.Seek(0, soBeginning);
           LStream.ReadBuffer(LPacketData^, LPacketSize);
           case aIPProto of
-           IPPROTO_TCP :  
-              begin
-                if not TWPcapProtocolBaseTCP.HeaderTCP(LPacketData,LPacketSize,LTCPHdr) then exit;
-                LPayLoad     := TWPcapProtocolBaseTCP.GetTCPPayLoad(LPacketData,LPacketSize);
-                LPayloadSize := TWPcapProtocolBaseTCP.TCPPayLoadLength(LTCPHdr,LPacketData,LPacketSize)
-              end;
-           IPPROTO_UDP :
-              begin
-                if not TWPcapProtocolBaseUDP.HeaderUDP(LPacketData,LPacketSize,LUDPHdr) then exit;
-                LPayLoad     := TWPcapProtocolBaseUDP.GetUDPPayLoad(LPacketData,LPacketSize);
-                LPayloadSize := TWPcapProtocolBaseUDP.UDPPayLoadLength(LUDPHdr)            
-              end
+           IPPROTO_TCP :  LPayLoad := TWPcapProtocolBaseTCP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LDummy);
+           IPPROTO_UDP :  LPayLoad := TWPcapProtocolBaseUDP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LDummy);           
           else
             begin
               DoLog('TWPcapDBSqLitePacket.GetFlowString',Format('Error invalid protocol [%d] only TCP and UP protocol are supported',[aIPProto]),TWLLException);
@@ -771,6 +782,93 @@ begin
   FFDQueryFlow.Close;  
 end;
 
+function TWPcapDBSqLitePacket.GetContent(const aPathFile : String;const aFlowID,aPacketNumber:Integer;var aFilename:String): Boolean;
+var LPacketSize       : Integer;
+    LPacketData       : PByte;
+    LStream           : TMemoryStream;
+    LPayLoad          : PByte;
+    LPayloadSize      : Integer;
+    LFileRaw          : TFileStream;
+    LUDPProtoDetected : TWPcapProtocolBaseUDP;	
+    LTCPProtoDetected : TWPcapProtocolBaseTCP;
+    LExt              : String;
+    LSizeTotal        : Integer;
+    LSizeDummy        : Integer;
+begin
+  Result      := False;
+  LSizeTotal  := 0;
+  FFDQuerySession.Close;
+  FFDQuerySession.ParamByName('pFlowId').asInteger    := aFlowID;       
+  FFDQuerySession.Open;
+
+  if not FFDQuerySession.IsEmpty then
+  begin
+    LStream := TMemoryStream.Create;
+    Try
+      LExt := String.Empty;
+
+      while not FFDQuerySession.Eof do
+      begin     
+        if aPacketNumber = FFDQuerySession.FieldByName('NPACKET').AsInteger then
+        begin
+          LExt := FFDQuerySession.FieldByName('CONTENT_EXT').AsString;
+          Break;
+        end;
+        FFDQuerySession.Next;
+      end;
+      
+      aFilename := Format('%sFile_%d.%s',[aPathFile,aPacketNumber,LExt]);   
+      LFileRaw  := TFileStream.Create(aFilename, fmCreate);
+
+      Try
+        while not FFDQuerySession.Eof do
+        begin
+          LUDPProtoDetected := nil;
+          LTCPProtoDetected := FListProtolsTCPDetected.GetListByIDProtoDetected(FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger);
+          if not Assigned(LTCPProtoDetected) then  
+            LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger);
+
+          LStream.Seek(0, soBeginning);
+          TBlobField(FFDQuerySession.FieldByName('PACKET_DATA')).SaveToStream(LStream);
+          LPacketSize := LStream.Size;
+          GetMem(LPacketData, LPacketSize);
+          Try
+            LStream.Seek(0, soBeginning);
+            LStream.ReadBuffer(LPacketData^, LPacketSize);
+            LPayLoad     := nil;
+            LPayloadSize := 0;
+            if FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger = DETECT_PROTO_TCP then
+               LPayLoad := TWPcapProtocolBaseTCP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeDummy)
+
+            else if FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger = DETECT_PROTO_UDP then
+               LPayLoad := TWPcapProtocolBaseUDP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeDummy)
+            else if Assigned(LTCPProtoDetected) then            
+              LPayLoad    := LTCPProtoDetected.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal)
+            else if Assigned(LUDPProtoDetected) then
+              LPayLoad    := LUDPProtoDetected.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal); 
+            if (LPayLoad <> nil) and (LPayloadSize > 0) then
+              LFileRaw.WriteBuffer(LPayLoad^, LPayloadSize);
+        
+           if LSizeTotal > LFileRaw.Size then
+              FFDQuerySession.Next
+           else break;
+           
+          Finally
+            FreeMem(LPacketData)
+          End;
+        end;
+        Result := True;
+      Finally
+        FreeAndNil(LFileRaw);
+      End;
+
+    finally
+      LStream.Free;
+    end;    
+  end;
+  FFDQuerySession.Close;  
+end;
+
 function TWPcapDBSqLitePacket.SaveRTPPayloadToFile(const aFilename : String;const aFlowID:Integer;var aSoxCommand:String): Boolean;
 var LPacketSize : Integer;
     LPacketData : PByte;
@@ -778,6 +876,7 @@ var LPacketSize : Integer;
     LPayLoad    : PByte;
     LPayloadSize: Integer;
     LFileRaw    : TFileStream;
+    LSizeTotal  : Integer;
 begin
   Result      := False;
   aSoxCommand := String.Empty;
@@ -801,7 +900,7 @@ begin
             LStream.Seek(0, soBeginning);
             LStream.ReadBuffer(LPacketData^, LPacketSize);
 
-            LPayLoad    := TWPcapProtocolRTP.GetPayLoadRTP(LPacketData,LPacketSize,LPayloadSize); 
+            LPayLoad    := TWPcapProtocolRTP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal); 
             if aSoxCommand.Trim.IsEmpty then            
               aSoxCommand :=  TWPcapProtocolRTP.GetSoxCommandDecode(LPacketData,LPacketSize);
             if (LPayLoad <> nil) and (LPayloadSize > 0) then

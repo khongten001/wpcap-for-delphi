@@ -354,7 +354,7 @@ end;
 
 class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad         : PByte;
-    LPUDPHdr            : PUDPHdr;
+    LDummy              : Integer;
     LHeaderDHCP         : PTDHCPHeader;
     LBytesTmp           : TidBytes;
     LCurrentPos         : Integer;
@@ -368,11 +368,7 @@ var LUDPPayLoad         : PByte;
 begin
   Result        := False;
   FIsFilterMode := aisFilterMode;
-
-  if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
-
-  LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);
-  LPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
+  LUDPPayLoad   := inherited GetPayLoad(aPacketData,aPacketSize,LPayLoadLen,LDummy);  
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LPayLoadLen));
 
   LHeaderDHCP := PTDHCPHeader(LUDPPayLoad);

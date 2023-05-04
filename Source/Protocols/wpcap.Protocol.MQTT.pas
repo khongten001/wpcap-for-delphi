@@ -148,20 +148,17 @@ begin
 end;
 
 class function TWPcapProtocolMQTT.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
-var LTCPPayLoad        : PByte;
-    LTCPPHdr           : PTCPHdr;
-    LtmpByte           : Uint8;
-    LMsgType           : Uint8; 
-    LWordValue         : Uint16;
-    LPos               : Integer;
-    LTpcPayLoadLen     : Integer;
+var LTCPPayLoad    : PByte;
+    LDummy         : Integer;
+    LtmpByte       : Uint8;
+    LMsgType       : Uint8; 
+    LWordValue     : Uint16;
+    LPos           : Integer;
+    LTpcPayLoadLen : Integer;
 begin
-  Result := False;
-
-  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
+  Result         := False;
   FIsFilterMode  := aIsFilterMode;
-  LTCPPayLoad    := GetTCPPayLoad(aPacketData,aPacketSize);
-  LTpcPayLoadLen := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  LTCPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LTpcPayLoadLen,LDummy);
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LTpcPayLoadLen));
   LPos      := 0;
   LtmpByte  := ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Flags',[AcronymName]), 'Flags:',AListDetail,ByteToBinaryStringInternal,True,LPos);

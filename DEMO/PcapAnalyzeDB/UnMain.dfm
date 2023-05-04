@@ -126,6 +126,14 @@ object FormMain: TFormMain
         Options.Editing = False
         Width = 73
       end
+      object GridPcapDBTableView1ENRICHMENT_PRESENT: TcxGridDBColumn
+        Caption = 'Enrichment present'
+        DataBinding.FieldName = 'ENRICHMENT_PRESENT'
+        PropertiesClassName = 'TcxCheckBoxProperties'
+        Properties.ValueChecked = '1'
+        Properties.ValueUnchecked = '0'
+        Options.Editing = False
+      end
       object GridPcapDBTableView1IS_MALFORMED: TcxGridDBColumn
         Caption = 'Malformed'
         DataBinding.FieldName = 'IS_MALFORMED'
@@ -413,6 +421,9 @@ object FormMain: TFormMain
             Value = 4
           end
           item
+            Description = 'Content'
+            ImageIndex = 0
+            Value = 5
           end>
         Properties.ShowDescriptions = False
         DataBinding.ValueType = 'Integer'

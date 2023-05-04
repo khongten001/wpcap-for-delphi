@@ -30,11 +30,14 @@ object FormPlayerWave: TFormPlayerWave
   object MediaPlayer1: TMediaPlayer
     Left = 0
     Top = 381
-    Width = 811
+    Width = 813
     Height = 30
     Align = alBottom
+    ColoredButtons = []
+    VisibleButtons = [btPlay, btPause, btStop, btNext, btPrev, btStep, btBack]
     DoubleBuffered = True
     ParentDoubleBuffered = False
     TabOrder = 0
+    ExplicitWidth = 946
   end
 end

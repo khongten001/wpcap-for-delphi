@@ -296,11 +296,11 @@ begin
   PaintBox1.Canvas.Lock;
   try
     // Draw background
-    PaintBox1.Canvas.Brush.Color := clWhite;
+    PaintBox1.Canvas.Brush.Color := $00323232;
     PaintBox1.Canvas.FillRect(PaintBox1.Canvas.ClipRect);
 
     // Draw horizontal line
-    PaintBox1.Canvas.Pen.Color := clGray;
+    PaintBox1.Canvas.Pen.Color := $00FFDAAF;
     PaintBox1.Canvas.MoveTo(0, PaintBox1.Height div 2);
     PaintBox1.Canvas.LineTo(PaintBox1.Width, PaintBox1.Height div 2);
 
@@ -316,7 +316,7 @@ begin
     LScaleFactor := High(SmallInt) / LmaxValue;
     LpeakThreshold := LmaxValue * 0.75;
 
-    PaintBox1.Canvas.Pen.Color := clBlue;
+    PaintBox1.Canvas.Pen.Color := Clwhite;
     PaintBox1.Canvas.Pen.Width := 2; 
     for i := 1 to LDataSize - 1 do
     begin
@@ -326,7 +326,7 @@ begin
         Dec(LZeroCrossCount);
       end
       else
-        PaintBox1.Canvas.Pen.Color := clBlue;
+        PaintBox1.Canvas.Pen.Color := Clwhite;
 
       PaintBox1.Canvas.MoveTo(Round((i - 1) * (PaintBox1.Width / LDataSize)), PaintBox1.Height div 2 - GetScaledValue(FWaveData[i - 1]));
       PaintBox1.Canvas.LineTo(Round(i * (PaintBox1.Width / LDataSize)), PaintBox1.Height div 2 - GetScaledValue(FWaveData[i]));

@@ -133,6 +133,7 @@ type
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;            
+    class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte; override;
   end;
 
 implementation
@@ -191,6 +192,8 @@ class function TWPcapProtocolBaseUDP.DstPort(const aUDPPtr: PUDPHdr): Uint16;
 begin
   Result := wpcapntohs(aUDPPtr.DstPort);
 end;
+
+
 
 class function TWPcapProtocolBaseUDP.GetUDPPayLoad(const AData:Pbyte;aSize: Uint16):PByte;
 begin
@@ -335,6 +338,20 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPUDPHdr.CheckSum), @(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum) ));    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8), nil,0 ));      
   Result := True;
+end;
+
+class function TWPcapProtocolBaseUDP.GetPayLoad(const aPacketData: PByte;
+  aPacketSize: Integer; var aSize, aSizeTotal: Integer): PByte;
+var LUDPHdr     : PUDPHdr;
+begin
+  Result := nil;
+  aSize  := 0;
+  if not HeaderUDP(aPacketData,aPacketSize,LUDPHdr) then exit;
+
+  Result  := GetUDPPayLoad(aPacketData,aPacketSize);
+  aSize   := UDPPayLoadLength(LUDPHdr) - 8;
+  if aSizeTotal = 0 then
+    aSizeTotal := aSize;
 end;
 
 end.

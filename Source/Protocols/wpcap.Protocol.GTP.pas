@@ -321,7 +321,7 @@ type
     class function ProtoTypeToString(const aProtoType: Uint8): String;
     class function MessageTypeToString(const  aMsgType: Uint8): String;
     class function IETypeToString(const  aIEType: Uint8): string;
-    class procedure ParserIEType(var aCurrentPos: Integer; aMaxLen,aStartLevel: Integer; const aPayload: PByte;AListDetail: TListHeaderString); static;
+    class procedure ParserIEType(var aCurrentPos: Integer; aMaxLen,aStartLevel: Integer; const aPayload: PByte;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo); static;
     class function IETypeToLabel(const aIEType: Uint8): string;
     class function CauseToString(const aCause: Uint8): String;
     class function CauseToString_vals(const aCause: Uint8): String;
@@ -411,7 +411,7 @@ end;
 
 class function TWPcapProtocolGTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad        : PByte;
-    LPUDPHdr           : PUDPHdr;
+    LDummy             : Integer;
     LVersion           : UInt8;
     LGTPHeaderV1       : PTGTPHeaderV1;
     LGTPHeaderV2       : PTGTPHeaderV2;
@@ -421,11 +421,7 @@ var LUDPPayLoad        : PByte;
     LPayLoadLen        : Integer;    
 begin
   Result := False;
-
-  if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
-
-  LUDPPayLoad   := GetUDPPayLoad(aPacketData,aPacketSize);
-  LPayLoadLen   := UDPPayLoadLength(LPUDPHdr)-8;
+  LUDPPayLoad   := inherited GetPayLoad(aPacketData,aPacketSize,LPayLoadLen,LDummy);    
   LMessageType  := 0;
   LVersion      := ( PByte(LUDPPayLoad)^ shr 5);  
   FIsFilterMode := aIsFilterMode;
@@ -475,7 +471,7 @@ begin
             Next extension header
             an 8-bit field. It states the type of the next extension, or 0 if no next extension exists. This permits chaining several next extension headers.
           }
-          ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail);   
+          ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail,aAdditionalInfo);   
         end;
        { Contents extension header contents.}
       end;
@@ -504,7 +500,7 @@ begin
           ParserUint64Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.SequenceNumber',[AcronymName]), 'Sequence number:',AListDetail,nil,True,LCurrentPos);
         
         ParserUint8Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.Spare',[AcronymName]), 'Spare:',AListDetail,nil,True,LCurrentPos);
-        ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail);        
+        ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail,aAdditionalInfo);        
       end;
       
   else Exit;
@@ -514,7 +510,7 @@ begin
   Result               := True;
 end;
 
-Class Procedure TWPcapProtocolGTP.ParserIEType(var aCurrentPos:Integer;aMaxLen,aStartLevel : Integer;const aPayload:PByte;AListDetail: TListHeaderString);
+Class Procedure TWPcapProtocolGTP.ParserIEType(var aCurrentPos:Integer;aMaxLen,aStartLevel : Integer;const aPayload:PByte;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);
 var LBytes         : TidBytes;
     LIEType        : Uint8;
     LLenIE         : Uint16; 
@@ -549,6 +545,7 @@ var LBytes         : TidBytes;
   
       AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MCC', [aLabelIEType]), 'Mobile Country Code (MCC):', LMCC, @LWordValue, SizeOf(LWordValue), LMCC));
       AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCC), nil, 0, LMCC, wetMcc ));
+      aAdditionalInfo.EnrichmentPresent := True;
     end;
 
     Procedure AddMNC(const aLabelIEType:String;aLevel:Integer);
@@ -589,6 +586,7 @@ var LBytes         : TidBytes;
         LMCCImsi := Copy(LIMSIString,1,3);
         AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.IMSI', [aLabelIEType]), 'IMSI:',LIMSIString,@LIMSI,sizeOf(LIMSI)));
         AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger, wetMcc ));      
+        aAdditionalInfo.EnrichmentPresent := True;        
         Inc(aCurrentPos,LLenIE);
       end;
     end;
@@ -1006,7 +1004,7 @@ begin
         if ( aCurrentPos - LStartPos) < LLenIE -3 then
         begin
           LTmpLen := aCurrentPos+ LLenIE - (aCurrentPos-LStartPos);
-          ParserIEType(aCurrentPos,LTmpLen,aStartLevel+1,aPayload,AListDetail);
+          ParserIEType(aCurrentPos,LTmpLen,aStartLevel+1,aPayload,AListDetail,aAdditionalInfo);
         end;  
       end;
       

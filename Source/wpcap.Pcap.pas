@@ -533,6 +533,11 @@ begin
       LAdditionalInfo.AcknowledgmentNumber  := 0;    
       LAdditionalInfo.FlowID                := 0;                        
       LAdditionalInfo.Info                  := String.Empty;
+      LAdditionalInfo.EnrichmentPresent     := False;
+      LAdditionalInfo.ContentExt            := String.Empty;
+      
+      LAdditionalInfo.CompressType          := -1;
+      LAdditionalInfo.FrameNumber           := -1; //TODO for retrasmission
       LAdditionalInfo.PacketDate            := Result.PacketDate;
      
       if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@LAdditionalInfo) then 

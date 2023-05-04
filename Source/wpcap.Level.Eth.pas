@@ -408,9 +408,13 @@ begin
   aInternalPacket.IP.DestGeoIP.Location           := String.Empty;  
   aInternalPacket.IP.DestGeoIP.Latitude           := 0;
   aInternalPacket.IP.DestGeoIP.Longitude          := 0;
+
   aInternalPacket.AdditionalInfo.isRetrasmission  := False;
   aInternalPacket.AdditionalInfo.SequenceNumber   := 0;
   aInternalPacket.AdditionalInfo.Info             := String.Empty;
+  aInternalPacket.AdditionalInfo.EnrichmentPresent:= False;
+  aInternalPacket.AdditionalInfo.ContentExt       := String.Empty;
+  aInternalPacket.AdditionalInfo.CompressType     := -1;  
   LPETHHdr                                        := HeaderEth(aPacketData,aPacketSize);
   
   if not Assigned(LPETHHdr) then exit;

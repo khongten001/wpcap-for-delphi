@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,System.UITypes,
   System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs,Wpcap.types,wpcap.Packet, 
-  Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,wpcap.Graphics,
+  Vcl.StdCtrls, cxGraphics, cxControls, cxCustomData, wpcap.Pcap,wpcap.Graphics,Winapi.ShellAPI,
   cxGridCustomTableView, cxGridTableView, cxGridLevel, cxClasses,DateUtils,wpcap.conts,
   cxGrid,  cxLookAndFeels,wpcap.Wrapper,wpcap.Filter,System.Generics.Collections,
   cxLookAndFeelPainters, dxSkinsCore, cxStyles, cxFilter, cxData, cxDataStorage,
@@ -115,6 +115,7 @@ type
     GridPcapDBTableView1IS_RETRASMISSION: TcxGridDBColumn;
     GridPcapDBTableView1PACKET_INFO: TcxGridDBColumn;
     GridPcapDBTableView1FLOW_ID: TcxGridDBColumn;
+    GridPcapDBTableView1ENRICHMENT_PRESENT: TcxGridDBColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -178,6 +179,7 @@ type
     procedure SetButtonGrid(aValue: Boolean);
     procedure FilterByLabel(const aLabel: String);
     procedure ShowWhois(aIP: Variant);
+    function OpenFile(const FileName: string): Boolean;
   public
     { Public declarations }
   end;
@@ -785,7 +787,8 @@ begin
 end;
 
 procedure TFormMain.ListPacketDetailClick(Sender: TObject);
-var LCoordinate: TMapCoordinate;
+var LCoordinate    : TMapCoordinate;
+    LFileContent   : String;
 begin
   if Assigned(ListPacketDetail.FocusedColumn) then
   begin
@@ -806,7 +809,43 @@ begin
               FFFormMap.Show;    
             end;
           end;
+        WetContent:
+          begin
+              ForceDirectories(GetTmpPath);
+      
+              if FWPcapDBSqLite.GetContent(GetTmpPath, 
+                                           GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1FLOW_ID.Index],
+                                           GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1NPACKET.Index],
+                                           LFileContent) 
+              then
+                OpenFile(LFileContent) 
+          end;
       end;
+    end;
+  end;
+end;
+
+function TFormMain.OpenFile(const FileName: string): Boolean;
+CONST ERROR_ASSOCIATION_NOT_FOUND = 1155;
+      ERROR_NO_ASSOCIATION = 31;
+var LErrorCode: Integer;
+begin
+  Result := ShellExecute(0, 'open', PChar(FileName), nil, nil, SW_SHOWNORMAL) > 32;
+  if not Result then
+  begin
+    LErrorCode := GetLastError;
+    case LErrorCode of
+      0:; // no error - do nothing
+      ERROR_FILE_NOT_FOUND            : MessageDlg('File not found: ' + FileName,mtError,[mbOK],0);
+      ERROR_PATH_NOT_FOUND            : MessageDlg('Path not found: ' + FileName,mtError,[mbOK],0);
+      ERROR_BAD_FORMAT                : MessageDlg('Invalid executable format: ' + FileName,mtError,[mbOK],0);
+      ERROR_ACCESS_DENIED             : MessageDlg('Access denied: ' + FileName,mtError,[mbOK],0);
+      ERROR_ASSOCIATION_NOT_FOUND     : MessageDlg('No association found for file: ' + FileName,mtError,[mbOK],0);
+      ERROR_NO_ASSOCIATION            : MessageDlg('No association found for file: ' + FileName,mtError,[mbOK],0);
+      ERROR_DLL_NOT_FOUND             : MessageDlg('Required DLL not found: ' + FileName,mtError,[mbOK],0);
+      ERROR_EXE_MACHINE_TYPE_MISMATCH : MessageDlg('Incompatible executable format: ' + FileName,mtError,[mbOK],0);
+    else
+      MessageDlg('Failed to open file: ' + FileName + ', error code: ' + IntToStr(LErrorCode),mtError,[mbOK],0);
     end;
   end;
 end;

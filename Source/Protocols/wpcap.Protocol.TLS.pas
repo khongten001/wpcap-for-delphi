@@ -191,14 +191,14 @@ var LTCPHdr       : PTCPHdr;
     LRecord       : PTTLSRecordHeader;
     LTCPPayLoadLen: Integer;
     LContectLen   : Integer;
+    LDummy        : Integer;
     LHandshakeType: Byte;
 begin
   Result := False;
   if not HeaderTCP(aPacket,aPacketSize,LTCPHdr) then exit;
                                                       //114  18292  
-  LTCPPayLoad     := GetTCPPayLoad(aPacket,aPacketSize);
+  LTCPPayLoad     := inherited GetPayLoad(aPacket,aPacketSize,LTCPPayLoadLen,LDummy);
   LRecord         := Header(LTCPPayLoad);
-  LTCPPayLoadLen  := TCPPayLoadLength(LTCPHdr,aPacket,aPacketSize);
   LContectLen     := wpcapntohs(LRecord.Length);
   if KnowVersion(LRecord.ProtocolVersion) then
     Result := (LContectLen > 0)  and ( LContectLen <= LTCPPayLoadLen ) and InRange(LRecord.ContentType,TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC,TLS_CONTENT_TYPE_ID_TLS12_CID);
@@ -818,6 +818,7 @@ var LOffset         : Integer;
     LHandShakeLen   : integer;
     LUInt16Value    : Uint16;
     I               : Integer;
+    LDummy          : Integer;
 
     Procedure LoadCommonFieldHello(const aContentType:String);
     begin
@@ -1135,8 +1136,7 @@ begin
   if aPacketSize < SizeOf(TTLSRecordHeader) then Exit;
   if not HeaderTCP(aPacketData,aPacketSize,LTCPHdr) then exit;
   
-  LTCPPayLoad    := GetTCPPayLoad(aPacketData,aPacketSize);
-  LTCPPayLoadLen := TCPPayLoadLength(LTCPHdr,aPacketData,aPacketSize);
+  LTCPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
   LOffset        := 0;
 
   if aPacketSize < TCPPayLoadLength(LTCPHdr,aPacketData,aPacketSize)-1+SizeOf(TTLSRecordHeader) then exit;

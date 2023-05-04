@@ -112,19 +112,16 @@ end;
 class function TWPcapProtocolFTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
-    LTCPPHdr       : PTCPHdr;
+    LDummy         : Integer;
     LOffSet        : Integer;
 begin
-  Result := False;
-
-  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
-
-  LTCPPayLoad     := GetTCPPayLoad(aPacketData,aPacketSize);
+  Result          := False;
+  LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
   FIsFilterMode   := aIsFilterMode;
-  LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen));
-  LOffSet    := 0;  
-  Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);
+  LOffSet              := 0;  
+  aAdditionalInfo.Info := String.Empty;  
+  Result               := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
 end;
 
 class function TWPcapProtocolFTP.ResponseToString(const aResponse:Uint16):String;

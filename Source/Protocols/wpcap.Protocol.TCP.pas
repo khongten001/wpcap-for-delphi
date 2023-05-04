@@ -217,7 +217,7 @@ type
     ///    True if a supported protocol was detected, False otherwise.
     ///  </returns>
     class function AnalyzeTCPProtocol(const aData:Pbyte;aSize:Integer;var aArcronymName:String;var aIdProtoDetected:Byte):boolean;static;  
-    
+    class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte; override;
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;
   end;      
 
@@ -226,6 +226,19 @@ implementation
 uses wpcap.Level.Ip,wpcap.protocol;
 
 { TWPcapProtocolBaseTCP }
+
+class function TWPcapProtocolBaseTCP.GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte;
+var LPTCPHdr : PTCPHdr;
+begin
+  Result := nil;
+  aSize  := 0;
+  if not HeaderTCP(aPacketData,aPacketSize,LPTCPHdr) then exit;
+  Result := GetTCPPayLoad(aPacketData,aPacketSize);
+  aSize  := TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize);
+  if aSizeTotal <= 0 then
+    aSizeTotal := aSize;
+end;
+
 class procedure TWPcapProtocolBaseTCP.UpdateTCPInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aTCPFlags:Uint8; aSeqNum, aAckNum: Uint32;aAdditionalInfo: PTAdditionalInfo);
 CONST TIMEOUT_DELTA_MIN = 5;
 var LKey     : string; 
@@ -417,8 +430,8 @@ var DataOffset: Integer;
 begin
    // Get the data offset in bytes
    DataOffset := GetDataOFFSetBytes(aTCPPtr^.DataOff)*4;
-  // Calculate the length of the payload
-  Result := aPacketSize - TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)-DataOffset;
+   // Calculate the length of the payload
+   Result := aPacketSize - TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize)-DataOffset;
 end;
 
 class function TWPcapProtocolBaseTCP.IsValid(const aPacket:PByte;aPacketSize:Integer;var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;

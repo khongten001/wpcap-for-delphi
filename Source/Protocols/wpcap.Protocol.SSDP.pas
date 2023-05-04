@@ -91,21 +91,18 @@ end;
 
 class function TWPcapProtocolSSDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad        : PByte;
-    LPUDPHdr           : PUDPHdr;    
+    LDummy             : Integer;    
     LUdpPayLoadLen     : integer;
     LOffSet            : Integer;
 begin
-  Result := False;
-
-  if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
-
-  LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
+  Result         := False;
   FIsFilterMode  := aIsFilterMode;
-  LUdpPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
+  LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUdpPayLoadLen,LDummy);
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUdpPayLoadLen));
 
-  LOffSet    := 0;  
-  Result     := ParserByEndOfLine(aStartLevel,LUDPPayLoadLen,LUDPPayLoad,AListDetail,LOffSet);
+  LOffSet              := 0;  
+  aAdditionalInfo.Info := String.Empty;
+  Result               := ParserByEndOfLine(aStartLevel,LUDPPayLoadLen,LUDPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
 end;
 
 

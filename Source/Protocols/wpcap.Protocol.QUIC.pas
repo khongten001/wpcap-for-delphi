@@ -118,7 +118,7 @@ end;
 class function TWPcapProtocolQUIC.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LUDPPayLoad      : PByte;
     LUDPPayLoadLen   : Integer;
-    LPUDPHdr         : PUDPHdr;
+    LDummy           : Integer;
     TtmpByte         : Byte;
     LFirst_byte_bit1 : Boolean;
     LFirst_byte_bit2 : Boolean;
@@ -133,12 +133,8 @@ var LUDPPayLoad      : PByte;
     Linitial_salt    : TBytes;    
     LCurrentPos      : Integer;
 begin
-  Result := False;
-
-  if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
-
-  LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);
-  LUDPPayLoadLen := UDPPayLoadLength(LPUDPHdr)-8;
+  Result         := False;
+  LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUDPPayLoadLen,LDummy);    
   FIsFilterMode  := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
   LCurrentPos      := 0;

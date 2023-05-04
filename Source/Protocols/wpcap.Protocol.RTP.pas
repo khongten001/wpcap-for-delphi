@@ -157,7 +157,7 @@ type
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
-    class function GetPayLoadRTP(const aPacketData: PByte;aPacketSize: Integer;var aSize:Integer): PByte; static;
+    class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer;var aSize,aSizeTotal:Integer): PByte; override;
     class function GetSoxCommandDecode(const aPacketData:PByte;aPacketSize:Integer): String; static;      
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
   end;
@@ -207,6 +207,7 @@ var LInternalHeader : PTRTPHeaderInternal;
     LSizePayLoad    : integer;
     LUDPPayLoadLen  : Integer;
     I               : Integer;
+    LSizeTotal      : Integer;
 begin
   Result := False;
 
@@ -220,7 +221,7 @@ begin
 
   if not Assigned(LInternalHeader) then Exit;
   Try
-    LPayLoad := GetPayLoadRTP(aPacketData,aPacketSize,LSizePayLoad);
+    LPayLoad := GetPayLoad(aPacketData,aPacketSize,LSizePayLoad,LSizeTotal);
     Try
       AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad, LUDPPayLoadLen ));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Version',[AcronymName]), 'Version:',LInternalHeader.Version , @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
@@ -288,7 +289,7 @@ begin
 end;
 
 
-Class function TWPcapProtocolRTP.GetPayLoadRTP(const aPacketData: PByte;aPacketSize:Integer;var aSize:Integer):PByte;
+Class function TWPcapProtocolRTP.GetPayLoad(const aPacketData: PByte;aPacketSize:Integer;var aSize,aSizeTotal:Integer):PByte;
 var LInternalHeader : PTRTPHeaderInternal;
     LUDPPayLoad     : PByte;
     LPUDPHdr        : PUDPHdr;    
@@ -416,6 +417,7 @@ class function TWPcapProtocolRTP.IsValid(const aPacket: PByte;aPacketSize: Integ
 var LInternalHeader : PTRTPHeaderInternal;
     LPayLoad        : PByte;
     LSizePayLoad    : Integer;
+    LSizeTotal      : Integer;
 begin
   Result := False;
 
@@ -426,7 +428,7 @@ begin
     if (LInternalHeader.Version <> 2) then exit;
     
     
-    LPayLoad := GetPayLoadRTP(aPacket,aPacketSize,LSizePayLoad);
+    LPayLoad := GetPayLoad(aPacket,aPacketSize,LSizePayLoad,LSizeTotal);
     Try
       Result :=  ( LInternalHeader.SequenceNumber > 0) and ( LSizePayLoad > 10) and ( ( LSizePayLoad > 100) or ( (LInternalHeader.PayloadType <= PT_H263) or (LInternalHeader.PayloadType = PT_iLBC)) )  ;
     Finally

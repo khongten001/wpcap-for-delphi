@@ -101,19 +101,16 @@ end;
 class function TWPcapProtocolIMAP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
-    LTCPPHdr       : PTCPHdr;
+    LDummy         : Integer;
     LOffset        : Integer;
 begin
-  Result := False;
-
-  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
-
-  LTCPPayLoad     := GetTCPPayLoad(aPacketData,aPacketSize);
-  LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
+  Result          := False;
+  LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
   FIsFilterMode   := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
-  LOffSet    := 0;  
-  Result     := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet);  
+  LOffSet              := 0;  
+  aAdditionalInfo.Info := String.Empty;  
+  Result               := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);  
 end;
 
 

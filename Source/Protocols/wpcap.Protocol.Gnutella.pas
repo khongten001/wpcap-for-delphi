@@ -101,15 +101,11 @@ end;
 class function TWPcapProtocolGnutella.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
-    LTCPPHdr       : PTCPHdr;
+    LDummy         : Integer;
 begin
-  Result := False;
-
-  if not HeaderTCP(aPacketData,aPacketSize,LTCPPHdr) then Exit;
-
-  LTCPPayLoad     := GetTCPPayLoad(aPacketData,aPacketSize);
-  LTCPPayLoadLen  := TCPPayLoadLength(LTCPPHdr,aPacketData,aPacketSize);
-  FIsFilterMode   := aIsFilterMode;
+  Result        := False;
+  LTCPPayLoad   := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
+  FIsFilterMode := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1,AcronymName,'Gnutella Upload / Download Stream',null, LTCPPayLoad, LTCPPayLoadLen ));  
 end;
