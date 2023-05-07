@@ -3,6 +3,10 @@ The wpcap.wrapper Delphi package provides a wrapper for the WinPcap (wpcap) libr
 
 It enables the capture and analysis of network packets, making it useful for a wide range of applications, including network analysis, security testing, and network monitoring.
 
+# Installation
++ Download or clone the repository to your local machine.
++ Add wpcap-for-delphi\Source and wpcap-for-delphi\Source\Protocols to your Delphi Library path
+
 # Pre-compiled Demo available in Bin folder.
 
 The "Bin" folder in this repository contains the Demo already compiled and ready to use. This means that you don't need to compile the source code to run the program. Just download the "Bin" folder and run the Demo.
