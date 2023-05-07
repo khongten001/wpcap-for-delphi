@@ -155,7 +155,7 @@ var LHeaderARP     : PTARPHeader;
     LCurrentPos    : Integer;
     LPtType        : Uint16;
     LArpType       : Uint16;
-    LEnrichment    : TWcapEnrichmentType;
+    LEnrichment    : TWpcapEnrichmentType;
 begin
   Result        := False;
   FIsFilterMode := aIsFilterMode;
@@ -209,7 +209,10 @@ begin
       begin
         LSenderIP := BytesToIPv4Str(LTmpBytesSender);      
         if IsValidPublicIP(LSenderIP) then
-          LEnrichment := WetIP;
+        begin
+          LEnrichment                       := WetIP;
+          aAdditionalInfo.EnrichmentPresent := true;
+        end;
       
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIP',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender), -1,LEnrichment ));
 
@@ -217,7 +220,10 @@ begin
         LTargetIP   := BytesToIPv4Str(LTmpBytesTarget);
 
         if IsValidPublicIP(LTargetIP) then
-          LEnrichment := WetIP;
+        begin
+          LEnrichment                       := WetIP;
+          aAdditionalInfo.EnrichmentPresent := true;
+        end;
         
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIP',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget), -1,LEnrichment  ));           
       end;
@@ -226,7 +232,10 @@ begin
         // convert sender IP address to string
         LSenderIP := IPv6AddressToString(LTmpBytesSender);
         if IsValidPublicIP(LSenderIP) then
-          LEnrichment := WetIP;
+        begin
+          LEnrichment                       := WetIP;
+          aAdditionalInfo.EnrichmentPresent := true;
+        end;
 
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIPv6',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender), -1,LEnrichment ));
 
@@ -235,7 +244,10 @@ begin
         LTargetIP   := IPv6AddressToString(LTmpBytesTarget);
 
         if IsValidPublicIP(LTargetIP) then
-          LEnrichment := WetIP;
+        begin
+          LEnrichment                       := WetIP;
+          aAdditionalInfo.EnrichmentPresent := true;
+        end;
                 
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIPv6',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget), -1,LEnrichment ));      
       end;

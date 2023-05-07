@@ -541,21 +541,21 @@ end;
 procedure TFormMain.BMapClick(Sender: TObject);
 
   Procedure AddCoordinate(IndexLat,IndexLong:byte);
-  var aCoordinate : PTMapCoordinate;
+  var LCoordinate : PTMapCoordinate;
   begin
-    New(aCoordinate);
-    aCoordinate.Latitude  := 0;
-    aCoordinate.Longitude := 0;
+    New(LCoordinate);
+    LCoordinate.Latitude  := 0;
+    LCoordinate.Longitude := 0;
     
     if not VarIsNull(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLat]) then      
-      aCoordinate.Latitude  := StrToFloatDef(VarToStrDef( GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLat],String.Empty),0); 
+      LCoordinate.Latitude  := StrToFloatDef(VarToStrDef( GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLat],String.Empty),0); 
     if not VarIsNull(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLong]) then             
-      aCoordinate.Longitude := StrToFloatDef(VarToStrDef(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLong],String.Empty),0); 
+      LCoordinate.Longitude := StrToFloatDef(VarToStrDef(GridPcapDBTableView1.Controller.FocusedRow.Values[IndexLong],String.Empty),0); 
       
-    aCoordinate.DateTime  := StrToDateTime( GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PACKET_DATE.Index]);  
-    aCoordinate.Info      := VarToStrDef(GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1ASN.Index],String.Empty)+';';
-    if (aCoordinate.Latitude <> 0) and (aCoordinate.Longitude <> 0) then    
-      FFFormMap.CurrentCoordinates.Add(aCoordinate);   
+    LCoordinate.DateTime  := StrToDateTime( GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1PACKET_DATE.Index]);  
+    LCoordinate.Info      := VarToStrDef(GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1ASN.Index],String.Empty)+';';
+    if (LCoordinate.Latitude <> 0) and (LCoordinate.Longitude <> 0) then    
+      FFFormMap.CurrentCoordinates.Add(LCoordinate);   
   end;
 begin
   if Assigned(GridPcapDBTableView1.Controller.FocusedRow) then
@@ -789,38 +789,69 @@ end;
 procedure TFormMain.ListPacketDetailClick(Sender: TObject);
 var LCoordinate    : TMapCoordinate;
     LFileContent   : String;
+    LIPAddress     : String;
+    LInfoGeoIP     : TRecordGeoIP;
+
+    Procedure OpenMap;
+    begin
+      if Not Assigned(FFFormMap) then
+        FFFormMap := TFormMap.Create(nil);
+
+      FFFormMap.CurrentCoordinates.Clear;
+      FFFormMap.CurrentCoordinates.Add(@LCoordinate); 
+      FFFormMap.DrawCountry(True,True);
+      FFFormMap.Show;    
+    end;
+
 begin
   if Assigned(ListPacketDetail.FocusedColumn) then
   begin
+  
     if ListPacketDetail.FocusedColumn = ListPacketDetailEnrichment then
     begin
-      case TWcapEnrichmentType(ListPacketDetail.FocusedNode.Values[ListPacketDetailEnrichment.Position.ColIndex])  of
-        WetMCC :
-          begin
-            if MCCToCoordinate(ListPacketDetail.FocusedNode.Values[ListPacketDetailRawValue.Position.ColIndex],LCoordinate) then
+      Try
+        case TWpcapEnrichmentType(ListPacketDetail.FocusedNode.Values[ListPacketDetailEnrichment.Position.ColIndex])  of
+          WetMCC :
             begin
-              if Not Assigned(FFFormMap) then
-                FFFormMap := TFormMap.Create(nil);
-
-              FFFormMap.CurrentCoordinates.Clear;
-              FFFormMap.CurrentCoordinates.Add(@LCoordinate); 
-
-              FFFormMap.DrawCountry(True,True);
-              FFFormMap.Show;    
+              if MCCToCoordinate(ListPacketDetail.FocusedNode.Values[ListPacketDetailRawValue.Position.ColIndex],LCoordinate) then
+                OpenMap;
             end;
-          end;
-        WetContent:
-          begin
-              ForceDirectories(GetTmpPath);
-      
-              if FWPcapDBSqLite.GetContent(GetTmpPath, 
-                                           GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1FLOW_ID.Index],
-                                           GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1NPACKET.Index],
-                                           LFileContent) 
-              then
-                OpenFile(LFileContent) 
-          end;
-      end;
+          
+          WetContent:
+            begin
+                ForceDirectories(GetTmpPath);
+                if FWPcapDBSqLite.GetContent(GetTmpPath, 
+                                             GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1FLOW_ID.Index],
+                                             GridPcapDBTableView1.Controller.FocusedRow.Values[GridPcapDBTableView1NPACKET.Index],
+                                             LFileContent) 
+                then
+                  OpenFile(LFileContent)                
+            end;
+
+          WetIP:
+            begin
+              LIPAddress := ListPacketDetail.FocusedNode.Values[ListPacketDetailValue.Position.ColIndex];
+              if Boolean(TActiveGEOIP.EditValue ) and FileExists(GetGeoLiteDatabaseName) then
+              begin
+                if MessageDlg('Do you want to use GEOIP?',mtConfirmation,mbYesNo,0) = mrYes then
+                begin
+                  FWpcapGeoLite.GetGeoIPByIp(LIPAddress,@LInfoGeoIP);
+                  if (LInfoGeoIP.Latitude <> 0) and (LInfoGeoIP.Latitude <> 0) then
+                  begin
+                    LCoordinate.Latitude  := LInfoGeoIP.Latitude;
+                    LCoordinate.Longitude := LInfoGeoIP.Longitude;
+                    LCoordinate.Info      := Format('%s;',[LInfoGeoIP.ASNumber]);
+                    OpenMap;
+                    Exit;
+                  end
+                end
+              end;
+              ShowWhois(LIPAddress); 
+            end;
+        end;
+      finally
+        ListPacketDetail.FocusedColumn := nil;        
+      end
     end;
   end;
 end;

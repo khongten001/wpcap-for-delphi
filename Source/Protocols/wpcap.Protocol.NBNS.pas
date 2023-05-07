@@ -31,7 +31,7 @@ interface
 
 uses
   wpcap.Protocol.DNS, wpcap.Conts, wpcap.Types, wpcap.BufferUtils, System.StrUtils,System.AnsiStrings,
-  WinApi.Windows, System.Generics.Defaults, System.SysUtils, System.Variants,Wpcap.IpUtils,
+  WinApi.Windows, System.Generics.Defaults, System.SysUtils, System.Variants,Wpcap.IpUtils,wpcap.packet, 
   System.Math, winsock, wpcap.StrUtils, System.Generics.Collections;
 
 type
@@ -118,7 +118,7 @@ type
   protected
     class function ApplyConversionName(const aName: AnsiString): AnsiString;override;  
     class function DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;        
-    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;    
+    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;aStartLevel:Integer): AnsiString; override;    
   public
     /// <summary>
     /// Returns the default port number used by the NBNS protocol.
@@ -697,10 +697,11 @@ begin
   end;   
 end;
 
-class function TWPcapProtocolNBNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
+class function TWPcapProtocolNBNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;aStartLevel:Integer): AnsiString;
 var LByte0        : Byte;
     LCardinalTmp  : Cardinal;
     LLabel        : String;
+    LIPStr        : String;
 begin
 {
                                              1   1   1   1   1   1
@@ -739,7 +740,15 @@ begin
   Inc(aOffset,2);
   Inc(aTotalNameLen,2);
   Move(aPacket[aOffset], LCardinalTmp, SizeOf(cardinal));  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',MakeUint32IntoIPv4AddressInternal(wpcapntohl( LCardinalTmp)), @LCardinalTmp,SizeOf(LCardinalTmp)));     
+  LIPStr := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LCardinalTmp));
+
+  if IsValidPublicIP(LIPStr) then  
+  begin
+    aAdditionalInfo.EnrichmentPresent := true;
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',LIPStr, @LCardinalTmp,SizeOf(LCardinalTmp), -1, WetIP))
+  end
+  else
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Addr',[LLabel]), 'Addr:',LIPStr, @LCardinalTmp,SizeOf(LCardinalTmp)));
   Inc(aOffset,2);
   Inc(aTotalNameLen,2); 
 end;

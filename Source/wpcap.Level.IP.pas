@@ -555,7 +555,12 @@ begin
       AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.NextHeader','Next Header:',Format('%s [%d]',[LInternalIP.ProtoAcronym,LInternalIP.IpProto]),PByte(@LHeaderV6.NextHeader),SizeOf(LHeaderV6.NextHeader)));                     
       AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.HopLimit','Hop Limit:',Format('%d hop',[LHeaderV6.HopLimit]),PByte(@LHeaderV6.HopLimit),SizeOf(LHeaderV6.HopLimit)));                          
       AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.SourceAddress','Source Address:',LInternalIP.Src,PByte(@LHeaderV6.SourceAddress),SizeOf(LHeaderV6.SourceAddress)));                          
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.DestinationAddress','Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress))); 
+      if IsValidPublicIP(LInternalIP.Src) then
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv6.SourceAddress.public','Public IP:',True,nil,0));                          
+
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1,'IP.IPv6.DestinationAddress','Destination Address:',LInternalIP.Dst,PByte(@LHeaderV6.DestinationAddress),SizeOf(LHeaderV6.DestinationAddress)));
+      if IsValidPublicIP(LInternalIP.Dst) then
+        AListDetail.Add(AddHeaderInfo(aStartLevel+2,'IP.IPv6.DestinationAddress.public','Public IP:',True,nil,0));                          
       LCurrentPos := HeaderEthSize(aPacketData,aPacketSize) + SizeOf(TIPv6Header);
       LIpProto    := LHeaderV6.NextHeader;
       ExtentionHeader(aPacketData,aStartLevel,LCurrentPos,LIpProto,AListDetail);                     

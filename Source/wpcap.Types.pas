@@ -36,7 +36,7 @@ uses
 
 type
 
-  TWcapEnrichmentType =( WetNone ,WetIP,WetMCC,WetMNC,WetIMSI,WetContent);
+  TWpcapEnrichmentType =( WetNone ,WetIP,WetMCC,WetMNC,WetIMSI,WetContent);
 
   bpf_u_int32 = LongWord;  
   Ppcap_t = Pointer;
@@ -319,7 +319,7 @@ type
     Value          : Variant;
     Size           : Integer;
     RawValue       : Variant;
-    EnrichmentType : TWcapEnrichmentType;
+    EnrichmentType : TWpcapEnrichmentType;
   End;  
 
   TListHeaderString = class(TList<THeaderString>);

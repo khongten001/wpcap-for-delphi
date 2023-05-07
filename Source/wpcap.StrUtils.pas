@@ -241,8 +241,8 @@ begin
   FillChar(Result[1],aDataSize,AnsiChar(46));
   for J := 0 to aDataSize -1 do
   begin    
-    if (aPByteData[J]>=32) and 
-       (aPByteData[J]<=127) 
+    if ( (aPByteData[J]>=32) and 
+       (aPByteData[J]<=127) ) or (aPByteData[J]=10) or (aPByteData[J]=13)
     then
       Result[J+1] := AnsiChar(aPByteData[J]) 
   end;

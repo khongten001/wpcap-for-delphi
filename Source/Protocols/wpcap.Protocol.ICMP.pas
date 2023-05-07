@@ -205,7 +205,7 @@ var LHeader         : PTICMPHeader;
          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.OptionsICMPV6.Type',[AcronymName]), 'Type',ConvertOptionsToString(LOptions),@LOptions,sizeOf(LOptions)));    
          LOptions := ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.OptionsICMPV6.Len',[AcronymName]), 'Lenght:',AListDetail,SizeaUint8ToStr,True,LCurrentPos); 
                
-         ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,LOptions*8,Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos);                         
+         ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,LOptions*8,Format('%s.OptionsICMPV6.LinkLayerAddr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                         
        end;
     end;
 begin
@@ -294,7 +294,7 @@ begin
     ICMP_NEIGHBOR_ADVERTISEMENT,
     ICMP_NEIGHBOR_SOLICITATION:
       begin
-        ParserGenericBytesValue(aPacketData,aStartLevel+1,aPacketSize,16,Format('%s.TargetAddr',[AcronymName]), 'Target address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos);                                      
+        ParserGenericBytesValue(aPacketData,aStartLevel+1,aPacketSize,16,Format('%s.TargetAddr',[AcronymName]), 'Target address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                                      
         AddOptionsAndIp;
       end;
       
@@ -309,7 +309,7 @@ begin
           ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.Type',[AcronymName]), 'Record type:',AListDetail,ConvertRecordTypeToString,True,LCurrentPos);
           ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.AuxLen',[AcronymName]), 'Aux Data Len:',AListDetail,nil,True,LCurrentPos);
           ParserUint16Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.NSource',[AcronymName]), 'Number of Sources:',AListDetail,nil,True,LCurrentPos);
-          ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,16,Format('%s.NMulticastRecord.Addr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos);                                
+          ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,16,Format('%s.NMulticastRecord.Addr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                                
         end;
       end;
       

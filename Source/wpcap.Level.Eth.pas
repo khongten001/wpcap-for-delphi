@@ -33,7 +33,7 @@ uses
   System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,
   Windows, idGlobal, System.DateUtils, wpcap.Conts, System.SysUtils, wpcap.Types,
   Variants, wpcap.IANA.Dbport, winsock2, system.Classes;
-  
+
 type  
 
 
@@ -72,6 +72,7 @@ type
     class function isValidSize(aPacketSize: Integer): Boolean; overload;
     
     class procedure AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo:PTAdditionalInfo);
+    class function GetIPClassByRawData(aPacketData: PByte;var aOffset:Integer;aLogging: Boolean): Integer; static;
   protected
     class var FIsFilterMode : Boolean;  
     class var FisMalformed  : Boolean;
@@ -97,7 +98,7 @@ type
     /// </summary>
     class function HeaderEthSize(const aPacketData: PByte;aPacketSize: Integer): Word;static;
 
-    class function AddHeaderInfo(aLevel:Byte;const aLabel,aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;static;    
+    class function AddHeaderInfo(aLevel:Byte;const aLabel,aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWpcapEnrichmentType=WetNone):THeaderString;static;    
     /// <summary>
     /// This function returns a dictionary of strings representing the fields in the Ethernet header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
@@ -422,7 +423,6 @@ var LPETHHdr      : PETHHdr;
     I             : Integer;    
     LNewSize      : Integer;
     LNewData      : Pbyte;
-    LIpFlagVersion: Uint8;
     LEthType      : Uint16;
     LOffSet       : Integer;
     LP2PProtocol  : Uint16;
@@ -563,34 +563,7 @@ begin
   else           
     begin
       {Lik layers type}
-      LOffSet   := 0;
-      LEthType  := 0;
-      if Pbyte(aPacketData)^ = 2 then     
-      begin    
-        if aLogging then         
-          DoLog('TWpcapEthHeader.InternalPacket','Found link layer loopback packet',TWLLInfo);
-        LEthType  := ntohs(ETH_P_IP);  {Loopback}
-        LOffSet   := 4;
-      end;      
-
-      if LEthType = 0 then
-      begin
-        LIpFlagVersion  := Pbyte(aPacketData+LOffSet)^ shr 4;   
-      
-        case LIpFlagVersion of
-          4  :begin 
-                if aLogging then         
-                  DoLog('TWpcapEthHeader.InternalPacket','Found link layer packet new eth header is IPv4',TWLLInfo);    
-                LEthType  := ntohs(ETH_P_IP);
-              end;
-          6  : 
-              begin
-                if aLogging then                       
-                  DoLog('TWpcapEthHeader.InternalPacket','Found link layer packet new eth header is IPv6',TWLLInfo);    
-                LEthType  := ntohs(ETH_P_IPV6);
-              end;
-        end;
-      end;
+      LEthType := GetIPClassByRawData(aPacketData,LOffSet,aLogging);
 
       if LEthType <> 0 then
       begin
@@ -603,7 +576,7 @@ begin
 
         LNewSize := aPacketSize + aLikLayersSize;
           
-        LPETHHdr.EtherType  := LEthType;
+        LPETHHdr.EtherType  := ntohs(LEthType);
         
         GetMem(LNewData,LNewSize); 
         Move( (aPacketData+LOffSet)^, (LNewData + SizeOf(TETHHdr))^, aPacketSize-LOffSet);
@@ -616,6 +589,39 @@ begin
     end;
   end;  
   Result := True;
+end;
+
+Class function TWpcapEthHeader.GetIPClassByRawData(aPacketData:PByte;var aoffset:Integer;aLogging:Boolean): Integer;
+var LIpFlagVersion: Uint8;
+begin
+  aoffset  := 0;
+  Result   := 0;
+  if Pbyte(aPacketData)^ = 2 then     
+  begin    
+    if aLogging then         
+      DoLog('TWpcapEthHeader.InternalPacket','Found link layer loopback packet',TWLLInfo);
+    Result  := ntohs(ETH_P_IP);  {Loopback}
+    aoffset   := 4;
+  end;      
+
+  if Result = 0 then
+  begin
+    LIpFlagVersion  := Pbyte(aPacketData+aoffset)^ shr 4;   
+      
+    case LIpFlagVersion of
+      4  :begin 
+            if aLogging then         
+              DoLog('TWpcapEthHeader.InternalPacket','Found link layer packet new eth header is IPv4',TWLLInfo);    
+            Result  :=ETH_P_IP;
+          end;
+      6  : 
+          begin
+            if aLogging then                       
+              DoLog('TWpcapEthHeader.InternalPacket','Found link layer packet new eth header is IPv6',TWLLInfo);
+            Result  := ETH_P_IPV6;
+          end;
+    end;
+  end;
 end;
 
 class function TWpcapEthHeader.isValidSize(aPacketSize: Integer): Boolean;
@@ -637,7 +643,7 @@ begin
   end;      
 end;
 
-class function TWpcapEthHeader.AddHeaderInfo(aLevel: Byte; const aLabel,aDescription: String; aValue: Variant; aPacketInfo: PByte;aPacketInfoSize: Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone): THeaderString;
+class function TWpcapEthHeader.AddHeaderInfo(aLevel: Byte; const aLabel,aDescription: String; aValue: Variant; aPacketInfo: PByte;aPacketInfoSize: Word;aRaWData: Integer=-1 ;aEnrichmentType : TWpcapEnrichmentType=WetNone): THeaderString;
 begin
   Result.Description     := aDescription;
   Result.Labelname       := aLabel;

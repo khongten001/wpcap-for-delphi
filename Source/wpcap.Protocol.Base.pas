@@ -102,9 +102,9 @@ Type
      class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint8;  
      class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint16;
      class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;     
-     class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;
+     class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
      class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint64;     
-     class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer):String;
+     class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer;isIP:Boolean=False):String;
      class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigIndian: Boolean; var aCurrentPos: Integer):Integer;
      class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;   
   public
@@ -145,7 +145,7 @@ Type
     class function HeaderLength(aFlag:Byte): Word; virtual;
 
 
-    class function AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;static;
+    class function AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWpcapEnrichmentType=WetNone):THeaderString;static;
 
     /// <summary>
     /// Checks whether the packet has the default port for the protocol.
@@ -198,7 +198,7 @@ begin
   raise Exception.Create('TWPcapProtocolBase.AcronymName- Non implemented in base class - please override this method');
 end;
 
-class function TWPcapProtocolBase.AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWcapEnrichmentType=WetNone):THeaderString;
+class function TWPcapProtocolBase.AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWpcapEnrichmentType=WetNone):THeaderString;
 begin    
   
   Result.Description     := aDescription;
@@ -291,8 +291,9 @@ end;
 class Function TWPcapProtocolBase.ParserUint32Value(const aPacketData:PByte;aLevel:byte; aMaxLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
         aToStringFunction:TWpcapUint32ToString;isBigIndian:Boolean;
-        var aCurrentPos:Integer):Uint32;
-
+        var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
+var LEnrichment : TWpcapEnrichmentType;
+    LTmpValue   : String;
 begin
   if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
@@ -302,7 +303,13 @@ begin
      Result :=  PUint32(aPacketData+aCurrentPos )^;
     
   if Assigned(aToStringFunction) then
-    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(Result), @Result,sizeOf(Result), Result ))
+  begin
+    LEnrichment := WetNone;    
+    LTmpValue   := aToStringFunction(Result);
+    if isIP and IsValidPublicIP(LTmpValue) then
+      LEnrichment := WetIP;
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(Result), @Result,sizeOf(Result), Result,LEnrichment ))
+  end
   else      
     AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, Result, @Result,sizeOf(Result)));
     
@@ -312,8 +319,9 @@ end;
 class function TWPcapProtocolBase.ParserGenericBytesValue(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
         aToStringFunction:TWpcapBytesToString;isBigIndian:Boolean;
-        var aCurrentPos:Integer): String;
-var LBytes : TIdBytes;        
+        var aCurrentPos:Integer;isIP:Boolean=False): String;
+var LBytes      : TIdBytes; 
+    LEnrichment : TWpcapEnrichmentType;       
 begin 
   Result := String.Empty;       
   if not isValidLen(aCurrentPos,aMaxLen+1,aLen) then Exit;
@@ -322,8 +330,11 @@ begin
   Move(aPacketData[aCurrentPos],LBytes[0],aLen);
   if assigned(aToStringFunction) then  
   begin
-    Result := aToStringFunction(LBytes);  
-    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption,Result ,PByte(LBytes),aLen ))
+    Result      := aToStringFunction(LBytes); 
+    LEnrichment := WetNone;    
+    if isIP and IsValidPublicIP(Result) then
+      LEnrichment := WetIP;     
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption,Result ,PByte(LBytes),aLen,-1,LEnrichment ))
   end
   else
   begin
@@ -426,7 +437,7 @@ var LCopYStart       : Integer;
     LBytes           : TIdBytes;
     LtmpLen          : Integer;
     LCompressType    : ShortInt;
-    LEnrichmentType  : TWcapEnrichmentType;
+    LEnrichmentType  : TWpcapEnrichmentType;
     LInfoProtocol    : String;
 
     Function ParserValue(const aSep:String): Boolean;

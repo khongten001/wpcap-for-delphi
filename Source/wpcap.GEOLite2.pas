@@ -184,6 +184,11 @@ Procedure TWpcapGEOLITE.GetGeoIPByIp(const aIP:String;aGeoStructure:PTRecordGeoI
 CONST MAX_CACHE_SIZE = 3000;
 var aGeoCache : TRecordGeoIP;
 begin
+  aGeoStructure.ASNumber       := String.Empty;
+  aGeoStructure.ASOrganization := String.Empty;
+  aGeoStructure.Location       := String.Empty;
+  aGeoStructure.Latitude       := 0;
+  aGeoStructure.Longitude      := 0;      
   if aIP.Trim.IsEmpty then Exit;
 
   if not Assigned(FQueryCache) then

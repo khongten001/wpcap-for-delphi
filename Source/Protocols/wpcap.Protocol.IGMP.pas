@@ -161,8 +161,9 @@ var LHeader        : PTIGMPHeader;
     I              : Integer;
     X              : Integer;
     LCurrentPos    : Integer;
+    LIPStr         : String;
 begin
-  Result := False;
+  Result        := False;
   FisFilterMode := aisFilterMode;
 
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
@@ -172,6 +173,9 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Reserved',[AcronymName]), 'Reserved:',wpcapntohs( LHeader.Reserved),@LHeader.Reserved,sizeOf(LHeader.Reserved) ));       
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NGroupRecords',[AcronymName]), 'Num Group Records:',wpcapntohs( LHeader.NGroupRec),@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec) )); 
 
+  if IsFilterMode then  
+    UpdateFlowInfo(aAdditionalInfo.FrameNumber,aAdditionalInfo.FrameNumber,0,0,0,0,0,aAdditionalInfo);
+  
   LSizeEthIP  := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LCurrentPos := LSizeEthIP+SizeOf(TIGMPHeader);
 
@@ -186,14 +190,22 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.Type',[AcronymName]), 'Type:',RecordTypeToString(LGroupRec.RecType),@LGroupRec.RecType,sizeOf(LGroupRec.RecType), LGroupRec.RecType ));            
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.AudLen',[AcronymName]), 'Aux Data Len:',LGroupRec.DataLen,@LGroupRec.DataLen,sizeOf(LGroupRec.DataLen) ));    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.NSrc',[AcronymName]), 'Num src:',wpcapntohs(LGroupRec.NumSrc),@LGroupRec.NumSrc,sizeOf(LGroupRec.NumSrc) ));   
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',MakeUint32IntoIPv4AddressInternal(wpcapntohl(LGroupRec.Ipaddr)),@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
+    LIPStr := MakeUint32IntoIPv4AddressInternal(wpcapntohl(LGroupRec.Ipaddr));
+
+    if IsValidPublicIP(LIPStr) then
+    begin
+      aAdditionalInfo.EnrichmentPresent := true;
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',LIpStr,@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr),-1,WetIP ))
+    end
+    else
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',LIpStr,@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
     Inc(LCurrentPos,SizeOf(TIGMPGroupRecord));
 
     if LCurrentPos > aPacketSize then break;
 
     for X := 0 to wpcapntohs(LGroupRec.NumSrc) -1 do
     begin
-      ParserUint32Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.GroupRecord.SrcAddr',[AcronymName]), 'Source Address:',AListDetail,MakeUint32IntoIPv4AddressInternal,True,LCurrentPos);
+      ParserUint32Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.GroupRecord.SrcAddr',[AcronymName]), 'Source Address:',AListDetail,MakeUint32IntoIPv4AddressInternal,True,LCurrentPos,True);
       if LCurrentPos > aPacketSize then break;
     end;
     

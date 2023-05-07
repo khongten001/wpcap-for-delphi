@@ -1,4 +1,4 @@
-﻿//*************************************************************
+﻿//*************//*************************************************************
 //                        WPCAP FOR DELPHI                    *
 //				                                        			      *
 //                     Freeware Library                       *
@@ -158,14 +158,14 @@ type
     class function GetQuestions(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer):String;
   protected
     class function RSSTypeToString(const aRRsType: TRRsType): String; static;
-    class procedure GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffset : Integer);virtual;
+    class procedure GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;var aOffset : Integer);virtual;
     class function GetDNSClass(LDataQuestions: TBytes; aOffset: Integer): Uint8; virtual;
     class procedure ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); virtual;
     class procedure ParserDNSTTL(const aQuestionClass:String;const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); virtual;    
     class function ApplyConversionName(const aName: AnsiString): AnsiString; virtual;
     class function QClassToString(const aQClass: Uint8): String;virtual;     
     class function DecodeDNS_RSS_SRV(const aQuestionClass:String;const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; virtual;    
-    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; virtual;
+    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;aStartLevel:Integer): AnsiString; virtual;
   public
 
     /// <summary>
@@ -717,7 +717,7 @@ begin
   end;  
 end;
 
-class procedure TWPcapProtocolDNS.GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffset : Integer);
+class procedure TWPcapProtocolDNS.GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;var aOffset : Integer);
 var LPUDPHdr        : PUDPHdr;
     LHeaderDNS      : PTDnsHeader;
     LCountRss       : Integer;
@@ -737,7 +737,8 @@ var LPUDPHdr        : PUDPHdr;
     LTotalNameLen   : Integer;
     LInternalOffset : Integer;
     LIPAddr         : LongWord;
-    LIPv6Addr       : TIPv6AddrBytes;    
+    LIPv6Addr       : TIPv6AddrBytes;   
+    LEnrichment     : TWpcapEnrichmentType;
 begin
    {
     All RRs have the same top level format shown below:
@@ -798,7 +799,7 @@ begin
       FisMalformed := True;
       Exit;
     end;
-
+    LEnrichment := wetNone;
     {
       NAME an owner name, i.e., the name of the node to which this
            resource record pertains.                                            
@@ -855,6 +856,11 @@ begin
           LIPAddr  := PLongword(@LDataRss[LInternalOffset])^;
           LCaption := 'A address';
           LRssName := AnsiString(MakeUint32IntoIPv4AddressInternal(LIPAddr));
+          if IsValidPublicIP(LRssName) then
+          begin
+            LEnrichment                       := wetIP;          
+            aAdditionalInfo.EnrichmentPresent := True;
+          end;
           Inc(LInternalOffset, SizeOf(LIPAddr));
         end;
         
@@ -875,6 +881,12 @@ begin
           LIPv6Addr  := PTIPv6AddrBytes(@LDataRss[LInternalOffset])^;
           LCaption   := 'AAAA address';
           LRssName   := AnsiString(IPv6AddressToString(LIPv6Addr));
+          if IsValidPublicIP(LRssName) then
+          begin
+            LEnrichment                       := wetIP;          
+            aAdditionalInfo.EnrichmentPresent := True;
+          end;
+          
           Inc(LInternalOffset, SizeOf(LIPv6Addr));
         end;
         
@@ -887,18 +899,18 @@ begin
         end;
         
         TYPE_DNS_QUESTION_SRV    : LRssName := DecodeDNS_RSS_SRV(LQuestionClass,aRRsType,LDataRss,LInternalOffset,LTotalNameLen,AListDetail,aStartLevel);
-        TYPE_DNS_QUESTION_NIMLOC : LRssName := DecodeDNS_RSS_NIMLOC(LQuestionClass,aRRsType,LDataRss,LInternalOffset,LTotalNameLen,AListDetail,aStartLevel);       
+        TYPE_DNS_QUESTION_NIMLOC : LRssName := DecodeDNS_RSS_NIMLOC(LQuestionClass,aRRsType,LDataRss,LInternalOffset,LTotalNameLen,AListDetail,aAdditionalInfo,aStartLevel);       
       else
         LRssName := ParseDNSName(LDataRss,LLength, LInternalOffset,LTotalNameLen,False);
       end;
 
      if Trim(LRssName) <> '' then
-        AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.%s.%s',[aLabelForName,LQuestionClass,LCaption.Replace(' ','')]), Format('%s:',[LCaption]),String(LRssName), @LRssName, Length(LRssName)-1));
+        AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.%s.%s',[aLabelForName,LQuestionClass,LCaption.Replace(' ','')]), Format('%s:',[LCaption]),String(LRssName), @LRssName, Length(LRssName)-1, -1 ,LEnrichment));
   end;
   Inc(aOffset,LInternalOffset-aOffset);
 end;
 
-class function TWPcapProtocolDNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
+class function TWPcapProtocolDNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;aStartLevel:Integer): AnsiString;
 begin
   Result := ParseDNSName(aPacket,Length(aPacket), aOffset,aTotalNameLen);
 end;
@@ -971,15 +983,15 @@ begin
    
   {ANSWER}
   if LCountAnswer > 0 then
-    GetRSS(rtAnswer,aPacketData,aPacketSize,aStartLevel,AListDetail,LOffSetQuestion);
+    GetRSS(rtAnswer,aPacketData,aPacketSize,aStartLevel,AListDetail,aAdditionalInfo,LOffSetQuestion);
 
   {AUTHORITY}
   if LCountAuthority > 0 then
-    GetRSS(rtAuthority,aPacketData,aPacketSize,aStartLevel,AListDetail,LOffSetQuestion);
+    GetRSS(rtAuthority,aPacketData,aPacketSize,aStartLevel,AListDetail,aAdditionalInfo,LOffSetQuestion);
   
   {Additional Record} 
   if LcountAddRrs > 0 then
-    GetRSS(rtAdditional,aPacketData,aPacketSize,aStartLevel,AListDetail,LOffSetQuestion);
+    GetRSS(rtAdditional,aPacketData,aPacketSize,aStartLevel,AListDetail,aAdditionalInfo,LOffSetQuestion);
 
   Result := True;
 end;

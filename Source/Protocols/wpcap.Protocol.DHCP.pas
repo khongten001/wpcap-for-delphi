@@ -366,7 +366,7 @@ var LUDPPayLoad         : PByte;
     LPosDummy           : Integer;
     LDHCPAuthentication : PTDHCPAuthentication;
     LTmpIP              : String;
-    LEnrichment         : TWcapEnrichmentType;    
+    LEnrichment         : TWpcapEnrichmentType;    
 begin
   Result        := False;
   FIsFilterMode := aisFilterMode;
@@ -426,19 +426,50 @@ begin
 
   { ciaddr  4  Client IP address; only filled in if client is in
                BOUND, RENEW or REBINDING state and can respond
-               to ARP requests.}  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ClientIP)), @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP)));          
+               to ARP requests.}
+  LEnrichment := WetNone;
+  LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ClientIP));    
+  if IsValidPublicIP(LTmpIP) then
+  begin
+    aAdditionalInfo.EnrichmentPresent := true;
+    LEnrichment                       := WetIP;
+  end;
+             
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ClientIP',[AcronymName]), 'Client IP address:',LTmpIP , @LHeaderDHCP.ClientIP,SizeOf(LHeaderDHCP.ClientIP),-1,LEnrichment ));          
 
   { yiaddr  4  'your' (client) IP address.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.YourIP)), @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP)));          
+  LEnrichment := WetNone;
+  LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.YourIP));    
+  if IsValidPublicIP(LTmpIP) then
+  begin
+    aAdditionalInfo.EnrichmentPresent := true;
+    LEnrichment                       := WetIP;
+  end;  
+
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.YourUP',[AcronymName]), 'Your (client) IP address:', LTmpIP, @LHeaderDHCP.YourIP,SizeOf(LHeaderDHCP.YourIP),-1,LEnrichment ));          
 
   { siaddr  4  IP address of next server to use in bootstrap;
-               returned in DHCPOFFER, DHCPACK by server.      }
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.ServerIP)), @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP)));            
+               returned in DHCPOFFER, DHCPACK by server.      }  
+  LEnrichment := WetNone;
+  LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ServerIP));    
+  if IsValidPublicIP(LTmpIP) then
+  begin
+    aAdditionalInfo.EnrichmentPresent := true;
+    LEnrichment                       := WetIP;
+  end;    
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:',LTmpIP, @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP),-1,LEnrichment ));            
 
  { giaddr   4  Relay agent IP address, used in booting via a
                relay agent.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:', MakeUint32IntoIPv4AddressInternal(wpcapntohl(LHeaderDHCP.RelayAgentIP)), @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP)));          
+  LEnrichment := WetNone;
+  LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.RelayAgentIP));    
+  if IsValidPublicIP(LTmpIP) then
+  begin
+    aAdditionalInfo.EnrichmentPresent := true;
+    LEnrichment                       := WetIP;
+  end;    
+  
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.RelayAgentIP',[AcronymName]), 'Relay Agent IP address:',LTmpIP, @LHeaderDHCP.RelayAgentIP,SizeOf(LHeaderDHCP.RelayAgentIP),-1,LEnrichment ));          
 
   {chaddr   16  Client hardware address.  }
   SetLength(LBytesTmp,LHeaderDHCP.HLen);
@@ -499,7 +530,7 @@ begin
           begin
             for I := 0 to (LLen div 4 ) -1 do
               ParserUint32Value(LUDPPayLoad, aStartLevel+2,LPayLoadLen, Format('%s.%s',[GetLabelOptions(LOption),OptionValueToCaption(LOption).Replace(' ','')]), Format('%s:',[OptionValueToCaption(LOption)]),
-                              AListDetail, MakeUint32IntoIPv4AddressInternal, True, LCurrentPos);
+                              AListDetail, MakeUint32IntoIPv4AddressInternal, True, LCurrentPos,True);
           end;
 
         {String}  
@@ -603,15 +634,23 @@ begin
               begin
                 LTmpIP := BytesToIPv4Str(LBytesTmp);
                 if IsValidPublicIP(LTmpIP) then
-                  LEnrichment := WetIP;
-                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]),LTmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ))
+                begin
+                  aAdditionalInfo.EnrichmentPresent := true;
+                  LEnrichment                       := WetIP;
+                end;
+                AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]),LTmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ))
               end
               else
               begin
                 LTmpIP := IPv6AddressToString(LBytesTmp);
+                
                 if IsValidPublicIP(LTmpIP) then
-                  LEnrichment := WetIP;
-                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), LtmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ));                              
+                begin
+                  aAdditionalInfo.EnrichmentPresent := true;
+                  LEnrichment                       := WetIP;
+                end;
+
+                AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), LtmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ));                              
               end;
               inc(LCurrentPos,LLen-1);            
             end;

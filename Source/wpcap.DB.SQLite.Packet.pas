@@ -646,7 +646,7 @@ begin
   FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive]   := ifthen(aInternalPacket.AdditionalInfo.isRetrasmission,1,0);  
   FFDQueryInsert.ParamByName('pEnrichmentPresent').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.EnrichmentPresent,1,0);  
   FFDQueryInsert.ParamByName('pContentExt').AsStrings[FInsertToArchive]         := aInternalPacket.AdditionalInfo.ContentExt;
-  FFDQueryInsert.ParamByName('pIgnore').AsIntegers[FInsertToArchive]            := 0; //TODO Retrasmission
+  FFDQueryInsert.ParamByName('pIgnore').AsIntegers[FInsertToArchive]            := 0; 
 
   if aInternalPacket.AdditionalInfo.CompressType > -1 then  
     FFDQueryInsert.ParamByName('pCopressionType').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.CompressType
@@ -791,9 +791,7 @@ begin
             LCurrentIP := FFDQueryFlow.FieldByName('IP_SRC').AsString;
             LIsClient  := not  LIsClient;
             
-            if Result.Count > 0 then
-              Result.Add(String.Empty)
-            else
+            if Result.Count = 0 then
               Result.Add('<!DOCTYPE html>                                                                                                            ' +sLineBreak+
                          '         <head>                                                                                                            ' +sLineBreak+
                          '            <style>                                                                                                        ' +sLineBreak+
@@ -808,7 +806,7 @@ begin
           end;
           
           Result.Add(Format(HTML_FORMAT,[ ifthen(LIsClient,'ClientStyle','ServerStyle'),
-                                          Trim(BufferToASCII(LPayLoad,LPayloadSize))]));          
+                                          BufferToASCII(LPayLoad,LPayloadSize)]));          
         Finally
           FreeMem(LPacketData)
         End;

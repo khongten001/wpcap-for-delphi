@@ -102,14 +102,15 @@ type
     L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
       
     class function GetL2TPFlag(aFlags: Uint16;aStartLevel:Integer;AListDetail: TListHeaderString): string; static;
-    class function ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId): string; static;
+    class function ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalInfo: PTAdditionalInfo): string; static;
     class function L2TPAVPTypeToString(AVPType: Uint16): string; static;
     class function LenghtIsPresent(aFlags: Uint16): Boolean; static;
     class function SequencePresent(aFlags: Uint16): Boolean; static;
     class function OffSetIsPresent(aFlags: Uint16): Boolean; static;
     class function AvtType0ValueToString(const aAvtValue: Uint16): String; static;
     Class function InitVendorID: TListVendorID;Static;
-    class function ReadAVPValueFromPacket(aPayloadData: PByte; aCurrentPos: Integer; aAvpLength, aAvpType: Integer;aVendorID: TListVendorId): TValue; static;
+    class function ReadAVPValueFromPacket(const aPayloadData: PByte; aCurrentPos: Integer; aAvpLength, aAvpType: Integer;aVendorID: TListVendorId;
+        var aEnrichmentType : TWpcapEnrichmentType): TValue; static;
   public
     /// <summary>
     /// Returns the default port number used by the L2TP protocol (1701).
@@ -710,7 +711,7 @@ begin
         // Parse L2TP payload for control message AVP
         if LHeaderL2TP.Version = 2 then    
         begin
-          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID);
+          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID,aAdditionalInfo);
           DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP MESSAGE CONTROL not implemented',TWLLWarning);                
         end
         else if LHeaderL2TP.Version = 3 then  
@@ -920,7 +921,8 @@ begin
   Result.Add(436, 'Nortel Networks');
 end;
 
-Class function TWPcapProtocolL2TP.ReadAVPValueFromPacket(aPayloadData: PByte; aCurrentPos: Integer; aAvpLength: Integer; aAvpType: Integer;aVendorID: TListVendorId): TValue;
+Class function TWPcapProtocolL2TP.ReadAVPValueFromPacket(const aPayloadData: PByte; aCurrentPos: Integer; aAvpLength: Integer; 
+              aAvpType: Integer;aVendorID: TListVendorId;var aEnrichmentType : TWpcapEnrichmentType): TValue;
 var ByteValue         : Uint8;
     IntValue          : Integer;
     Int64Value        : Uint64;
@@ -1001,15 +1003,19 @@ begin
       end;
     16: // Unsigned32 AVP (IPv4Address)
       begin
-        UIntValue    := PCardinal(aPayloadData + aCurrentPos)^;        
-        AddressValue := MakeUint32IntoIPv4AddressInternal(wpcapntohl(UIntValue));
-        Result       := TValue.From<string>(AddressValue);
+        UIntValue       := PCardinal(aPayloadData + aCurrentPos)^;      
+        AddressValue    := MakeUint32IntoIPv4AddressInternal(wpcapntohl(UIntValue));
+        if IsValidPublicIP(AddressValue) then
+          aEnrichmentType := wetIP;  
+        Result          := TValue.From<string>(AddressValue);
       end;
     17: // Unsigned64 AVP (IPv6Address)
       begin
         Move(aPayloadData[aCurrentPos], IP6Bytes, SizeOf(IP6Bytes));      
-        AddressValue := IPv6AddressToString(IP6Bytes);
-        Result       := TValue.From<string>(AddressValue);
+        AddressValue    := IPv6AddressToString(IP6Bytes);
+        if IsValidPublicIP(AddressValue) then
+          aEnrichmentType := wetIP;  
+        Result          := TValue.From<string>(AddressValue);
       end;
       
     24,119: // Time-Seconds AVP
@@ -1050,13 +1056,15 @@ begin
 
     35: // IPAddress AVP
       begin
-        AddressValue := Format('%d.%d.%d.%d', [aPayloadData[aCurrentPos], aPayloadData[aCurrentPos + 1], aPayloadData[aCurrentPos + 2], aPayloadData[aCurrentPos + 3]]);        
-        Result       := TValue.From<string>(AddressValue);
+        AddressValue    := Format('%d.%d.%d.%d', [aPayloadData[aCurrentPos], aPayloadData[aCurrentPos + 1], aPayloadData[aCurrentPos + 2], aPayloadData[aCurrentPos + 3]]);        
+        if IsValidPublicIP(AddressValue) then
+        aEnrichmentType := wetIP;
+        Result          := TValue.From<string>(AddressValue);
       end;
       
     37: // IPv6Address AVP
       begin
-        AddressValue := Format('%s:%s:%s:%s:%s:%s:%s:%s', [
+        AddressValue    := Format('%s:%s:%s:%s:%s:%s:%s:%s', [
                                 IntToHex(aPayloadData[aCurrentPos], 2),
                                 IntToHex(aPayloadData[aCurrentPos + 1], 2),
                                 IntToHex(aPayloadData[aCurrentPos + 2], 2),
@@ -1064,15 +1072,17 @@ begin
                                 IntToHex(aPayloadData[aCurrentPos + 4], 2),
                                 IntToHex(aPayloadData[aCurrentPos + 5], 2),
                                 IntToHex(aPayloadData[aCurrentPos + 6], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 7], 2)]);        
+                                IntToHex(aPayloadData[aCurrentPos + 7], 2)]); 
+        if IsValidPublicIP(AddressValue) then    
+          aEnrichmentType := wetIP;                                                 
         Result := TValue.From<string>(AddressValue);
       end;
       
     38: // IPv6Prefix AVP
       begin
         ByteValue := aPayloadData[aCurrentPos];
-        aCurrentPos := aCurrentPos + 1;
-        AddressValue := Format('%d:%s:%s:%s:%s:%s:%s:%s/%d', [
+        Inc(aCurrentPos);
+        AddressValue    := Format('%d:%s:%s:%s:%s:%s:%s:%s/%d', [
                                   ByteValue,
                                   IntToHex(aPayloadData[aCurrentPos], 2),
                                   IntToHex(aPayloadData[aCurrentPos + 1], 2),
@@ -1082,6 +1092,8 @@ begin
                                   IntToHex(aPayloadData[aCurrentPos + 5], 2),
                                   IntToHex(aPayloadData[aCurrentPos + 6], 2),
                                   aPayloadData[aCurrentPos + 7]]);
+        if IsValidPublicIP(AddressValue) then    
+          aEnrichmentType := wetIP;      
         Result := TValue.From<string>(AddressValue);
       end;
       
@@ -1195,7 +1207,7 @@ begin
           aCurrentPos := aCurrentPos + SizeOf(Uint32);
 
           // Read the AVP Value
-          Value := ReadAVPValueFromPacket(aPayloadData, aCurrentPos, AvpLen, UIntValue,aVendorID);
+          Value := ReadAVPValueFromPacket(aPayloadData, aCurrentPos, AvpLen, UIntValue,aVendorID,aEnrichmentType);
 
           // Append the AVP to the result string
           GroupedValue := GroupedValue + Format('%d=%s;', [UIntValue, Value.ToString]);
@@ -1248,10 +1260,12 @@ begin
     140:
       begin
         //IP Address
-        AddressValue := Format('%d.%d.%d.%d', [PByte(aPayloadData + aCurrentPos + 1)^,
+        AddressValue    := Format('%d.%d.%d.%d', [PByte(aPayloadData + aCurrentPos + 1)^,
                           PByte(aPayloadData + aCurrentPos + 2)^,
                           PByte(aPayloadData + aCurrentPos + 3)^,
                           PByte(aPayloadData + aCurrentPos + 4)^]);
+        if IsValidPublicIP(AddressValue) then    
+          aEnrichmentType := wetIP;                                
         Result := TValue.From<string>(AddressValue);
       end;
     144:
@@ -1262,9 +1276,10 @@ begin
         AddressValue := String.Empty;
         for I := 0 to 7 do
           AddressValue := AddressValue + IntToHex((RawValue[I * 2] shl 8) or RawValue[I * 2 + 1], 4) + ':';
-          
-        AddressValue := Copy(AddressValue, 1, Length(AddressValue) - 1);      
-        Result       := TValue.From<string>(AddressValue);
+        if IsValidPublicIP(AddressValue) then    
+          aEnrichmentType := wetIP;      
+        AddressValue    := Copy(AddressValue, 1, Length(AddressValue) - 1);      
+        Result          := TValue.From<string>(AddressValue);
       end;
     256..511:
     begin
@@ -1304,7 +1319,7 @@ begin
   end;
 end;	     
 
-class function TWPcapProtocolL2TP.ParseL2TPControlAVP(PayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId): string;
+class function TWPcapProtocolL2TP.ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalInfo: PTAdditionalInfo): string;
 CONST AVP_LENGHT_WITHOUT_VALUE = 6;
 var LAvpHeader      : TAVPHeader;
     LAvpType        : Uint16;
@@ -1316,9 +1331,8 @@ var LAvpHeader      : TAVPHeader;
     LByte1          : Uint8;
     LTypeStr        : string; 
     LLabel          : String;
+    LEnrichment     : TWpcapEnrichmentType;
 begin
-
-
   {
     0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
@@ -1336,7 +1350,7 @@ begin
   while LCurrentPos < aLengthPayload do
   begin
     // Extract AVP header information
-    LAvpHeader := PAVPHeader(PayloadData + LCurrentPos)^;
+    LAvpHeader := PAVPHeader(aPayloadData + LCurrentPos)^;
     LAvpFlag   := wpcapntohs(LAvpHeader.AvtFlag);
     LAvpType   := wpcapntohs(LAvpHeader.AttrType);
 
@@ -1418,10 +1432,13 @@ begin
 
       Inc(LCurrentPos, SizeOf(TAVPHeader));       
       
-      LAvpValue := wpcapntohs(Pcardinal(PayloadData + LCurrentPos)^);
-      LAvpValue := ReadAVPValueFromPacket(PayloadData,LCurrentPos,LAvpLength,LAvpType,aVendorID);
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:',LAvpValue.ToString, @LAvpValue,SizeOF(LAvpValue) ));
-
+      LAvpValue  := wpcapntohs(Pcardinal(aPayloadData + LCurrentPos)^);
+      LEnrichment:= wetNone;
+      LAvpValue  := ReadAVPValueFromPacket(aPayloadData,LCurrentPos,LAvpLength,LAvpType,aVendorID,LEnrichment);
+      if LEnrichment <> wetNone then
+        aAdditionalInfo.EnrichmentPresent := True;
+      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:',LAvpValue.ToString, @LAvpValue,SizeOF(LAvpValue),-1,LEnrichment ));
 
       {TODO message by AVP Type}
       DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP MESSAGE AVP type not implemented',TWLLWarning);                

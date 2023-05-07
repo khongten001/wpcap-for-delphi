@@ -749,7 +749,7 @@ begin
             LByteValue := ParserUint8Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PDNType',[LLabel]), 'PDN Type:',AListDetail,PdnTypeToString,True,aCurrentPos); 
             
             if (LByteValue and $07) =1 then
-              ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PDNAddrAndPrefix',[LLabel]), 'PDN Address and Prefix(IPv4):',AListDetail,MakeUint32IntoIPv4AddressInternal,True,aCurrentPos)
+              ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.PDNAddrAndPrefix',[LLabel]), 'PDN Address and Prefix(IPv4):',AListDetail,MakeUint32IntoIPv4AddressInternal,True,aCurrentPos,true)
             else
             begin
               LTmpLen :=  LLenIE - (aCurrentPos-LStartPos);
@@ -890,7 +890,7 @@ begin
             ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.TEIDGREKey',[LLabel]), 'TEID/GRE Key:',AListDetail,nil,True,aCurrentPos);                  
 
             if GetBitValue(LByteValue,1)=1 then
-              ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.FTEID',[LLabel]), 'F-TEID IPv4:',AListDetail,MakeUint32IntoIPv4AddressInternal,True,aCurrentPos);  
+              ParserUint32Value(aPayload,aStartLevel+2,aMaxLen,Format('%s.FTEID',[LLabel]), 'F-TEID IPv4:',AListDetail,MakeUint32IntoIPv4AddressInternal,True,aCurrentPos,True);  
 
             if GetBitValue(LByteValue,2)=1 then
             begin
