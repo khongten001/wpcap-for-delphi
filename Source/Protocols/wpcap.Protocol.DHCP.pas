@@ -365,11 +365,20 @@ var LUDPPayLoad         : PByte;
     I                   : Integer;
     LPosDummy           : Integer;
     LDHCPAuthentication : PTDHCPAuthentication;
+    LTmpIP              : String;
+    LEnrichment         : TWcapEnrichmentType;    
 begin
   Result        := False;
   FIsFilterMode := aisFilterMode;
   LUDPPayLoad   := inherited GetPayLoad(aPacketData,aPacketSize,LPayLoadLen,LDummy);  
-  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LPayLoadLen));
+
+  if not Assigned(LUDPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;
+  
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LPayLoadLen));
 
   LHeaderDHCP := PTDHCPHeader(LUDPPayLoad);
 
@@ -589,10 +598,21 @@ begin
             begin
               SetLength(LBytesTmp, LLen-1);
               Move((LUDPPayLoad + LCurrentPos)^, LBytesTmp[0],LLen-1);
+              LEnrichment := wetNone;
               if LByteValue = 1 then            
-                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), BytesToIPv4Str(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ))
+              begin
+                LTmpIP := BytesToIPv4Str(LBytesTmp);
+                if IsValidPublicIP(LTmpIP) then
+                  LEnrichment := WetIP;
+                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]),LTmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ))
+              end
               else
-                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), IPv6AddressToString(LBytesTmp), @LBytesTmp,SizeOf(LBytesTmp) ));                              
+              begin
+                LTmpIP := IPv6AddressToString(LBytesTmp);
+                if IsValidPublicIP(LTmpIP) then
+                  LEnrichment := WetIP;
+                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]), LtmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ));                              
+              end;
               inc(LCurrentPos,LLen-1);            
             end;
           end;

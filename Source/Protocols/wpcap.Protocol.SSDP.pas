@@ -98,10 +98,16 @@ begin
   Result         := False;
   FIsFilterMode  := aIsFilterMode;
   LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUdpPayLoadLen,LDummy);
+  
+  if not Assigned(LUDPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;  
+  
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUdpPayLoadLen));
 
   LOffSet              := 0;  
-  aAdditionalInfo.Info := String.Empty;
   Result               := ParserByEndOfLine(aStartLevel,LUDPPayLoadLen,LUDPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
 end;
 

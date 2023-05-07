@@ -54,8 +54,6 @@ type
   /// </summary>
   TWPcapProtocolBaseUDP = Class(TWPcapProtocolBase)
   private
-    class procedure UpdateUDPInfo(const aSrcAddr, aDstAddr: string; aSrcPort,
-      aDstPort: Uint16; aAdditionalInfo: PTAdditionalInfo); static;
 
   protected
     /// <summary>
@@ -63,6 +61,7 @@ type
     /// This function is marked as virtual, which means that it can be overridden by subclasses.
     /// </summary>
     class function PayLoadLengthIsValid(const aUDPPtr: PUDPHdr): Boolean; virtual;
+    class function GetFlowTimeOut : Byte;override;
   public
     class function AcronymName: String; override;
     class function DefaultPort: word; override;
@@ -193,8 +192,6 @@ begin
   Result := wpcapntohs(aUDPPtr.DstPort);
 end;
 
-
-
 class function TWPcapProtocolBaseUDP.GetUDPPayLoad(const AData:Pbyte;aSize: Uint16):PByte;
 begin
   Result := AData + TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize)+ HeaderLength(0);
@@ -275,48 +272,13 @@ begin
   end;
 end;
 
-class procedure TWPcapProtocolBaseUDP.UpdateUDPInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aAdditionalInfo: PTAdditionalInfo);
-CONST TIMEOUT_DELTA_MIN = 15;
-var LKey     : string; 
-    LInfo    : TFlowInfo;
-    LFound   : Boolean;
-    LDeltaMin: Int64;
-begin
-  if not Assigned(FlowInfoList) then Exit;
-  
-  LFound  := GetInfoFlow(aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LInfo);
-
-  if LFound then
-  begin
-
-    LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate));        
-    if ( LDeltaMin > TIMEOUT_DELTA_MIN) then   
-      LInfo.FLowId  := GetNewFlowID; 
-    aAdditionalInfo.FlowID := LInfo.FLowId;     
-    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
-    FlowInfoList.AddOrSetValue(LKey, LInfo);    
-  end
-  else
-  begin
-    LInfo.SrcIP            := aSrcAddr;
-    LInfo.DstIP            := aDstAddr;    
-    LInfo.prevSeqNum       := 0;
-    LInfo.prevAckNum       := 0;
-    LInfo.FirstSeqNum      := 0;
-    LInfo.FirstAckNum      := 0;      
-    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
-    LInfo.FLowId           := GetNewFlowID;
-    aAdditionalInfo.FlowID := LInfo.FLowId;
-    FlowInfoList.Add(LKey, LInfo);  
-  end;
-  
-end;
 
 class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LPUDPHdr     : PUDPHdr;
     LSrcPort     : Uint16;
     LDstPort     : Uint16;    
     LInternalIP  : TInternalIP;    
+    LSizePayload : Integer;
 begin
   Result        := False;
   FisFilterMode := aisFilterMode;
@@ -327,16 +289,17 @@ begin
   if IsFilterMode then  
   begin
     TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
-    UpdateUDPInfo(LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,aAdditionalInfo);
+    UpdateFlowInfo(LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,0,0,0,aAdditionalInfo);
   end;
-    
+  LSizePayload := UDPPayLoadLength(LPUDPHdr)-8;  
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName ,'User Datagram Protocol', Format('Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]), Pbyte(LPUDPHdr),HeaderLength(0) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HaderLen',[AcronymName]), 'Header length:',HeaderLength(0),nil,0));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SrcPort',[AcronymName]), 'Source port:',LSrcPort, @(LPUDPHdr.SrcPort),SizeOf(LPUDPHdr.SrcPort) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstPort',[AcronymName]), 'Destination port:',LDstPort, @(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)), @(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length) ));  
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPUDPHdr.CheckSum), @(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum) ));    
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)-8), nil,0 ));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(LSizePayload), nil,0 ));      
+  aAdditionalInfo.PayLoadSize := LSizePayload;
   Result := True;
 end;
 
@@ -352,6 +315,11 @@ begin
   aSize   := UDPPayLoadLength(LUDPHdr) - 8;
   if aSizeTotal = 0 then
     aSizeTotal := aSize;
+end;
+
+class function TWPcapProtocolBaseUDP.GetFlowTimeOut: Byte;
+begin
+  Result := 15;
 end;
 
 end.

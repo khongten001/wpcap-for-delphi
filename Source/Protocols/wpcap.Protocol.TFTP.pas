@@ -202,6 +202,13 @@ var LUDPPayLoad        : PByte;
 begin
   Result         := False;
   LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUdpPayLoadLen,LDummy); 
+  
+  if not Assigned(LUDPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end; 
+  
   LOpCode        := wpcapntohs(PUint16(LUDPPayLoad)^);    
   FIsFilterMode  := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUdpPayLoadLen));

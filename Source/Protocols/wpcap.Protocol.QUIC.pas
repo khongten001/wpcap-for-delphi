@@ -135,6 +135,13 @@ var LUDPPayLoad      : PByte;
 begin
   Result         := False;
   LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUDPPayLoadLen,LDummy);    
+
+  if not Assigned(LUDPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;  
+  
   FIsFilterMode  := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName , Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUDPPayLoadLen));
   LCurrentPos      := 0;

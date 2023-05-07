@@ -506,7 +506,7 @@ begin
   else Exit;
   end;
 
-  aAdditionalInfo.Info := LMessageTypeStr;
+  aAdditionalInfo.Info := Format('%s %s',[LMessageTypeStr,aAdditionalInfo.Info]).Trim;
   Result               := True;
 end;
 

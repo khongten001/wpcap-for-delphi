@@ -74,15 +74,19 @@ Type
 
   TAdditionalInfo = record
     isRetrasmission       : Boolean;
+    RetrasmissionFn       : Integer;
     SequenceNumber        : Uint32;
     AcknowledgmentNumber  : Uint32;
+    TCPTimeStamp          : Integer;
     Info                  : String;
     FlowID                : Integer;
     PacketDate            : TDateTime;
     EnrichmentPresent     : Boolean;
     ContentExt            : String;
-    FrameNumber           : Integer;
+    FrameNumber           : Integer;  
+    PayLoadSize           : Integer;
     CompressType          : Integer;
+    
   end;
   PTAdditionalInfo = ^TAdditionalInfo;
 

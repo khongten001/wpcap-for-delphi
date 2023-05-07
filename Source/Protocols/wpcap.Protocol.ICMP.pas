@@ -214,6 +214,9 @@ begin
   
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
 
+  if IsFilterMode then  
+    UpdateFlowInfo(aAdditionalInfo.FrameNumber.ToString,aAdditionalInfo.FrameNumber.ToString,0,0,0,0,0,aAdditionalInfo);
+  
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName ,Format('%s (%s)',[ProtoName,AcronymName]),NULL, PByte(LHeader),HeaderLength(0)));            
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',TypeToString(LHeader.TypeICMP), @LHeader.TypeICMP,sizeOf(LHeader.TypeICMP), LHeader.TypeICMP ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Code:',CodeToString(LHeader.TypeICMP,LHeader.Code), @LHeader.Code,sizeOf(LHeader.Code), LHeader.Code ));            

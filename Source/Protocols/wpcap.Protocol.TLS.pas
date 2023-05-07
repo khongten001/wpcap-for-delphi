@@ -819,6 +819,7 @@ var LOffset         : Integer;
     LUInt16Value    : Uint16;
     I               : Integer;
     LDummy          : Integer;
+    LInfoProtocols  : String;
 
     Procedure LoadCommonFieldHello(const aContentType:String);
     begin
@@ -1132,6 +1133,7 @@ var LOffset         : Integer;
 begin
   Result        := False;
   FIsFilterMode := aIsFilterMode;
+  LInfoProtocols:= String.Empty;
 
   if aPacketSize < SizeOf(TTLSRecordHeader) then Exit;
   if not HeaderTCP(aPacketData,aPacketSize,LTCPHdr) then exit;
@@ -1142,17 +1144,17 @@ begin
   if aPacketSize < TCPPayLoadLength(LTCPHdr,aPacketData,aPacketSize)-1+SizeOf(TTLSRecordHeader) then exit;
   
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTCPPayLoadLen ));
-  aAdditionalInfo.Info := String.Empty;
+
   while LOffset < LTCPPayLoadLen do
   begin
     LRecord      := PTTLSRecordHeader(LTCPPayLoad + LOffset);
     LContectLen  := wpcapntohs(LRecord.Length);
     LContentStr  := ContentTypeToString(LRecord.ContentType);
 
-    if aAdditionalInfo.Info.IsEmpty then
-      aAdditionalInfo.Info := LContentStr
-    else if not aAdditionalInfo.Info.Contains(LContentStr) then         
-      aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LContentStr]);
+    if LInfoProtocols.IsEmpty then
+      LInfoProtocols := LContentStr
+    else if not LInfoProtocols.Contains(LContentStr) then         
+      LInfoProtocols := Format('%s %s',[LInfoProtocols,LContentStr]);
       
     
     if LContectLen <= 0 then exit;
@@ -1178,8 +1180,8 @@ begin
 
             LTypeRecord          := PByte(LTCPPayLoad+LOffset)^;
             LTypeRecordStr       := HandShakeTypeToString(LTypeRecord);
-            if not aAdditionalInfo.Info.Contains(LTypeRecordStr) then            
-              aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LTypeRecordStr]);            
+            if not LInfoProtocols.Contains(LTypeRecordStr) then            
+              LInfoProtocols := Format('%s %s',[LInfoProtocols,LTypeRecordStr]);            
             AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake.%s',[AcronymName,LTypeRecordStr]), Format('Handshake: %s',[LTypeRecordStr]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
             
             ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Type',[AcronymName,LTypeRecordStr]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   
@@ -1342,7 +1344,9 @@ begin
       end;
 
   end;
-  Result := True;
+
+  aAdditionalInfo.Info := Format('%s TCP: %s',[LInfoProtocols,aAdditionalInfo.INfo] ).Trim;
+  Result               := True;
 end;
 
 

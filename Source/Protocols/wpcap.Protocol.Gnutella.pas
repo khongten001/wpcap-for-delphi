@@ -58,7 +58,6 @@ type
     /// Returns the acronym name of the Gnutella protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;    
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;                
   end;
 
@@ -86,16 +85,6 @@ end;
 class function TWPcapProtocolGnutella.AcronymName: String;
 begin
   Result := 'Gnutella';
-end;
-
-class function TWPcapProtocolGnutella.IsValid(const aPacket: PByte;
-  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
-var LTCPPHdr : PTCPHdr;
-begin
-  Result := False;
-  if not HeaderTCP(aPacket,aPacketSize,LTCPPHdr) then exit;   
-  if not PayLoadLengthIsValid(LTCPPHdr,aPacket,aPacketSize) then  Exit;
-  Result := IsValidByPort(DefaultPort,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);
 end;
 
 class function TWPcapProtocolGnutella.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;

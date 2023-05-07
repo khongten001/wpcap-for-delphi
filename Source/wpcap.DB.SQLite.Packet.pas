@@ -48,7 +48,9 @@ uses
     FFDQuerySession     : TFDQuery;
     FFDQueryInsertLabel : TFDQuery;
     FFDQueryLabelList   : TFDQuery;
+    FFDUpdateIngnore    : TFDQuery;
     FFDViewUpdate       : TFDUpdateSQL;
+    FIngnorePacket      : TList<Integer>;
     FInsertToArchive    : SmallInt;
     FMaxInsertCache     : SmallInt;    
     FOnLog              : TWpcapLog;     //Event for logging
@@ -174,6 +176,36 @@ uses
     function GetContent(const aPathFile: String; const aFlowID,aPacketNumber: Integer;var aFilename: String): Boolean;
     
     constructor Create;override;
+
+    ///<summary>
+    /// Rolls back any pending transactions and closes the connection to the SQLite database.
+    ///</summary>
+    ///<param name="aDelete">
+    /// A boolean value indicating whether to delete the database file
+    ///</param>
+    ///<remarks>
+    /// This function performs a rollback of any pending transactions on the SQLite database, and then closes the connection. 
+    /// If the aDelete parameter is true,  database file is deleted. 
+    /// If there are any errors during the rollback or deletion, it raises an EDatabaseError exception. 
+    /// After the connection is closed, all components connected to the database will be disconnected.
+    ///</remarks>
+    ///<exception cref="EDatabaseError">
+    /// An EDatabaseError exception is raised if there are any errors during the rollback or deletion.
+    ///</exception>
+    procedure RollbackAndClose(aDelete:Boolean);override;
+
+    ///<summary>
+    /// Commits pending transactions and closes the connection to the SQLite database.
+    ///</summary>
+    ///<remarks>
+    /// This function performs a commit of any pending transactions on the SQLite database, and then closes the connection. 
+    /// If there are any errors during the commit, it raises an EDatabaseError exception. After the connection is closed, 
+    /// all components connected to the database will be disconnected.
+    ///</remarks>
+    ///<exception cref="EDatabaseError">
+    /// An EDatabaseError exception is raised if there are any errors during the commit.
+    ///</exception>    
+    procedure CommitAndClose;override;      
     
     {Property}
 
@@ -415,6 +447,11 @@ begin
   FFDQueryLabelList.Connection                               := FConnection;
   FFDQueryLabelList.SQL.Text                                 := 'SELECT * FROM LABEL_FILTER';
 
+  FFDUpdateIngnore                                           := TFDQuery.Create(nil);
+  FFDUpdateIngnore.Connection                                := FConnection;
+  FFDUpdateIngnore.SQL.Text                                  := 'UPDATE PACKETS SET IGNORE = 1 WHERE NPACKET = :PNPacket';
+  FFDUpdateIngnore.ParamByName('PNPacket').DataType          := ftInteger;
+  
   FFDViewUpdate                                              := TFDUpdateSQL.Create(nil);
   FFDViewUpdate.Connection                                   := FConnection;
   FFDViewUpdate.ModifySQL.Text                               := 'UPDATE PACKETS SET NOTE_PACKET = :NOTE_PACKET WHERE NPACKET = :NPACKET ';
@@ -507,10 +544,8 @@ var Literator : TDictionary<String, TLabelByLevel>.TPairEnumerator;
       Literator.MoveNext;
       while AIndex < aListLabelByLevel.Count -1 do
       begin
-
         if Literator.Current.Value.Level = 0 then Break;        
-        if Literator.Current.Value.Level <= aLevel then Break;      
-        
+        if Literator.Current.Value.Level <= aLevel then Break;              
         AddLabelFilter(aParent,Literator.Current.Value.Level,AIndex);     
       end;
    
@@ -548,7 +583,6 @@ end;
 
 procedure TWPcapDBSqLitePacket.InsertPacket(const aInternalPacket : PTInternalPacket);
 var LMemoryStream : TMemoryStream;
-
 begin
   if not FFDQueryInsert.Prepared then
   begin
@@ -628,6 +662,9 @@ begin
     FFDQueryInsert.ParamByName('pFlowId').AsIntegers[FInsertToArchive] := aInternalPacket.AdditionalInfo.FlowID
   else
     FFDQueryInsert.ParamByName('pFlowId').Clear(FInsertToArchive);
+
+   if aInternalPacket.AdditionalInfo.RetrasmissionFn > 0 then
+    FIngnorePacket.Add(aInternalPacket.AdditionalInfo.RetrasmissionFn); 
   
   {IANA} 
   FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.IP.IANAProtoStr;   
@@ -732,6 +769,7 @@ begin
       while not FFDQueryFlow.eof do
       begin
         LStream.Seek(0, soBeginning);
+        LStream.Clear;
         TBlobField(FFDQueryFlow.FieldByName('PACKET_DATA')).SaveToStream(LStream);
         LPacketSize := LStream.Size;
         GetMem(LPacketData, LPacketSize);
@@ -768,8 +806,9 @@ begin
                          ' <body style="background-color:#ffff"><pre>')
 
           end;
+          
           Result.Add(Format(HTML_FORMAT,[ ifthen(LIsClient,'ClientStyle','ServerStyle'),
-                                          BufferToASCII(LPayLoad,LPayloadSize)]));          
+                                          Trim(BufferToASCII(LPayLoad,LPayloadSize))]));          
         Finally
           FreeMem(LPacketData)
         End;
@@ -925,11 +964,14 @@ end;
 constructor TWPcapDBSqLitePacket.Create;
 begin
   inherited;
+  FIngnorePacket := TList<Integer>.Create;  
 end;
 
 destructor TWPcapDBSqLitePacket.Destroy;
 begin
   FreeAndNil(FFDQuerySession);
+  FreeAndNil(FIngnorePacket);    
+  FreeAndNil(FFDUpdateIngnore);        
   FreeAndNil(FFDQueryInsert);  
   FreeAndNil(FFDQueryInsertLabel);
   FreeAndNil(FFDQueryFlow);
@@ -954,12 +996,39 @@ procedure TWPcapDBSqLitePacket.DoLog(const aFunctionName,aDescription: String; a
 begin
   if Assigned(FOnLog) then
     FOnLog(aFunctionName,aDescription,aLevel)
-
 end;
 
 procedure TWPcapDBSqLitePacket.ResetCounterIntsert;
 begin
   FInsertToArchive := -1;
+end;
+
+procedure TWPcapDBSqLitePacket.RollbackAndClose(aDelete: Boolean);
+begin
+  inherited;
+  FIngnorePacket.Clear;
+end;
+
+procedure TWPcapDBSqLitePacket.CommitAndClose;
+var I : integer;
+begin
+  if FIngnorePacket.Count > 0 then
+  begin
+    FFDUpdateIngnore.Prepare;
+    FFDUpdateIngnore.Params.ArraySize := FIngnorePacket.Count;    
+  end;
+
+  for I := 0 to FIngnorePacket.Count-1 do
+    FFDUpdateIngnore.Params[0].AsIntegers[I] := FIngnorePacket[I];  
+
+  if FIngnorePacket.Count > 0 then
+  begin
+    DoLog('TWPcapDBSqLitePacket.CommitAndClose',Format('Found [%d] elements to be ingored',[FIngnorePacket.Count]),TWLLInfo);
+    FFDUpdateIngnore.Execute(FIngnorePacket.Count);
+  end;
+    
+  inherited;
+  FIngnorePacket.Clear;
 end;
 
 end.

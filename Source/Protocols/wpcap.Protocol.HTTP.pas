@@ -176,11 +176,16 @@ var LTCPPayLoad    : PByte;
 begin
   Result          := False;
   LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
+  if not Assigned(LTCPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;  
+  
   FIsFilterMode   := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
-  LOffSet              := 0;  
-  aAdditionalInfo.Info := String.Empty;
-  Result               := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
+  LOffSet  := 0;  
+  Result   := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
 end;
 
 class function TWPcapProtocolHTTP.GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte;

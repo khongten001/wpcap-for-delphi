@@ -58,7 +58,6 @@ type
     /// Returns the acronym name of the IMAP protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;    
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;                
   end;
 
@@ -88,15 +87,6 @@ begin
   Result := 'IMAP';
 end;
 
-class function TWPcapProtocolIMAP.IsValid(const aPacket: PByte;
-  aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
-var LTCPPHdr : PTCPHdr;
-begin
-  Result := False;
-  if not HeaderTCP(aPacket,aPacketSize,LTCPPHdr) then exit;   
-  if not PayLoadLengthIsValid(LTCPPHdr,aPacket,aPacketSize) then  Exit;
-  Result := IsValidByPort(PROTO_IMAP_PORT,DstPort(LTCPPHdr),SrcPort(LTCPPHdr),aAcronymName,aIdProtoDetected);
-end;
 
 class function TWPcapProtocolIMAP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
 var LTCPPayLoad    : PByte;
@@ -106,10 +96,16 @@ var LTCPPayLoad    : PByte;
 begin
   Result          := False;
   LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LTCPPayLoadLen,LDummy);
+
+  if not Assigned(LTCPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;  
+  
   FIsFilterMode   := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
   LOffSet              := 0;  
-  aAdditionalInfo.Info := String.Empty;  
   Result               := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);  
 end;
 

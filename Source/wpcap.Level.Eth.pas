@@ -30,10 +30,10 @@ unit wpcap.Level.Eth;
 interface
 
 uses
-  System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,Windows,idGlobal,
-  wpcap.Conts, System.SysUtils,wpcap.Types,Variants,wpcap.IANA.Dbport,winsock2,system.Classes;
+  System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,
+  Windows, idGlobal, System.DateUtils, wpcap.Conts, System.SysUtils, wpcap.Types,
+  Variants, wpcap.IANA.Dbport, winsock2, system.Classes;
   
-
 type  
 
 
@@ -48,7 +48,6 @@ type
     SrcAddr  : TWpcapMacAddress;  // The source MAC address.
     EtherType: Uint16;                 // The Ethernet type.
   end;  
-
 
   TPPPoE_Session = packed record
     Version     : Uint8;  // constant values 0x00
@@ -81,7 +80,10 @@ type
      /// </summary>     
      class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog); 
      class function GetNewFlowID : Integer;   
+     class function GetFlowTimeOut : Byte;virtual;
      class function GetInfoFlow(const aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
+     class procedure UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort,aDstPort: Uint16; aTCPFlags: Uint8; aCurrentSeq, aCurrentAck: Uint32;aAdditionalInfo: PTAdditionalInfo); virtual;
+
   public
 
     /// <summary>
@@ -149,6 +151,49 @@ uses
   wpcap.protocol;
 
 { TEthHeader }
+
+class procedure TWpcapEthHeader.UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aTCPFlags:Uint8;aCurrentSeq, aCurrentAck: Uint32;aAdditionalInfo: PTAdditionalInfo);
+var LKey         : string; 
+    LInfo        : TFlowInfo;
+    LFoundFlow   : Boolean;
+    LDeltaMin    : Int64;
+begin
+  if not Assigned(FlowInfoList) then Exit;  
+  LFoundFlow  := GetInfoFlow(aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LInfo);
+  if LFoundFlow then
+  begin
+
+    LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate));
+    if ( LDeltaMin > GetFlowTimeOut) then   
+    begin
+      LInfo.prevSeqNum  := aCurrentSeq;
+      LInfo.prevAckNum  := aCurrentAck;
+      LInfo.FirstSeqNum := aCurrentSeq;
+      LInfo.FirstAckNum := aCurrentAck;      
+      LInfo.SeqAckList.Clear;
+      LInfo.FLowId  := GetNewFlowID; 
+    end;
+    aAdditionalInfo.FlowID := LInfo.FLowId;     
+    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
+    FlowInfoList.AddOrSetValue(LKey, LInfo);    
+  end
+  else
+  begin
+    LInfo.SrcIP            := aSrcAddr;
+    LInfo.DstIP            := aDstAddr;    
+    LInfo.prevSeqNum       := aCurrentSeq;
+    LInfo.prevAckNum       := aCurrentAck;
+    LInfo.FirstSeqNum      := aCurrentSeq;
+    LInfo.FirstAckNum      := aCurrentAck;      
+    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
+    LInfo.FLowId           := GetNewFlowID;
+    LInfo.SeqAckList       := TSeqAckList.Create;
+    aAdditionalInfo.FlowID := LInfo.FLowId;
+    FlowInfoList.Add(LKey, LInfo);  
+  end;
+  
+end;
+
 
 class function TWpcapEthHeader.GetEthAcronymName(protocol: Word): string;
 begin
@@ -410,7 +455,9 @@ begin
   aInternalPacket.IP.DestGeoIP.Longitude          := 0;
 
   aInternalPacket.AdditionalInfo.isRetrasmission  := False;
+  aInternalPacket.AdditionalInfo.RetrasmissionFn  := -1;    
   aInternalPacket.AdditionalInfo.SequenceNumber   := 0;
+  aInternalPacket.AdditionalInfo.PayloadSize      := 0;
   aInternalPacket.AdditionalInfo.Info             := String.Empty;
   aInternalPacket.AdditionalInfo.EnrichmentPresent:= False;
   aInternalPacket.AdditionalInfo.ContentExt       := String.Empty;
@@ -650,6 +697,11 @@ begin
     end;
   end;
 
+end;
+
+class function TWpcapEthHeader.GetFlowTimeOut: Byte;
+begin
+  Result := 5;
 end;
 
 end.

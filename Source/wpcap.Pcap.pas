@@ -53,7 +53,7 @@ uses
   /// <param name="aGeoLiteDB">Link for MaxMind geoIp database.</param>  
   /// <param name="aListLabelByLevel">Internal list for label filter.</param>  
   /// <param name="aLogFunctoin">Function log.</param>
-  function AnalyzePacketCallBack(const aPacketData: PByte; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID): PTInternalPacket;
+  function AnalyzePacketCallBack(const aPacketData: PByte;aFrameNumber:Integer; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID): PTInternalPacket;
 
 type
   ///<summary>
@@ -65,7 +65,6 @@ type
     packet    : PByte;
   end;
   PTPacketToDump = ^TPacketToDump;
-
 
   ///<summary>
   /// Thread class for capturing network packets using the PCAP library
@@ -201,6 +200,7 @@ type
     FSavePcapDump           : Boolean;
     FTimeoutMs              : Integer;
     FMaxSizePacket          : Integer;
+    FFrameNumber            : Integer;
     FTimeRecoStop           : TTime;  
     FTimeRecCheck           : TDatetime;
     FPCapRT                 : Ppcap_t;    
@@ -233,11 +233,13 @@ type
     ///</summary>
     destructor Destroy; override;
 
+    procedure IncFrameNumber;
+
     {Property}
     Property PCapRT           : Ppcap_t           read FPCapRT; 
     property DataLink         : Integer           read FDataLink;
     property ListLabelByLevel : TListLabelByLevel read FListLabelByLevel;
-
+    property FrameNumber      : Integer           read FFrameNumber       write FFrameNumber;
   end;
 
   ///<summary>
@@ -455,8 +457,10 @@ begin
       
       if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
         SetLength(PacketBuffer,LPacketLen);
-
-      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],aNewHeader,nil,
+      TPCAPCaptureRT(aUser).IncFrameNumber;
+      LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],
+                              TPCAPCaptureRT(aUser).FrameNumber,
+                              aNewHeader,nil,
                               TPCAPCaptureRT(aUser).ListLabelByLevel,
                               TPCAPCaptureRT(aUser).OnLog,
                               TPCAPCaptureRT(aUser).FlowInfoList,
@@ -496,7 +500,7 @@ begin
   Result := 0;
 end;
 
-function AnalyzePacketCallBack(const aPacketData : Pbyte;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID) : PTInternalPacket;
+function AnalyzePacketCallBack(const aPacketData : Pbyte;aFrameNumber:Integer;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID) : PTInternalPacket;
 var LLen              : Integer;
     LListDetail       : TListHeaderString;
     LLikLayersSize    : Integer;
@@ -529,15 +533,17 @@ begin
     Try
 
       LAdditionalInfo.isRetrasmission       := False;
+      LAdditionalInfo.RetrasmissionFn       := -1;
       LAdditionalInfo.SequenceNumber        := 0;
+      LAdditionalInfo.PayLoadSize           := 0;            
       LAdditionalInfo.AcknowledgmentNumber  := 0;    
+      LAdditionalInfo.TCPTimeStamp          := 0;                
       LAdditionalInfo.FlowID                := 0;                        
       LAdditionalInfo.Info                  := String.Empty;
       LAdditionalInfo.EnrichmentPresent     := False;
-      LAdditionalInfo.ContentExt            := String.Empty;
-      
+      LAdditionalInfo.ContentExt            := String.Empty;      
       LAdditionalInfo.CompressType          := -1;
-      LAdditionalInfo.FrameNumber           := -1; //TODO for retrasmission
+      LAdditionalInfo.FrameNumber           := aFrameNumber;
       LAdditionalInfo.PacketDate            := Result.PacketDate;
      
       if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@LAdditionalInfo) then 
@@ -759,7 +765,6 @@ begin
   End;
 end;
 
-
 { TThreaPcap }
 procedure TThreadPcap.DoError(const aFileName, aErrorMessage: string);
 begin
@@ -771,13 +776,11 @@ begin
     end);  
 end;
 
-
 procedure TThreadPcap.DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
 begin
   if Assigned(FOnLog) then
     FOnLog(aFunctionName,aDescription,aLevel);
 end;
-
 
 procedure TThreadPcap.DoProgress(aTotalSize,aCurrentSize:Int64);
 begin
@@ -842,6 +845,7 @@ begin
       begin                    
         FonWpcapEthMacFound(aInternalPacket.Eth.SrcAddr,aInternalPacket.Eth.SrcAddr,LSkyp,LAnonymize,LNewMacSrc,LNewMacDst);
       end);
+      
     aSkypPacket := LSkyp;        
     aAnonymize  := LAnonymize;
     aNewMacSrc  := LNewMacSrc;
@@ -866,14 +870,16 @@ begin
     end);
 end;
 
-
 procedure TThreadPcap.DoCreate;
 begin
   FFlowInfoList  := TFlowInfoList.Create;
 end;
 
 destructor TThreadPcap.Destroy;
+var LInfo : TFlowInfo;
 begin
+  for LInfo in FFlowInfoList.Values do
+    FreeAndNil(LInfo.SeqAckList);
   FreeAndNil(FFlowInfoList);
   inherited;
 end;
@@ -911,6 +917,7 @@ begin
   inherited;
   LPcapDumper   := nil;
   FTimeRecCheck := 0;
+  FFrameNumber  := 0;
   if FTimeRecoStop > 0 then
   begin
     FTimeRecCheck := now;
@@ -942,8 +949,7 @@ begin
       end;      
     end;
 
-    Try  
-      
+    Try        
       //5mb todo by parameter???
       if  pcap_set_buffer_size(FPcapRT,5*1024*1024) = -1 then
       begin
@@ -965,15 +971,12 @@ begin
       // Start capturing packets and writing them to the output file
       LLoopResult := pcap_loop(FPcapRT, -1, @PacketHandlerRealtime, PAnsiChar(Self));
       case LLoopResult  of
-        0  :; //Cnt end
-        -1 : DoError(FFilename,Format('pcap_loop ended because of an error %s',[string(pcap_geterr(FPcapRT))])); 
-        -2 : //Normal
+        0 :; //Cnt end
+       -1 : DoError(FFilename,Format('pcap_loop ended because of an error %s',[string(pcap_geterr(FPcapRT))])); 
+       -2 : //Normal
       else
          DoError(FFilename,Format('pcap_loop ended unknow return code [%d] error %s',[LLoopResult,string(pcap_geterr(FPcapRT))]));
       end;
-
-      
-
     Finally
       // Close the output file and the network adapter
       if FSavePcapDump then     
@@ -982,6 +985,11 @@ begin
   Finally
     pcap_close(FPcapRT);
   End;
+end;
+
+procedure TPCAPCaptureRT.IncFrameNumber;
+begin
+  inc(FFrameNumber);
 end;
 
 { TPCAPLoadFile }
@@ -1050,7 +1058,7 @@ begin
                     Inc(LLenAnalyze,LHeader^.Len);
                     {Does using parallel to parse pcap make the management of TCP retransmissions and sequence numbers complicated?}
 
-                    LTInternalPacket  := AnalyzePacketCallBack(LPktData,LHeader,FGeoLiteDB,LListLabelByLevel,FOnLog,FlowInfoList,GetNewFlowID);
+                    LTInternalPacket  := AnalyzePacketCallBack(LPktData,LIndex,LHeader,FGeoLiteDB,LListLabelByLevel,FOnLog,FlowInfoList,GetNewFlowID);
                     if Assigned(LTInternalPacket) then
                     begin
                       Try
@@ -1062,6 +1070,7 @@ begin
 
                         if not LSkypPacket then
                           DoProtocolFound(LTInternalPacket,LSkypPacket);
+                          
                         DoPacket(LTInternalPacket);
                       finally
                         Dispose(LTInternalPacket)
@@ -1078,46 +1087,34 @@ begin
                 
                   if FAbort then Break;
                 
-
                   LMsElp := LStopwatch.ElapsedMilliseconds;
                   if LMsElp > 5 then    
-                    DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d] execute in [%d ms]',[LIndex,LMsElp]),TWLLTiming); 
-                                                 
+                    DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d] execute in [%d ms]',[LIndex,LMsElp]),TWLLTiming);                                                  
                 end;
-              0: 
-                begin
-                  // No packets available at the moment
+              0: // No packets available at the moment
                   Continue;
-                end;
-              -1: 
-                begin
-
-                  // Error reading packet
+             -1: // Error reading packet 
+                begin                  
                   DoError(FFileName,string(pcap_geterr(LHandlePcap)));
                   Break;
                 end;
-              -2:
-                begin
-                  // No packets available, the pcap file instance has been closed
+             -2: // No packets available, the pcap file instance has been closed
+                begin                  
                   DoProgress(LTolSizePcap,LTolSizePcap);
-
                   TThread.Synchronize(nil,
                     procedure
-                    begin  
-                               
-                       FOnPCAPCallBeforeBackEnd(FFileName,LListLabelByLevel);
+                    begin                                 
+                      FOnPCAPCallBeforeBackEnd(FFileName,LListLabelByLevel);
                     end);
                   Break;
                 end;
             end;
           end;    
-
         finally
           FreeAndNil(LListLabelByLevel);
         end;
-      finally
-        // Close PCAP file
-        pcap_close(LHandlePcap);
+      finally        
+        pcap_close(LHandlePcap);  // Close PCAP file
       end;
     Finally
       LStopwatch.Stop
@@ -1126,8 +1123,6 @@ begin
     DoError(FFileName,Format('Genesic exception %s',[e.message]));
   End;
 end;
-
-
 
 procedure TThreadPcap.GetNewFlowID(var aNewFlowID: Integer);
 begin

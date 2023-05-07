@@ -186,7 +186,7 @@ Type
     ///<exception cref="EDatabaseError">
     /// An EDatabaseError exception is raised if there are any errors during the rollback or deletion.
     ///</exception>
-    procedure RollbackAndClose(aDelete:Boolean);
+    procedure RollbackAndClose(aDelete:Boolean);virtual;
 
     ///<summary>
     /// Commits pending transactions and closes the connection to the SQLite database.
@@ -199,7 +199,7 @@ Type
     ///<exception cref="EDatabaseError">
     /// An EDatabaseError exception is raised if there are any errors during the commit.
     ///</exception>    
-    procedure CommitAndClose;  
+    procedure CommitAndClose;virtual;  
     function IsVersion(const aVersion:Byte):Boolean;
     
     property Connection  : TFDConnection read FConnection  write FConnection;  

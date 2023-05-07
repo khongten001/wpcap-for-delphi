@@ -152,6 +152,8 @@ var LTCPPayLoad    : PByte;
     LDummy         : Integer;
     LtmpByte       : Uint8;
     LMsgType       : Uint8; 
+    LMsgTypeStr    : String;
+    LTopicStr      : String;
     LWordValue     : Uint16;
     LPos           : Integer;
     LTpcPayLoadLen : Integer;
@@ -159,12 +161,20 @@ begin
   Result         := False;
   FIsFilterMode  := aIsFilterMode;
   LTCPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LTpcPayLoadLen,LDummy);
-  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LTpcPayLoadLen));
+
+  if not Assigned(LTCPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;  
+    
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LTpcPayLoadLen));
   LPos      := 0;
   LtmpByte  := ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Flags',[AcronymName]), 'Flags:',AListDetail,ByteToBinaryStringInternal,True,LPos);
 
-  LMsgType := LtmpByte shr 4;
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.MsgType',[AcronymName]), 'Message Type:',MQTTMessageType(LMsgType), @LMsgType,sizeOF(LMsgType), LMsgType)); 
+  LMsgType    := LtmpByte shr 4;
+  LMsgTypeStr := MQTTMessageType(LMsgType);
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.MsgType',[AcronymName]), 'Message Type:',LMsgTypeStr, @LMsgType,sizeOF(LMsgType), LMsgType)); 
 
   case LMsgType of
   
@@ -211,9 +221,9 @@ begin
 
     MQTT_PUBLISH:
       begin  
-        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Publish.Len',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
-        ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Publish.Topic',[AcronymName]), 'Topic:',AListDetail,BytesToStringRawInternal,True,LPos);                                                 
-
+        LWordValue  := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Publish.Len',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
+        LTopicStr   := ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Publish.Topic',[AcronymName]), 'Topic:',AListDetail,BytesToStringRawInternal,True,LPos);                                                 
+        LMsgTypeStr := Format('%s Topic publish %s',[LMsgTypeStr,LTopicStr]).Trim;
         if LTpcPayLoadLen- LPos > 0 then
           ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LTpcPayLoadLen- LPos,Format('%s.Publish.Message',[AcronymName]), 'Message:',AListDetail,BytesToStringRawInternal,True,LPos);    
       end;
@@ -221,8 +231,9 @@ begin
     MQTT_SUBSCRIBE  :
       begin
         ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.MessageIdentifier',[AcronymName]), 'Message Identifier:',AListDetail,nil,True,LPos);
-        LWordValue := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.Topic.Len',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
-        ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Subscribe.Topic',[AcronymName]), 'Topic:',AListDetail,BytesToStringRawInternal,True,LPos);                                                 
+        LWordValue  := ParserUint16Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.Topic.Len',[AcronymName]), 'Topic Length:',AListDetail,SizeWordToStr,True,LPos);
+        LTopicStr   := ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,LWordValue,Format('%s.Subscribe.Topic',[AcronymName]), 'Topic:',AListDetail,BytesToStringRawInternal,True,LPos);                                                 
+        LMsgTypeStr := Format('%s Topic subscribe %s',[LMsgTypeStr,LTopicStr]).Trim;
         ParserUint8Value(LTCPPayLoad,aStartLevel+1,LTpcPayLoadLen,Format('%s.Subscribe.RequestedQoS',[AcronymName]), 'Requested QoS:',AListDetail,nil,True,LPos);        
       end;
       
@@ -233,6 +244,8 @@ begin
       end;
     
   end;
+
+  aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LMsgTypeStr]).Trim;
   Result := True;
 end;
 

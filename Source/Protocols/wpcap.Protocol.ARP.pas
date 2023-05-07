@@ -30,8 +30,9 @@ unit wpcap.Protocol.ARP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils,wpcap.StrUtils,wpcap.packet,
-  System.Variants, wpcap.BufferUtils,WinSock,WinSock2,Wpcap.IpUtils,idGlobal;
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils, wpcap.StrUtils,
+  wpcap.packet, System.StrUtils, System.Variants, wpcap.BufferUtils, WinSock,
+  WinSock2, Wpcap.IpUtils, idGlobal;
 
 type
 
@@ -78,7 +79,9 @@ type
   /// </summary>
   TWPcapProtocolARP = Class(TWPcapProtocolBase)
   private
-
+     CONST
+      ARP_REQUEST = 1;
+      ARP_REPLAY  = 2;
   public
     /// <summary>
     /// Returns the default ICMP 0 - No port.
@@ -145,27 +148,31 @@ class function TWPcapProtocolARP.HeaderToString(const aPacketData: PByte; aPacke
 var LHeaderARP     : PTARPHeader;
     LSenderIP      : string;
     LTargetIP      : string;
+    LMacSrc        : String;
+    LMacDst        : String;    
     LTmpBytesSender: TIdBytes;
     LTmpBytesTarget: TIdBytes;    
     LCurrentPos    : Integer;
     LPtType        : Uint16;
+    LArpType       : Uint16;
+    LEnrichment    : TWcapEnrichmentType;
 begin
   Result        := False;
   FIsFilterMode := aIsFilterMode;
 
   if not Header(aPacketData,aPacketSize,LHeaderARP) then exit;
 
+  LArpType := wpcapntohs(LHeaderARP.OpCode);
+  
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeaderARP),HeaderLength(0) ));    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HWType',[AcronymName]), 'Hardware type:', wpcapntohs(LHeaderARP.HardwareType), @LHeaderARP.HardwareType, SizeOf(LHeaderARP.HardwareType) ));
   LPtType  := wpcapntohs(LHeaderARP.ProtocolType);
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ProtocolType',[AcronymName]), 'Protocol type:',TWpcapEthHeader.GetEthAcronymName(LPtType), @LHeaderARP.ProtocolType, SizeOf(LHeaderARP.ProtocolType), LPtType ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HWLen',[AcronymName]), 'Hardware len:', LHeaderARP.HardwareSize, @LHeaderARP.HardwareSize, SizeOf(LHeaderARP.HardwareSize) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ProtocolLen',[AcronymName]), 'Protocol len:', LHeaderARP.ProtocolSize, @LHeaderARP.ProtocolSize, SizeOf(LHeaderARP.ProtocolSize) ));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Operation',[AcronymName]), 'Operation:',  wpcapntohs(LHeaderARP.OpCode), @LHeaderARP.OpCode, SizeOf(LHeaderARP.OpCode) ));
-
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Operation',[AcronymName]), 'Operation:',  ifthen(LArpType=ARP_REQUEST,'request','replay'), @LHeaderARP.OpCode, SizeOf(LHeaderARP.OpCode), LArpType ));
   
   LCurrentPos := HeaderEthSize(aPacketData,aPacketSize) + HeaderLength(0);
-
   SetLength(LTmpBytesSender,LHeaderARP.HardwareSize);
   SetLength(LTmpBytesTarget,LHeaderARP.HardwareSize);
 
@@ -175,10 +182,14 @@ begin
   
   {Target}
   Move((aPacketData+LCurrentPos+LHeaderARP.ProtocolSize)^,LTmpBytesTarget[0],LHeaderARP.HardwareSize);
-                                 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderMAC',[AcronymName]), 'Sender MAC:', MACAddressToString(LTmpBytesSender), PByte(LTmpBytesSender), LHeaderARP.HardwareSize ));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetMAC',[AcronymName]), 'Target MAC:', MACAddressToString(LTmpBytesTarget), PByte(LTmpBytesTarget), LHeaderARP.HardwareSize ));
+  LMacSrc := MACAddressToString(LTmpBytesSender);                               
+  LMacDst := MACAddressToString(LTmpBytesTarget);
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderMAC',[AcronymName]), 'Sender MAC:',LMacSrc , PByte(LTmpBytesSender), LHeaderARP.HardwareSize ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetMAC',[AcronymName]), 'Target MAC:',LMacDst , PByte(LTmpBytesTarget), LHeaderARP.HardwareSize ));
 
+  if IsFilterMode then  
+    UpdateFlowInfo(LMacSrc,LMacDst,0,0,0,0,0,aAdditionalInfo);
+  
   SetLength(LTmpBytesSender,LHeaderARP.ProtocolSize);
   SetLength(LTmpBytesTarget,LHeaderARP.ProtocolSize);  
 
@@ -188,30 +199,56 @@ begin
 
   {Target}
   Move((aPacketData+ LCurrentPos+LHeaderARP.HardwareSize)^,LTmpBytesTarget[0],LHeaderARP.ProtocolSize);
-  
+
+  LSenderIP   := String.Empty;
+  LTargetIP   := String.Empty;  
+  LEnrichment := WetNone;
   case wpcapntohs(LHeaderARP.ProtocolType) of
-    ETH_P_IP    :
-      begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIP',[AcronymName]), 'Sender IP:', BytesToIPv4Str(LTmpBytesSender), PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIP',[AcronymName]), 'Target IP:', BytesToIPv4Str(LTmpBytesTarget), PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));          
-      end;
+    ETH_P_IP,
     ETH_P_ARP   :
       begin
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIP',[AcronymName]), 'Sender IP:', BytesToIPv4Str(LTmpBytesSender), PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIP',[AcronymName]), 'Target IP:', BytesToIPv4Str(LTmpBytesTarget), PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));           
+        LSenderIP := BytesToIPv4Str(LTmpBytesSender);      
+        if IsValidPublicIP(LSenderIP) then
+          LEnrichment := WetIP;
+      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIP',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender), -1,LEnrichment ));
+
+        LEnrichment := WetNone;          
+        LTargetIP   := BytesToIPv4Str(LTmpBytesTarget);
+
+        if IsValidPublicIP(LTargetIP) then
+          LEnrichment := WetIP;
+        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIP',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget), -1,LEnrichment  ));           
       end;
     ETH_P_IPV6  : 
       begin       
         // convert sender IP address to string
         LSenderIP := IPv6AddressToString(LTmpBytesSender);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIP',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender)));
+        if IsValidPublicIP(LSenderIP) then
+          LEnrichment := WetIP;
+
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIPv6',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender), -1,LEnrichment ));
 
         // convert target IP address to string
-        LTargetIP := IPv6AddressToString(LTmpBytesTarget);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIP',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget)));      
+        LEnrichment := WetNone;              
+        LTargetIP   := IPv6AddressToString(LTmpBytesTarget);
+
+        if IsValidPublicIP(LTargetIP) then
+          LEnrichment := WetIP;
+                
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIPv6',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget), -1,LEnrichment ));      
       end;
   end;
 
+  if not LSenderIP.IsEmpty then
+  begin
+    case LArpType of
+      ARP_REQUEST : aAdditionalInfo.Info := Format('Who has %s ? tell %s',[LTargetIP,LSenderIP]);
+      ARP_REPLAY  : aAdditionalInfo.Info := Format('%s is at %s',[LSenderIP,LMacSrc]);          
+    end;
+  end;
+  
   Result := True;          
 end;
 

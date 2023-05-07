@@ -504,19 +504,30 @@ type
   TWpcapLog = procedure(const aFunctionName, aDescription: String; aLevel: TWpcapLvlLog) of object;
 
   TWpcapGetNewFlowID = procedure(var aNewFlowID:Integer) of object;
+
+  TSeqAckInfo = record
+    FrameNumber : Integer;
+    PayloadSize : Integer;
+  end;
+  
+  TSeqAckList = Class(TDictionary<string, TSeqAckInfo>) ;
   
   TFlowInfo = record
-    SrcIP      : String;
-    DstIP      : String;
-    prevSeqNum : Uint32;
-    prevAckNum : Uint32;
-    FirstSeqNum: Uint32;
-    FirstAckNum: Uint32;
-    PacketDate : TDateTime;
-    FLowId     : Integer;
+    SrcIP        : String;
+    DstIP        : String;
+    prevSeqNum   : Uint32;
+    prevAckNum   : Uint32;
+    FirstSeqNum  : Uint32;
+    FirstAckNum  : Uint32;    
+    TCPTimeStamp : Integer;
+    SeqAckList   : TSeqAckList;
+    PacketDate   : TDateTime;
+    FLowId       : Integer;
   end;
   PTFlowInfo = ^TFlowInfo;
 
+  
+  
   TFlowInfoList = Class(TDictionary<string, TFlowInfo>);
   
      

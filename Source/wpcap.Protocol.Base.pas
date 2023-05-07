@@ -104,7 +104,7 @@ Type
      class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;     
      class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;
      class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint64;     
-     class procedure ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer);
+     class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer):String;
      class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigIndian: Boolean; var aCurrentPos: Integer):Integer;
      class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;   
   public
@@ -309,21 +309,27 @@ begin
   Inc(aCurrentPos,SizeOf(Result));
 end;
 
-class Procedure TWPcapProtocolBase.ParserGenericBytesValue(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
+class function TWPcapProtocolBase.ParserGenericBytesValue(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
         aToStringFunction:TWpcapBytesToString;isBigIndian:Boolean;
-        var aCurrentPos:Integer);
+        var aCurrentPos:Integer): String;
 var LBytes : TIdBytes;        
-begin        
+begin 
+  Result := String.Empty;       
   if not isValidLen(aCurrentPos,aMaxLen+1,aLen) then Exit;
-
     
   SetLength(LBytes,aLen);
   Move(aPacketData[aCurrentPos],LBytes[0],aLen);
   if assigned(aToStringFunction) then  
-    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(LBytes),PByte(LBytes),aLen ))
+  begin
+    Result := aToStringFunction(LBytes);  
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption,Result ,PByte(LBytes),aLen ))
+  end
   else
+  begin
+    Result := 'RAW value';
     AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, null, PByte(LBytes),aLen ));
+  end;
     
   Inc(aCurrentPos,aLen);    
   SetLength(LBytes,0);
@@ -421,6 +427,7 @@ var LCopYStart       : Integer;
     LtmpLen          : Integer;
     LCompressType    : ShortInt;
     LEnrichmentType  : TWcapEnrichmentType;
+    LInfoProtocol    : String;
 
     Function ParserValue(const aSep:String): Boolean;
     var LValueArray : Tarray<String>; 
@@ -434,16 +441,16 @@ var LCopYStart       : Integer;
         Result      := True;
         LValueArray := LValue.Split([aSep]); 
         LField      := LValueArray[0].Trim;
-        LValueField := LValueArray[1].Trim;
+        LValueField := LValue.Replace(Format('%s%s',[LValueArray[0],aSep]),String.Empty);
         
         if not LField.IsEmpty then
         begin
-          if aAdditionalInfo.Info.IsEmpty then
-            aAdditionalInfo.Info := LValue;
+          if LInfoProtocol.IsEmpty then
+            LInfoProtocol := LValue.Trim;
           
           if SameText(LField,'Content-Type') then
           begin
-            aAdditionalInfo.Info              := Format('%s %s',[aAdditionalInfo.Info,LValue]).Trim;
+            LInfoProtocol                     := Format('%s %s',[LInfoProtocol,LValue.Trim]).Trim;
             aAdditionalInfo.EnrichmentPresent := True;
             LEnrichmentType                   := WetContent;
             LExt                              :=LValueField.Trim;
@@ -455,14 +462,14 @@ var LCopYStart       : Integer;
           end;
 
           if SameText(LField,'User-Agent') then
-            aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LValue]).Trim;
+            LInfoProtocol := Format('%s %s',[LInfoProtocol,LValue.Trim]).Trim;
             
           AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.%s',[AcronymName,LField]),LField,LValueField, @LBytes, Length(LBytes),-1,LEnrichmentType ));              
           if LCompressType = -1 then
           begin
             if SameText(LField,'Content-Encoding') then
             begin
-               aAdditionalInfo.Info :=  Format('%s %s',[aAdditionalInfo.Info,LValue]).Trim;
+               LInfoProtocol :=  Format('%s %s',[LInfoProtocol,LValue.Trim]).Trim;
                for I := Low(HTTP_COMPRESS_CONTENT_VALUE) to High(HTTP_COMPRESS_CONTENT_VALUE) do
                begin
                  if LValueField.ToLower.Contains(HTTP_COMPRESS_CONTENT_VALUE[I]) then
@@ -503,8 +510,8 @@ begin
           begin
             if not ParserValue(' /')  then
             begin
-              if aAdditionalInfo.Info.IsEmpty then
-                aAdditionalInfo.Info := LValue;            
+              if LInfoProtocol.IsEmpty then
+                LInfoProtocol := LValue.Trim;            
               AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%S.line',[AcronymName]),'Line:',LValue.Trim, @LBytes, Length(LBytes),-1,LEnrichmentType ));            
             end;  
           end;
@@ -517,6 +524,7 @@ begin
     Inc(aStartOffSet);
   end;
 
+  aAdditionalInfo.Info := Format('%s %s',[LInfoProtocol,aAdditionalInfo.Info]).Trim;
   Result := True;
 end;
 

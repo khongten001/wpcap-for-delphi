@@ -145,7 +145,6 @@ type
     /// Returns the acronym name of the Telnet protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;            
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
   end;
 
@@ -173,18 +172,6 @@ end;
 class function TWPcapProtocolTelnet.AcronymName: String;
 begin
   Result := 'Telnet';
-end;
-
-class function TWPcapProtocolTelnet.IsValid(const aPacket: PByte;aPacketSize: Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean;
-
-var LTCPPtr: PTCPHdr;
-begin
-  Result := False;    
-  if not HeaderTCP(aPacket,aPacketSize,LTCPPtr) then exit;   
-  if not PayLoadLengthIsValid(LTCPPtr,aPacket,aPacketSize) then  Exit;
-
-  Result := IsValidByDefaultPort(DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected)
-  
 end;
 
 class function TWPcapProtocolTelnet.TelnetCommandToString(const ACommand: Byte): string;
@@ -365,7 +352,14 @@ begin
   Result          := False;
   FIsFilterMode   := aIsFilterMode;
   LTCPPayLoad     := inherited GetPayLoad(aPacketData,aPacketSize,LDataSize,LDummy);
-  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, nil,LDataSize));
+
+  if not Assigned(LTCPPayLoad) then
+  begin
+    FisMalformed := true;
+    Exit;
+  end;
+  
+  AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LTCPPayLoad,LDataSize));
 
   LCurrentPos := 0;
   while LCurrentPos < LDataSize do
