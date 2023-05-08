@@ -148,7 +148,6 @@ begin
   end;
 end;
 
-
 function LongWordToString(const aValue: LongWord): string;
 var LBytes: TidBytes;
 begin

@@ -211,6 +211,7 @@ var LHeaderNTP     : PNTPHeader;
     LUDPPayLoad    : PByte;
     Loffset        : Word;
     LUDPPayLoadLen : Integer;
+    LMode          : String;
 
   function GetDateTimeFromNTPTimeStamp(const aNTPTimestamp: TNtpTimestamp): TDateTime;
   begin
@@ -242,7 +243,9 @@ begin
 
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.LeapIndicator',[AcronymName]), 'Leap Indicator', GetNTPLeapIndicatorString(LHeaderNTP.LI_VN_MODE and $03), @LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), LHeaderNTP.LI_VN_MODE and $03));   {TODO TO STRING}
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Version',[AcronymName]), 'Version',  (LHeaderNTP.LI_VN_MODE and $38) shr 3, @LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), (LHeaderNTP.LI_VN_MODE and $38) shr 3));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Mode',[AcronymName]), 'Mode',  MessageTypeToString(GetLastNBit(LHeaderNTP.LI_VN_MODE,3)),@LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), GetLastNBit(LHeaderNTP.LI_VN_MODE,3) ));
+
+  LMode := MessageTypeToString(GetLastNBit(LHeaderNTP.LI_VN_MODE,3));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Mode',[AcronymName]), 'Mode',LMode ,@LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), GetLastNBit(LHeaderNTP.LI_VN_MODE,3) ));
 
   // 1-byte field that specifies the stratum level of the local clock
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PeerClockStratum',[AcronymName]), 'Peer clock stratum',StratumToString(LHeaderNTP.Stratum), @LHeaderNTP.Stratum, SizeOf(LHeaderNTP.Stratum), LHeaderNTP.Stratum )); 
@@ -285,7 +288,7 @@ begin
   // 8-byte field that specifies the time when the request was sent by the client
   // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TrasmitTimeStamp',[AcronymName]), 'Transmit Timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', GetDateTimeFromNTPTimeStamp(LHeaderNTP.TransmitTS)), PByte(@LHeaderNTP.TransmitTS), SizeOf(LHeaderNTP.TransmitTS)));
-
+  aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,LMode]).Trim;
   Result := True;
 end;
 

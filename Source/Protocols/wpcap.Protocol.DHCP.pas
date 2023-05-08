@@ -81,13 +81,13 @@ type
     HType         : UInt8;                 // hardware type
     HLen          : UInt8;                 // Len address hardware
     Hops          : UInt8;                 // Number of hops
-    TransactionID : DWORD;                // ID transaction
-    SecondsElapsed: Uint16;                 // Second elapsed
-    Flags         : Uint16;                 // Flag
-    ClientIP      : Uint32;             // IP client
-    YourIP        : Uint32;             // IP assigned to client
-    ServerIP      : Uint32;             // IP server DHCP
-    RelayAgentIP  : Uint32;             // IP relay agent
+    TransactionID : DWORD;                 // ID transaction
+    SecondsElapsed: Uint16;                // Second elapsed
+    Flags         : Uint16;                // Flag
+    ClientIP      : Uint32;                // IP client
+    YourIP        : Uint32;                // IP assigned to client
+    ServerIP      : Uint32;                // IP server DHCP
+    RelayAgentIP  : Uint32;                // IP relay agent
     ClientMAC     : array[0..15] of UInt8; // MAC of client with padding
     ServerName    : array[0..63] of UInt8;
     BootFileName  : array[0..127] of UInt8;
@@ -366,7 +366,8 @@ var LUDPPayLoad         : PByte;
     LPosDummy           : Integer;
     LDHCPAuthentication : PTDHCPAuthentication;
     LTmpIP              : String;
-    LEnrichment         : TWpcapEnrichmentType;    
+    LEnrichment         : TWpcapEnrichmentType;   
+    LMsgType            : String; 
 begin
   Result        := False;
   FIsFilterMode := aisFilterMode;
@@ -384,7 +385,8 @@ begin
 
  {  op 1  Message op code / message type.
        1 = BOOTREQUEST, 2 = BOOTREPLY}  
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.MessageType',[AcronymName]), 'Message type:', ifthen(LHeaderDHCP.OpCode=1,'Boot request','Boot reply'), @LHeaderDHCP.OpCode,SizeOf(LHeaderDHCP.OpCode),LHeaderDHCP.OpCode));
+  LMsgType := ifthen(LHeaderDHCP.OpCode=1,'Request','Reply');
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.MessageType',[AcronymName]), 'Message type:',LMsgType , @LHeaderDHCP.OpCode,SizeOf(LHeaderDHCP.OpCode),LHeaderDHCP.OpCode));
 
  {  htype  1  Hardware address type, see ARP section in "Assigned
               Numbers" RFC; e.g., '1' = 10mb ethernet.  }   
@@ -402,7 +404,8 @@ begin
               client, used by the client and server to associate
               messages and responses between a client and a
               server.}
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.TransactionID',[AcronymName]), 'Transaction ID:', LongWordToString(LHeaderDHCP.TransactionID), @LHeaderDHCP.TransactionID,SizeOf(LHeaderDHCP.TransactionID),LHeaderDHCP.TransactionID));    
+  LMsgType := Format('%s %s',[LMsgType,IntToHex(LHeaderDHCP.TransactionID, 8)]);
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.TransactionID',[AcronymName]), 'Transaction ID:', IntToHex(LHeaderDHCP.TransactionID, 8), @LHeaderDHCP.TransactionID,SizeOf(LHeaderDHCP.TransactionID),LHeaderDHCP.TransactionID));    
 
   { secs   2  Filled in by client, seconds elapsed since client
               began address acquisition or renewal process. }
@@ -839,6 +842,7 @@ begin
     end
     else break;
   end;
+  aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,LMsgType]).Trim;  
   Result := True;
 end;
 

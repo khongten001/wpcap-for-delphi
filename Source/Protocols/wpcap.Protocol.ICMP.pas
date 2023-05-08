@@ -195,6 +195,9 @@ var LHeader         : PTICMPHeader;
     LOptionsW       : Uint16;
     LCount          : Uint16;
     I               : Integer;
+    LType           : String;
+    LCode           : String;
+    LValueTmp          : String;
 
     Procedure AddOptionsAndIp;
     begin
@@ -216,10 +219,12 @@ begin
 
   if IsFilterMode then  
     UpdateFlowInfo(aAdditionalInfo.FrameNumber.ToString,aAdditionalInfo.FrameNumber.ToString,0,0,0,0,0,aAdditionalInfo);
-  
+
+  LType := TypeToString(LHeader.TypeICMP);
+  LCode := CodeToString(LHeader.TypeICMP,LHeader.Code);
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName ,Format('%s (%s)',[ProtoName,AcronymName]),NULL, PByte(LHeader),HeaderLength(0)));            
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',TypeToString(LHeader.TypeICMP), @LHeader.TypeICMP,sizeOf(LHeader.TypeICMP), LHeader.TypeICMP ));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Code:',CodeToString(LHeader.TypeICMP,LHeader.Code), @LHeader.Code,sizeOf(LHeader.Code), LHeader.Code ));            
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',LType, @LHeader.TypeICMP,sizeOf(LHeader.TypeICMP), LHeader.TypeICMP ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Code:',LCode, @LHeader.Code,sizeOf(LHeader.Code), LHeader.Code ));            
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HeaderLen',[AcronymName]), 'Checksum:',wpcapntohs(LHeader.CheckSum) ,@LHeader.CheckSum,sizeOf(LHeader.CheckSum) )); 
   
   case LHeader.TypeICMP  of
@@ -264,14 +269,15 @@ begin
     ICMP_TIME_EXCEEDED, 
     ICMP_PARAMETER_PROBLEM:    
       begin
-
         LNewPacketData := GetNextIpHeader(aPacketData,aPacketSize,0,LNewPacketLen);
-        Try
-          TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail,IsFilterMode,aAdditionalInfo);
-        Finally
-          FreeMem(LNewPacketData);
-        End;      
-        
+        if Assigned(LNewPacketData) then
+        begin
+          Try
+            TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail,IsFilterMode,aAdditionalInfo);
+          Finally
+            FreeMem(LNewPacketData);
+          End; 
+        end;             
       end;
       
     ICMP_TIMESTAMP_REQUEST, 
@@ -294,7 +300,8 @@ begin
     ICMP_NEIGHBOR_ADVERTISEMENT,
     ICMP_NEIGHBOR_SOLICITATION:
       begin
-        ParserGenericBytesValue(aPacketData,aStartLevel+1,aPacketSize,16,Format('%s.TargetAddr',[AcronymName]), 'Target address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                                      
+        LValueTmp := ParserGenericBytesValue(aPacketData,aStartLevel+1,aPacketSize,16,Format('%s.TargetAddr',[AcronymName]), 'Target address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                                      
+        LType     := Format('%s %s',[LType,LValueTmp]);
         AddOptionsAndIp;
       end;
       
@@ -309,13 +316,14 @@ begin
           ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.Type',[AcronymName]), 'Record type:',AListDetail,ConvertRecordTypeToString,True,LCurrentPos);
           ParserUint8Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.AuxLen',[AcronymName]), 'Aux Data Len:',AListDetail,nil,True,LCurrentPos);
           ParserUint16Value(aPacketData,aStartLevel+2,aPacketSize,Format('%s.NMulticastRecord.NSource',[AcronymName]), 'Number of Sources:',AListDetail,nil,True,LCurrentPos);
-          ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,16,Format('%s.NMulticastRecord.Addr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                                
+          LValueTmp := ParserGenericBytesValue(aPacketData,aStartLevel+2,aPacketSize,16,Format('%s.NMulticastRecord.Addr',[AcronymName]), 'Link-layer address:',AListDetail,IPv6AddressToStringInternal,True,LCurrentPos,True);                                
+          LType     := Format('%s %s',[LType,LValueTmp])
         end;
       end;
       
     ICMP_ROUTER_SOLICITATION: AddOptionsAndIp;
   end;
-  
+  aAdditionalInfo.Info := FOrmat('%s %s %s',[aAdditionalInfo.Info,LType,LCode]).Trim;
   Result := True;
 end;
 

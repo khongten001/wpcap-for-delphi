@@ -208,6 +208,8 @@ var LInternalHeader : PTRTPHeaderInternal;
     LUDPPayLoadLen  : Integer;
     I               : Integer;
     LSizeTotal      : Integer;
+    LInfoStr        : String;
+    LPayLoadType    : String;
 begin
   Result := False;
 
@@ -222,22 +224,31 @@ begin
   if not Assigned(LInternalHeader) then Exit;
   Try
     LPayLoad := GetPayLoad(aPacketData,aPacketSize,LSizePayLoad,LSizeTotal);
+
+    if not Assigned(LPayLoad) then Exit;
+    
+    LPayLoadType := GetRTPPayloadTypeString(LInternalHeader.PayloadType);
     Try
+      LInfoStr := Format('%s Version : %d ,Seq %d SSRC: %d',[LPayLoadType,LInternalHeader.Version,LInternalHeader.SequenceNumber,LInternalHeader.ssrc]);
       AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad, LUDPPayLoadLen ));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Version',[AcronymName]), 'Version:',LInternalHeader.Version , @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Padding',[AcronymName]), 'Padding:',LInternalHeader.Padding, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Extension',[AcronymName]), 'Extension:', LInternalHeader.Extension, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CountCSRC',[AcronymName]), 'CSRC Count:',LInternalHeader.CountCSRC, @LHeaderRTP.Version_Padding_Extension_CC, SizeOf(LHeaderRTP.Version_Padding_Extension_CC)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Marker',[AcronymName]), 'Marker:',LInternalHeader.Marker , @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT)));
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadType',[AcronymName]), 'Payload Type:', GetRTPPayloadTypeString(LInternalHeader.PayloadType), @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT), LInternalHeader.PayloadType ));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadType',[AcronymName]), 'Payload Type:',LPayLoadType, @LHeaderRTP.Marker_PT, SizeOf(LHeaderRTP.Marker_PT), LInternalHeader.PayloadType ));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SequenceNumber',[AcronymName]), 'Sequence Number:', LInternalHeader.SequenceNumber, @LHeaderRTP.SequenceNumber, SizeOf(LHeaderRTP.SequenceNumber)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Timestamp',[AcronymName]), 'Timestamp:',LInternalHeader.Timestamp , @LHeaderRTP.timestamp, SizeOf(LHeaderRTP.timestamp)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SSRC',[AcronymName]), 'SSRC:', LInternalHeader.ssrc, @LHeaderRTP.ssrc, SizeOf(LHeaderRTP.ssrc)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.payload',[AcronymName]), 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad, LSizePayLoad));
 
       for I := Low(LInternalHeader.CSRC) to High(LInternalHeader.CSRC) do
-          AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CSRC',[AcronymName]), 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Uint32)));
+      begin
+        LInfoStr := Format('%s CSRC[%d]: %d',[LInfoStr,I,LInternalHeader.CSRC[I]]);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CSRC',[AcronymName]), 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Uint32)));
+      end;
       
+      aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,LInfoStr]).Trim;
       Result := True;
     Finally
       FreeMem(LPayLoad);

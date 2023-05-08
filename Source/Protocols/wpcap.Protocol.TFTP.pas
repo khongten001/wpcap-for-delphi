@@ -199,6 +199,9 @@ var LUDPPayLoad        : PByte;
     LFileLen           : Uint32;
     LDataArray         : TArray<Uint8>;
     LUdpPayLoadLen     : integer;
+    LInfo              : String;
+    LValue             : String;
+    LBlock             : Uint16;
 begin
   Result         := False;
   LUDPPayLoad    := inherited GetPayLoad(aPacketData,aPacketSize,LUdpPayLoadLen,LDummy); 
@@ -211,25 +214,28 @@ begin
   
   LOpCode        := wpcapntohs(PUint16(LUDPPayLoad)^);    
   FIsFilterMode  := aIsFilterMode;
+  Linfo          := OpcodeToString(LOpCode);
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]), null, LUDPPayLoad,LUdpPayLoadLen));
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OpCode',[AcronymName]), 'OpCode:',OpcodeToString(LOpCode) , @LOpCode, SizeOf(LOpCode), LOpCode ));
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.OpCode',[AcronymName]), 'OpCode:',Linfo , @LOpCode, SizeOf(LOpCode), LOpCode ));
 
   case LOpCode of
     TFTP_RRQ, 
     TFTP_WRQ  :
       begin
         LTFTPHeaderRRQ_WRQ := PTTFTPHeaderRRQ_WRQ(LUDPPayLoad);  
-        LFileLen           :=  StrLen(( LTFTPHeaderRRQ_WRQ.Filename));    
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SourceName',[AcronymName]), 'Source name:', StrPas(LTFTPHeaderRRQ_WRQ.Filename), @LTFTPHeaderRRQ_WRQ.Filename,LFileLen));
-
+        LFileLen           := StrLen(( LTFTPHeaderRRQ_WRQ.Filename));   
+        LValue             := string(LTFTPHeaderRRQ_WRQ.Filename); 
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SourceName',[AcronymName]), 'Source name:', LValue, @LTFTPHeaderRRQ_WRQ.Filename,LFileLen));
+        Linfo := Format('%s filename %s',[Linfo,LValue]);
         Move(LUDPPayLoad[SizeOf(LOpCode)+LFileLen+1],LType,SizeOf(LType));
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:', StrPas(LType), @LType, StrLen(LType)));        
       end;
     TFTP_DATA : 
       begin
         LTFTPHeaderData := PTTFTPHeaderData(LUDPPayLoad);   
-         
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.BlockNumber',[AcronymName]), 'BlockNumber:',wpcapntohs(LTFTPHeaderData.BlockNumber) , @LTFTPHeaderData.BlockNumber, SizeOf(LTFTPHeaderData.BlockNumber)));     
+        LBlock          := wpcapntohs(LTFTPHeaderData.BlockNumber); 
+        Linfo           := Format('%s BlockNumber %d',[Linfo,LBlock]);                        
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.BlockNumber',[AcronymName]), 'BlockNumber:',LBlock , @LTFTPHeaderData.BlockNumber, SizeOf(LTFTPHeaderData.BlockNumber)));     
         
         SetLength(LDataArray,LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber));
         Move(LTFTPHeaderData.Data, LDataArray[0],LUdpPayLoadLen - SizeOf(LTFTPHeaderData.BlockNumber));           
@@ -239,16 +245,20 @@ begin
     TFTP_ACK  :
       begin
         LTFTPHeaderAck := PTTFTPHeaderAck(LUDPPayLoad);
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.BlockNumber',[AcronymName]), 'BlockNumber:',wpcapntohs(LTFTPHeaderAck.BlockNumber) , @LTFTPHeaderAck.BlockNumber, SizeOf(LTFTPHeaderAck.BlockNumber)));        
+        LBlock         := wpcapntohs(LTFTPHeaderAck.BlockNumber); 
+        Linfo          := Format('%s BlockNumber %d',[Linfo,LBlock]);                
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.BlockNumber',[AcronymName]), 'BlockNumber:',LBlock , @LTFTPHeaderAck.BlockNumber, SizeOf(LTFTPHeaderAck.BlockNumber)));        
       end;
     TFTP_ERROR :
       begin
         LTFTPHeaderError := PTTFTPHeaderError(LUDPPayLoad);
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ErrorCode',[AcronymName]), 'ErrorCode:',ErrorCodeToString(wpcapntohs(LTFTPHeaderError.ErrorCode)) , @LTFTPHeaderError.ErrorCode, SizeOf(LTFTPHeaderError.ErrorCode), wpcapntohs(LTFTPHeaderError.ErrorCode) ));                      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ErrorMessage',[AcronymName]), 'ErrorMessage:', StrPas(LTFTPHeaderError.ErrorMessage), @LTFTPHeaderError.ErrorMessage, StrLen(LTFTPHeaderError.ErrorMessage)));
+        LValue := string(LTFTPHeaderError.ErrorMessage);
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ErrorMessage',[AcronymName]), 'ErrorMessage:', LValue, @LTFTPHeaderError.ErrorMessage, StrLen(LTFTPHeaderError.ErrorMessage)));
+        Linfo := Format('%s Error %s',[Linfo,LValue]);
       End
   end;
-
+  aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,Linfo]).Trim;
   Result := True;
 end;
 

@@ -348,6 +348,8 @@ var LTCPPayLoad        : PByte;
     LValueByte         : Uint8;    
     LValueBuffer       : PByte;
     LBckCurrentPos     : Integer;
+    LCommandStr        : String;
+    LInfo              : String;
 begin
   Result          := False;
   FIsFilterMode   := aIsFilterMode;
@@ -376,8 +378,6 @@ begin
       begin
         {Data}
         ExtractDataFromLTCPPayload(LTCPPayLoad, LDataSize,aStartLevel,AListDetail);
-
-
         break;       
       end;
     end;
@@ -388,12 +388,18 @@ begin
   
     if LIsCommand then
     begin
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Command',[AcronymName]), 'Command:', TelnetCommandToString(LCommand), @LCommand, SizeOf(LCommand), LCommand ));
+      LCommandStr := TelnetCommandToString(LCommand); 
+      if LInfo.Contains(LCommandStr) then
+        LInfo := Format('%s %s',[LInfo,LCommandStr]).Trim;
+      
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Command',[AcronymName]), 'Command:', LCommandStr, @LCommand, SizeOf(LCommand), LCommand ));
       Inc(LCurrentPos);
     end
     else if LIsOption then
     begin
       LOption := LTCPPayLoad[LCurrentPos];
+      if LInfo.Contains('Telnet data...') then
+        LInfo := Format('%s Telnet data...',[LInfo]).Trim;
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Command.Subcommand',[AcronymName]), 'Subcommand:', TelnetOptionToString(LOption), @LOption, SizeOf(LOption), LOption ));
       Inc(LCurrentPos);
       continue;
@@ -481,6 +487,7 @@ begin
       end;
     end
   end;  
+  aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LInfo]).Trim;  
   Result := True;
 end;
 

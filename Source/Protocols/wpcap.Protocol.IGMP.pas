@@ -162,19 +162,24 @@ var LHeader        : PTIGMPHeader;
     X              : Integer;
     LCurrentPos    : Integer;
     LIPStr         : String;
+    LType          : String;         
+    LNGr           : Uint16;
 begin
   Result        := False;
   FisFilterMode := aisFilterMode;
 
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
+
+  LType := TypeToString(LHeader.VerType);
+  LNGr  := wpcapntohs( LHeader.NGroupRec);
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)',[ProtoName,AcronymName]),NULL,PByte(LHeader),HeaderLength(0))); 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',TypeToString(LHeader.VerType),@LHeader.VerType,sizeOf(LHeader.VerType), LHeader.VerType ));             
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Type',[AcronymName]), 'Type:',LType,@LHeader.VerType,sizeOf(LHeader.VerType), LHeader.VerType ));             
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CheckSum',[AcronymName]), 'CheckSum:',wpcapntohs( LHeader.CheckSum),@LHeader.CheckSum,sizeOf(LHeader.CheckSum) ));                 
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Reserved',[AcronymName]), 'Reserved:',wpcapntohs( LHeader.Reserved),@LHeader.Reserved,sizeOf(LHeader.Reserved) ));       
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NGroupRecords',[AcronymName]), 'Num Group Records:',wpcapntohs( LHeader.NGroupRec),@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec) )); 
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NGroupRecords',[AcronymName]), 'Num Group Records:',LNGr,@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec) )); 
 
   if IsFilterMode then  
-    UpdateFlowInfo(aAdditionalInfo.FrameNumber,aAdditionalInfo.FrameNumber,0,0,0,0,0,aAdditionalInfo);
+    UpdateFlowInfo(aAdditionalInfo.FrameNumber.ToString,aAdditionalInfo.FrameNumber.ToString,0,0,0,0,0,aAdditionalInfo);
   
   LSizeEthIP  := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LCurrentPos := LSizeEthIP+SizeOf(TIGMPHeader);
@@ -199,6 +204,7 @@ begin
     end
     else
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',LIpStr,@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr) ));  
+
     Inc(LCurrentPos,SizeOf(TIGMPGroupRecord));
 
     if LCurrentPos > aPacketSize then break;
@@ -212,6 +218,9 @@ begin
     INC(LCurrentPos,LGroupRec.DataLen);  
     {Padding ??}  
   end;  
+
+  aAdditionalInfo.Info := FOrmat('%s %s Group record: %d',[aAdditionalInfo.Info,LType,LNGr]).Trim;
+  
   Result := True;       
 end;
 
