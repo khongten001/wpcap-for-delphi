@@ -843,7 +843,7 @@ var LOffset         : Integer;
             Inc(LOffset,LLenExt - aRemove );
         end;
 
-        Procedure ParserDataMod2(aLenSize:Byte;const aExtPluralName,aExtName,aPluralCaption,aSingleCaption : String;aToStringFunction:TWpcapUint16ToString;isBigIndian:Boolean);
+        Procedure ParserDataMod2(aLenSize:Byte;const aExtPluralName,aExtName,aPluralCaption,aSingleCaption : String;aToStringFunction:TWpcapUint16ToString;isBigEndian:Boolean);
         begin
           if aLenSize <> 1 then          
             LLenTmp  := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.ListLen',[AcronymName,aContentType,aExtName]), Format('%s length:',[aPluralCaption]),AListDetail,SizeWordToStr,True,LOffset)
@@ -859,7 +859,7 @@ var LOffset         : Integer;
              begin
                if LLenTmp >= 2 then
                begin
-                 ParserUint16Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.%s.value',[AcronymName,aContentType,aExtName,aExtPluralName]),aSingleCaption,AListDetail,aToStringFunction,isBigIndian,LOffset);   
+                 ParserUint16Value(LTCPPayLoad,aStartLevel+5,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.%s.%s.value',[AcronymName,aContentType,aExtName,aExtPluralName]),aSingleCaption,AListDetail,aToStringFunction,isBigEndian,LOffset);   
                  Dec(LLenTmp,2);
                end
                else

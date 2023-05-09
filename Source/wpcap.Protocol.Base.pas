@@ -99,13 +99,14 @@ Type
     /// </summary>
     class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
 
-     class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint8;  
-     class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint16;
-     class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint32;     
-     class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigIndian:Boolean;var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
-     class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigIndian:Boolean;var aCurrentPos:Integer):Uint64;     
-     class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigIndian: Boolean; var aCurrentPos: Integer;isIP:Boolean=False):String;
-     class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigIndian: Boolean; var aCurrentPos: Integer):Integer;
+     class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint8;  
+     class function ParserUint12Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint16;     
+     class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint16;
+     class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint32;     
+     class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigEndian:Boolean;var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
+     class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint64;     
+     class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigEndian: Boolean; var aCurrentPos: Integer;isIP:Boolean=False):String;
+     class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigEndian: Boolean; var aCurrentPos: Integer):Integer;
      class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;   
   public
     /// <summary>
@@ -251,7 +252,7 @@ end;
 
 class Function TWPcapProtocolBase.ParserUint8Value(const aPacketData:PByte;aLevel:byte; aMaxLen:Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
-        aToStringFunction:TWpcapUint8ToString;isBigIndian:Boolean;
+        aToStringFunction:TWpcapUint8ToString;isBigEndian:Boolean;
         var aCurrentPos:Integer):Uint8;
 begin
   Result := 0;
@@ -269,14 +270,40 @@ begin
   end;
 end;
 
+class function TWPcapProtocolBase.ParserUint12Value(const aPacketData: PByte;
+  aLevel: byte; aMaxLen: Integer; const aLabel, aCaption: String;
+  AListDetail: TListHeaderString; aToStringFunction: TWpcapUint16ToString;
+  isBigEndian: Boolean; var aCurrentPos: Integer): Uint16;
+var LBytes  : TIdBytes;
+begin
+  result := 0;
+  if not isValidLen(aCurrentPos,aMaxLen+1,2) then Exit;
+  
+  SetLength(LBytes,2);
+  Move( (aPacketData + aCurrentPos)^,LBytes[0],2);   
+
+  // convert the bytes to a UInt12 value example 44 D0 = 4 D0
+  Result := MakeWord(LBytes[0] and $0F,LBytes[1] );
+  
+  if isBigEndian then  
+     Result :=  wpcapntohs(Result);
+
+  if Assigned(aToStringFunction) then
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(Result), PByte(LBytes),2,Result ))
+  else      
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, Result, PByte(LBytes),2));
+    
+  Inc(aCurrentPos,2);
+end;
+
 class Function TWPcapProtocolBase.ParserUint16Value(const aPacketData:PByte;aLevel:byte; aMaxLen:Integer;
           const aLabel,aCaption : String;AListDetail: TListHeaderString;
-          aToStringFunction:TWpcapUint16ToString;isBigIndian:Boolean;
+          aToStringFunction:TWpcapUint16ToString;isBigEndian:Boolean;
           var aCurrentPos:Integer):Uint16;
 begin
   if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
-  if isBigIndian then
+  if isBigEndian then
      Result :=  wpcapntohs(PUint16(aPacketData+aCurrentPos )^)
   else
      Result :=  PUint16(aPacketData+aCurrentPos )^;
@@ -290,14 +317,14 @@ end;
 
 class Function TWPcapProtocolBase.ParserUint32Value(const aPacketData:PByte;aLevel:byte; aMaxLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
-        aToStringFunction:TWpcapUint32ToString;isBigIndian:Boolean;
+        aToStringFunction:TWpcapUint32ToString;isBigEndian:Boolean;
         var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
 var LEnrichment : TWpcapEnrichmentType;
     LTmpValue   : String;
 begin
   if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
-  if isBigIndian then  
+  if isBigEndian then  
      Result :=  wpcapntohl(PUint32(aPacketData+aCurrentPos )^)
   else
      Result :=  PUint32(aPacketData+aCurrentPos )^;
@@ -318,7 +345,7 @@ end;
 
 class function TWPcapProtocolBase.ParserGenericBytesValue(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
-        aToStringFunction:TWpcapBytesToString;isBigIndian:Boolean;
+        aToStringFunction:TWpcapBytesToString;isBigEndian:Boolean;
         var aCurrentPos:Integer;isIP:Boolean=False): String;
 var LBytes      : TIdBytes; 
     LEnrichment : TWpcapEnrichmentType;       
@@ -347,7 +374,7 @@ begin
 end;
 
 class Function TWPcapProtocolBase.ParserBytesToInteger(const aPacketData:PByte;aLevel:byte; aMaxLen,aLen : Integer;
-        const aLabel,aCaption : String;AListDetail: TListHeaderString; isBigIndian:Boolean;
+        const aLabel,aCaption : String;AListDetail: TListHeaderString; isBigEndian:Boolean;
         var aCurrentPos:Integer):Integer;
 var LBytes : TIdBytes;
     
@@ -358,7 +385,7 @@ begin
   SetLength(LBytes,aLen);
   Move( (aPacketData + aCurrentPos)^,LBytes[0],aLen);             
 
-  if isBigIndian then  
+  if isBigEndian then  
      Result :=  wpcapntohl(BytesToInt32(LBytes))
   else
      Result :=  BytesToInt32(LBytes);
@@ -371,7 +398,7 @@ end;
 
 class Function TWPcapProtocolBase.ParserUint24Value(const aPacketData:PByte;aLevel:byte; aMaxLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
-        aToStringFunction:TWpcapUint32ToString;isBigIndian:Boolean;
+        aToStringFunction:TWpcapUint32ToString;isBigEndian:Boolean;
         var aCurrentPos:Integer):Uint32;
 var LBytes : TIdBytes;
 begin
@@ -384,11 +411,11 @@ begin
   // convert the bytes to a UInt24 value
   Result := MakeULong( MakeWord(0,LBytes[0]),MakeWord(LBytes[1], LBytes[2] ));
   
-  if isBigIndian then  
+  if isBigEndian then  
      Result :=  wpcapntohl(Result);
 
   if Assigned(aToStringFunction) then
-    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(Result), PByte(LBytes),3 ))
+    AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, aToStringFunction(Result), PByte(LBytes),3,Result ))
   else      
     AListDetail.Add(AddHeaderInfo(aLevel, aLabel,aCaption, Result, PByte(LBytes),3));
     
@@ -397,13 +424,13 @@ end;
 
 class Function TWPcapProtocolBase.ParserUint64Value(const aPacketData:PByte;aLevel:byte; aMaxLen : Integer;
         const aLabel,aCaption : String;AListDetail: TListHeaderString;
-        aToStringFunction:TWpcapUint64ToString;isBigIndian:Boolean;
+        aToStringFunction:TWpcapUint64ToString;isBigEndian:Boolean;
         var aCurrentPos:Integer):Uint64;
 
 begin
   if not isValidLen(aCurrentPos,aMaxLen+1,SizeOf(Result)) then Exit;
   
-  if isBigIndian then  
+  if isBigEndian then  
      Result :=  wpcapntohl(PUint64(aPacketData+aCurrentPos )^)
   else
      Result :=  PUint64(aPacketData+aCurrentPos )^;
@@ -586,8 +613,5 @@ class function TWPcapProtocolBase.IPv6AddressToStringInternal(const ABytes: TidB
 begin
   Result := IPv6AddressToString(ABytes)
 end;
-
-
-
 
 end.

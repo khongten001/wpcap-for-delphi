@@ -1013,7 +1013,6 @@ begin
   end;
 end;
 
-
 class function TWPcapProtocolGTP.IETypeToLabel(const aIEType: Uint8): string;
 begin
   case aIEType of

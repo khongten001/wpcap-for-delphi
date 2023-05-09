@@ -36,7 +36,7 @@ const
   MODE_STAT = $0001;  // capture packets passing through the network stack, but not packets arriving on the physical side of the network adapter.
   MODE_MON  = $0002;  // monitor mode, used to capture traffic in promiscuous mode.
 
-  
+  G_MAXUINT64         = High(UInt64); 
   ADAPTER_NAME_LENGTH = 256; //This constant is used to define the maximum size of the Name field of the ADAPTER_INFO structure. 
                              //In this case, the Name field is an AnsiChar array of length 256.
   ADAPTER_DESC_LENGTH = 128; //This constant is also used to define the maximum size of the Description field of the ADAPTER_INFO structure.
