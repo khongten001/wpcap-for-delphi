@@ -609,7 +609,7 @@ begin
         IPPROTO_GGP     :;  
         IPPROTO_IP      :
           begin  
-            LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IP,LNewPacketSize,True);
+            LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IPV6,LNewPacketSize,False);
             if Assigned(LNewPacket) then
               begin
               Try
@@ -622,7 +622,7 @@ begin
           
         IPPROTO_IPV6    :
         begin
-          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IPV6,LNewPacketSize,False);
+          LNewPacket  := GetNextBufferHeader(aPacketData,aPacketSize,0,ETH_P_IP,LNewPacketSize,False);
           if Assigned(LNewPacket) then
           begin
             Try

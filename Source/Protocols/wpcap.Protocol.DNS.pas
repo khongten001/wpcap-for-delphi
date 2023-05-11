@@ -575,8 +575,13 @@ begin
               else
                 aOffset :=  LStartOffset- ( ( (LLen and not $C0) shl 8 ) or aPacket[aOffset+1] );
                
+
+              if aOffset < 0 then
+              begin 
+                Break;
+              end;
             
-              if LastOffset = aOffset then 
+              if( LastOffset > -1) and ( ( LastOffset+2 = aOffset) or ( LastOffset = aOffset)) then 
               begin
                 aTotalNameLen := Length(Result);
                 break;
@@ -607,7 +612,11 @@ begin
       Break;
     end;
     
-    if aOffset > aMaxLen then break;    
+    if aTotalNameLen+LLen > aMaxLen then 
+    begin
+      DoLog('TWPcapProtocolDNS.ParseDNSName',Format( 'Invalid parser DNS name [Big total len] total len [%d] current len [%d] max len [%d]',[aTotalNameLen,LLen,aMaxLen]),TWLLError);         
+      break;    
+    end;
 
     if not Trim(String(Result)).IsEmpty then
       Result := AnsiString(Format('%s.',[Result]));
