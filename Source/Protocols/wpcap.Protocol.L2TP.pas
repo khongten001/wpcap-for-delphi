@@ -89,28 +89,127 @@ type
   TWPcapProtocolL2TP = Class(TWPcapProtocolBaseUDP)
   private
     CONST
-    {L2TP FLAG}
-    L2TP_HDR_FLAG_OFFSET_SIZE_INCLUDED = $1000; // Indicates whether the Offset Size field is present in the L2TP header
-    L2TP_HDR_FLAG_SEQUENCE             = $2000; // Indicates whether the Sequence Number field is present in the L2TP header
-    L2TP_HDR_FLAG_PRIORITY             = $4000; // Indicates whether the Priority field is present in the L2TP header
-    L2TP_HDR_FLAG_LENGTH_INCLUDED      = $8000; // Indicates whether the Length field is present in the L2TP header
-    L2TP_HDR_FLAG_D_BIT                = $0800; // Delivery Notification Request bit
-    L2TP_HDR_FLAG_S_BIT                = $0400; // Strict-Source bit
-    L2TP_HDR_FLAG_L_BIT                = $0200; // Length-Change bit
-    L2TP_HDR_FLAG_T_BIT                = $0100; // TTL-Present bit
-    L2TP_HDR_FLAG_F_BIT                = $0080; // Firmware-Version bit
-    L2TP_HDR_FLAG_S_RESERVED           = $007F; // Reserved bits in the Flags field (must be set to 0)  
+      AVTYPE_CONTROL_MESSAGE              = 0;
+      AVTYPE_RESULT_ERROR_CODE            = 1;
+      AVTYPE_PROTOCOL_VERSION             = 2;
+      AVTYPE_FRAMING_CAPABILITIES         = 3;
+      AVTYPE_BEARER_CAPABILITIES          = 4;
+      AVTYPE_TIE_BREAKER                  = 5;
+      AVTYPE_FIRMWARE_REVISION            = 6;
+      AVTYPE_HOST_NAME                    = 7;
+      AVTYPE_VENDOR_NAME                  = 8;
+      AVTYPE_ASSIGNED_TUNNEL_ID           = 9;
+      AVTYPE_RECEIVE_WINDOW_SIZE          =10;
+      AVTYPE_CHALLENGE                    =11;
+      AVTYPE_CAUSE_CODE                   =12;
+      AVTYPE_CHALLENGE_RESPONSE           =13;
+      AVTYPE_ASSIGNED_SESSION             =14;
+      AVTYPE_CALL_SERIAL_NUMBER           =15;
+      AVTYPE_MINIMUM_BPS                  =16;
+      AVTYPE_MAXIMUM_BPS                  =17;
+      AVTYPE_BEARER_TYPE                  =18;
+      AVTYPE_FRAMING_TYPE                 =19;
+      AVTYPE_CALLED_NUMBER                =21;
+      AVTYPE_CALLING_NUMBER               =22;
+      AVTYPE_SUB_ADDRESS                  =23;
+      AVTYPE_TX_CONNECT_SPEED             =24;
+      AVTYPE_PHYSICAL_CHANNEL             =25;
+      AVTYPE_INITIAL_RECEIVED_LCP_CONFREQ =26;
+      AVTYPE_LAST_SENT_LCP_CONFREQ        =27;
+      AVTYPE_LAST_RECEIVED_LCP_CONFREQ    =28;
+      AVTYPE_PROXY_AUTHEN_TYPE            =29;
+      AVTYPE_PROXY_AUTHEN_NAME            =30;
+      AVTYPE_PROXY_AUTHEN_CHALLENGE       =31;
+      AVTYPE_PROXY_AUTHEN_ID              =32;
+      AVTYPE_PROXY_AUTHEN_RESPONSE        =33;
+      AVTYPE_CALL_STATUS_AVPS             =34;
+      AVTYPE_ACCM                         =35;
+      AVTYPE_RANDOM_VECTOR                =36;
+      AVTYPE_PRIVATE_GROUP_ID             =37;
+      AVTYPE_RX_CONNECT_SPEED             =38;
+      AVTYPE_SEQUENCING_REQUIRED          =39;
+      AVTYPE_PPP_DISCONNECT_CAUSE_CODE    =46;
+      AVTYPE_EXTENDED_VENDOR_ID           =58;
+      AVTYPE_MESSAGE_DIGEST               =59;
+      AVTYPE_ROUTER_ID                    =60;
+      AVTYPE_ASSIGNED_CONTROL_CONN_ID     =61;
+      AVTYPE_PW_CAPABILITY_LIST           =62;
+      AVTYPE_LOCAL_SESSION_ID             =63;
+      AVTYPE_REMOTE_SESSION_ID            =64;
+      AVTYPE_ASSIGNED_COOKIE              =65;
+      AVTYPE_REMOTE_END_ID                =66;
+      AVTYPE_PW_TYPE                      =68;
+      AVTYPE_L2_SPECIFIC_SUBLAYER         =69;
+      AVTYPE_DATA_SEQUENCING              =70;
+      AVTYPE_CIRCUIT_STATUS               =71;
+      AVTYPE_PREFERRED_LANGUAGE           =72;
+      AVTYPE_CTL_MSG_AUTH_NONCE           =73;
+      AVTYPE_TX_CONNECT_SPEED_V3          =74;
+      AVTYPE_RX_CONNECT_SPEED_V3          =75;
+      AVTYPE_CONNECT_SPEED_UPDATE         =97;
       
+      MESSAGE_TYPE_SCCRQ                  = 1;
+      MESSAGE_TYPE_SCCRP                  = 2;
+      MESSAGE_TYPE_SCCCN                  = 3;
+      MESSAGE_TYPE_StopCCN                = 4;
+      MESSAGE_TYPE_Reserved_5             = 5;
+      MESSAGE_TYPE_HELLO                  = 6;
+      MESSAGE_TYPE_OCRQ                   = 7;
+      MESSAGE_TYPE_OCRP                   = 8;
+      MESSAGE_TYPE_OCCN                   = 9;
+      MESSAGE_TYPE_ICRQ                   =10;
+      MESSAGE_TYPE_ICRP                   =11;
+      MESSAGE_TYPE_ICCN                   =12;
+      MESSAGE_TYPE_Reserved_13            =13;
+      MESSAGE_TYPE_CDN                    =14;
+      MESSAGE_TYPE_WEN                    =15;
+      MESSAGE_TYPE_SLI                    =16;
+      MESSAGE_TYPE_MDMST                  =17;
+      MESSAGE_TYPE_SRRQ                   =18;
+      MESSAGE_TYPE_SRRP                   =19;
+      MESSAGE_TYPE_ACK                    =20;
+      MESSAGE_TYPE_FSQ                    =21;
+      MESSAGE_TYPE_FSR                    =22;
+      MESSAGE_TYPE_MSRQ                   =23;
+      MESSAGE_TYPE_MSRP                   =24;
+      MESSAGE_TYPE_MSE                    =25;
+      MESSAGE_TYPE_MSI                    =26;
+      MESSAGE_TYPE_MSEN                   =27;
+      MESSAGE_TYPE_CSUN                   =28;
+      MESSAGE_TYPE_CSURQ                  =29;     
+
+      ERR_NO_GENERAL                      = 0;
+      ERR_NO_CONTROL                      = 1;
+      ERR_LENGTH                          = 2;
+      ERR_FIELD_VALUE                     = 3;
+      ERR_INSUFFICIENT_RESOURCES          = 4;
+      ERR_INVALID_SESSION                 = 5;
+      ERR_GENERIC_VENDOR                  = 6;
+      ERR_TRY_ANOTHER                     = 7;
+      ERR_UNKNOWN_AVP                     = 8;
+      ERR_TRY_ANOTHER_DIRECTED            = 9;
+      ERR_NEXT_HOP_UNREACHABLE            = 10;
+      ERR_NEXT_HOP_BUSY                   = 11;
+      ERR_TSA_BUSY                        = 12;    
+         
     class function GetL2TPFlag(aFlags: Uint16;aStartLevel:Integer;AListDetail: TListHeaderString): string; static;
     class function ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalInfo: PTAdditionalInfo): string; static;
-    class function L2TPAVPTypeToString(AVPType: Uint16): string; static;
     class function LenghtIsPresent(aFlags: Uint16): Boolean; static;
     class function SequencePresent(aFlags: Uint16): Boolean; static;
     class function OffSetIsPresent(aFlags: Uint16): Boolean; static;
-    class function AvtType0ValueToString(const aAvtValue: Uint16): String; static;
+    class function AvtType0ValueToString(const aAvtValue: Uint16): String;
     Class function InitVendorID: TListVendorID;Static;
-    class function ReadAVPValueFromPacket(const aPayloadData: PByte; aCurrentPos: Integer; aAvpLength, aAvpType: Integer;aVendorID: TListVendorId;
-        var aEnrichmentType : TWpcapEnrichmentType): TValue; static;
+    class procedure ReadAVPValueFromPacket(const aLabel:String;const aPayloadData: PByte;aPayloadSize:Integer;var aCurrentPos:Integer;var aIsStopCcn: Boolean;const aAvpLength,aAvpType,aStartLevel: Integer; aVendorID: TListVendorId;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo); static;
+    class function L2TPAVPTypeToString(AVPType: Uint16): string; static;
+    class function HiddenFlagIsSetted(aAvpLen: Integer): Boolean; static;
+    class function GetErrorMessage(const aErrorCode: Uint16): string;
+    Class function ResultCodeStopccnToString(const aCode:Uint16):String;    
+    Class function ResultCodeToString(const aCode:Uint16):String;     
+    class function CauseCodeDirectionToString(const aErrorCode: Uint8): string;
+    class function PWTypesToString(const aPwType: Uint16): String;
+    class function AuthenTypeToString(const aType: Uint16): String;
+    class function L2SublayerToString(const aSubLayer: Uint16): String;
+    class function DataSequenceToString(const aSubLayer: Uint16): String;
   public
     /// <summary>
     /// Returns the default port number used by the L2TP protocol (1701).
@@ -163,9 +262,7 @@ type
     /// </returns>
     class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override; 
   end;  
-
-
-
+  
 implementation
 
 
@@ -287,271 +384,269 @@ begin
   begin    
     Result.OffsetSize := Puint16(aUDPPayLoad +aCurrentPos)^; 
     inc(aCurrentPos,SizeOf(Result.OffsetPad));
-    Result.OffsetPad := Puint16(aUDPPayLoad +aCurrentPos)^; 
-    
+    Result.OffsetPad := Puint16(aUDPPayLoad +aCurrentPos)^;     
   end;
-
 end;
 
 class function TWPcapProtocolL2TP.L2TPAVPTypeToString(AVPType: Uint16): string;
-begin
+begin      
   case AVPType of
-    0:   Result := 'Control message';
-    1:   Result := 'Message Type';
-    2:   Result := 'Result Code';
-    3:   Result := 'Protocol Version';
-    4:   Result := 'Framing Capabilities';
-    5:   Result := 'Bearer Capabilities';
-    6:   Result := 'Tie Breaker';
-    7:   Result := 'Firmware Revision';
-    8:   Result := 'Host Name';
-    9:   Result := 'Vendor Name';
-    10:  Result := 'Assigned Tunnel ID';
-    11:  Result := 'Receive Window Size';
-    12:  Result := 'Challenge';
-    13:  Result := 'Challenge Response';
-    14:  Result := 'Assigned Session ID';
-    15:  Result := 'Call Serial Number';
-    16:  Result := 'Minimum BPS';
-    17:  Result := 'Maximum BPS';
-    18:  Result := 'Bearer Type';
-    19:  Result := 'Framing Type';
-    20:  Result := 'Called Number';
-    21:  Result := 'Calling Number';
-    22:  Result := 'Sub Address';
-    23:  Result := 'Tx Connect Speed';
-    24:  Result := 'Physical Channel ID';
-    25:  Result := 'Initial Receive Conf';
-    26:  Result := 'Last Sent Conf';
-    27:  Result := 'Proxy Authen Type';
-    28:  Result := 'Proxy Authen Name';
-    29:  Result := 'Proxy Authen Challenge';
-    30:  Result := 'Proxy Authen ID';
-    31:  Result := 'Proxy Authen Response';
-    32:  Result := 'Call Errors';
-    33:  Result := 'Accm';
-    34:  Result := 'Random Vector';
-    35:  Result := 'Private Group ID';
-    36:  Result := 'Proxy Type';
-    37:  Result := 'Proxy Length';
-    38:  Result := 'Bearer Specific Extensions';
-    39:  Result := 'Receive Sequence Number';
-    40:  Result := 'Circuit Status';
-    41:  Result := 'Class';
-    42:  Result := 'Vendor Specific';
-    43:  Result := 'Session ID';
-    44:  Result := 'Bearer Information';
-    45:  Result := 'Framing Information';
-    46:  Result := 'Connect Speed';
-    47:  Result := 'Calling Sub Address';
-    48:  Result := 'Called Sub Address';
-    49:  Result := 'Tx Connect Time';
-    50:  Result := 'Proxy Authen Window';
-    51:  Result := 'Status Info';
-    52:  Result := 'Acct Session ID';
-    53:  Result := 'Acct Multi Session ID';
-    54:  Result := 'Acct Link Count';
-    55:  Result := 'Acct Input Octets';
-    56:  Result := 'Acct Output Octets';
-    57:  Result := 'Acct Input Packets';
-    58:  Result := 'Acct Output Packets';
-    59:  Result := 'Acct Terminate Cause';
-    60:  Result := 'Acct Multi Session ID Valid';
-    61:  Result := 'Acct Primary Session ID';
-    62:  Result := 'Acct Secondary Session ID';
-    63:  Result := 'Acct Orig Session ID';
-    64:  Result := 'Acct Session Time';
-    65:  Result := 'Acct Authentic';
-    66:  Result := 'Acct Session Chargeable';
-    67:  Result := 'Acct Interim Interval';
-    68:  Result := 'Acct Output Gigawords';
-    69:  Result := 'Acct Input Gigawords';
-    70:  Result := 'Event Timestamp';
-    71:  Result := 'Egress VRF Name';
-    72:  Result := 'Ingress VRF Name';
-    73:  Result := 'Source IPv6 Address';
-    74:  Result := 'Destination IPv6 Address';
-    75:  Result := 'Source IPv6 Prefix';
-    76:  Result := 'Destination IPv6 Prefix';
-    77:  Result := 'MPLS Label Stack';
-    78:  Result := 'MPLS Label Stack Depth';
-    79:  Result := 'MPLS Top Label';
-    80:  Result := 'MPLS TTL';
-    81:  Result := 'MPLS BOS';
-    82:  Result := 'MPLS Label Range';
-    83:  Result := 'MPLS Upstream Label';
-    84:  Result := 'MPLS Downstream Label';
-    85:  Result := 'MPLS Pseudowire ID';
-    86:  Result := 'MPLS Access Loop ID';
-    87:  Result := 'MPLS Type';
-    88:  Result := 'Source MAC Address';
-    89:  Result := 'Destination MAC Address';
-    90:  Result := 'Flow ID';
-    91:  Result := 'ECID';
-    92:  Result := 'Bypass ID';
-    93:  Result := 'Remote Endpoint ID';
-    94:  Result := 'Local Endpoint ID';
-    95:  Result := 'Local Session ID';
-    96:  Result := 'Remote Session ID';
-    97:  Result := 'IPv4 Rate Limit';
-    98:  Result := 'IPv4 Bucket Size';
-    99:  Result := 'IPv4 Tokens';
-    100: Result := 'IPv6 Rate Limit';
-    101: Result := 'IPv6 Bucket Size';
-    102: Result := 'IPv6 Tokens';
-    103: Result := 'NAT Information';
-    104: Result := 'Remote Endpoint IP Information';
-    105: Result := 'Local Endpoint IP Information';
-    106: Result := 'Service ID';
-    107: Result := 'QoS Parameters';
-    108: Result := 'Transit VLAN ID';
-    109: Result := 'Transit Service Name';
-    110: Result := 'IPv6 Prefix Pool';
-    111: Result := 'Subscriber Information';
-    112: Result := 'Subscription ID';
-    113: Result := 'Remote MAC Address';
-    114: Result := 'Session Priority';
-    115: Result := 'Home Gateway IP Address';
-    116: Result := 'Home Gateway IPv6 Address';
-    117: Result := 'IPv4 MTU';
-    118: Result := 'IPv6 MTU';
-    119: Result := 'Outer VLAN ID';
-    120: Result := 'Inner VLAN ID';
-    121: Result := 'Originating Line Info';
-    122: Result := 'NAS Port Type';
-    123: Result := 'Source Port';
-    124: Result := 'Destination Port';
-    125: Result := 'Message Authenticator';
-    126: Result := 'Proxy State';
-    127: Result := 'Proxy Information';
-    128: Result := 'NAS Identifier';
-    129: Result := 'Proxy Action';
-    130: Result := 'Location ID';
-    131: Result := 'Location Name';
-    132: Result := 'Location Type';
-    133: Result := 'Location Data';
-    134: Result := 'ATM VC';
-    135: Result := 'ATM VC Type';
-    136: Result := 'ATM CLP';
-    137: Result := 'ATM NNI';
-    138: Result := 'ATM OAM VPI';
-    139: Result := 'ATM OAM VCI';
-    140: Result := 'IP Technology Type';
-    141: Result := 'IPv6 ND Cache Parameters';
-    142: Result := 'Framed Pool ID';
-    143: Result := 'Class of Service';
-    144: Result := 'Tunnel Type';
-    145: Result := 'Tunnel Medium Type';
-    146: Result := 'Tunnel Client Endpoint';
-    147: Result := 'Tunnel Server Endpoint';
-    148: Result := 'Acct Tunnel Connection';
-    149: Result := 'Tunnel Password';
-    150: Result := 'Tunnel Private Group ID';
-    151: Result := 'Tunnel Assignment ID';
-    152: Result := 'Tunnel Preference';
-    153: Result := 'ARAP Password';
-    154: Result := 'ARAP Features';
-    155: Result := 'ARAP Zone Access';
-    156: Result := 'ARAP Security';
-    157: Result := 'ARAP Security Data';
-    158: Result := 'Password Retry';
-    159: Result := 'Prompt';
-    160: Result := 'Connect Info';
-    161: Result := 'Configuration Token';
-    162: Result := 'EAP Message';
-    163: Result := 'Signature';
-    164: Result := 'ARAP Challenge Response';
-    165: Result := 'Acct Interim Interval Valid';
-    166: Result := 'ARAP Password Change Reason';
-    167: Result := 'ARAP Password Change Date';
-    168: Result := 'Protocol Support';
-    169: Result := 'Framed Management Protocol';
-    170: Result := 'Management Transport Protection';
-    171: Result := 'Management Policy ID';
-    172: Result := 'Management Privilege Level';
-    173: Result := 'PKINIT Anchor';
-    174: Result := 'CoA Information';
-    175: Result := 'Effective Policy ID';
-    176: Result := 'Effective Policy Name';
-    177: Result := 'User Profile';
-    178: Result := 'Acct Input Octets64';
-    179: Result := 'Acct Output Octets64';
-    180: Result := 'Access Point Name';
-    181: Result := 'Event Sub Type';
-    182: Result := 'Circuit ID';
-    183: Result := 'Vendor Specific';
-    184: Result := 'Dialout Allowed';
-    185: Result := 'Filter ID';
-    186: Result := 'Prompt Time';
-    187: Result := 'Idle Timeout';
-    188: Result := 'Connect Progress';
-    189: Result := 'Disconnect Cause';
-    190: Result := 'Calling Station ID';
-    191: Result := 'Called Station ID';
-    192: Result := 'NAS Port Id';
-    193: Result := 'Framed IP Address';
-    194: Result := 'Framed IP Netmask';
-    195: Result := 'Framed IP Route';
-    196: Result := 'Filter Id';
-    197: Result := 'Framed AppleTalk Link';
-    198: Result := 'Framed AppleTalk Network';
-    199: Result := 'Framed AppleTalk Zone';
-    200: Result := 'Acct Input Packets';
-    201: Result := 'Acct Output Packets';
-    202: Result := 'Acct Session Id';
-    203: Result := 'Acct Authentic';
-    204: Result := 'Acct Session Time';
-    205: Result := 'Acct Input Gigawords';
-    206: Result := 'Acct Output Gigawords';
-    207: Result := 'Unassigned';
-    208: Result := 'Event Timestamp';
-    209: Result := 'Egress VLANID';
-    210: Result := 'Ingress Filters';
-    211: Result := 'Egress VLAN Name';
-    212: Result := 'UserName';
-    213: Result := 'VLAN Name';
-    214: Result := 'Filter Name';
-    215: Result := 'IPv6 Interface ID';
-    216: Result := 'IPv6 Client IP Address';
-    217: Result := 'IPv6 Server IP Address';
-    218: Result := 'RADIUS IPv6 Prefix';
-    219: Result := 'Framed IPv6 Prefix';
-    220: Result := 'Login IPv6 Host';
-    221: Result := 'Framed IPv6 Route';
-    222: Result := 'Framed IPv6 Pool';
-    223: Result := 'Error Cause';
-    224: Result := 'EAP Key Name';
-    225: Result := 'Digest Response';
-    226: Result := 'Digest Realm';
-    227: Result := 'Digest Nonce';
-    228: Result := 'Digest Response Auth';
-    229: Result := 'Digest Nextnonce';
-    230: Result := 'Digest Method';
-    231: Result := 'Digest URI';
-    232: Result := 'Digest Qop';
-    233: Result := 'Digest Algorithm';
-    234: Result := 'Digest Entity Body Hash';
-    235: Result := 'Digest CNonce';
-    236: Result := 'Digest Nonce Count';
-    237: Result := 'Digest Username';
-    238: Result := 'Digest Opaque';
-    239: Result := 'Digest Auth Param';
-    240: Result := 'Digest AKA Auts';
-    241: Result := 'Digest Domain';
-    242: Result := 'Digest Stale';
-    243: Result := 'Digest HA1';
-    244: Result := 'SIP AOR';
-    245: Result := 'Delegated IPv6 Prefix';
-    246: Result := 'MIP6 Feature Vector';
-    247: Result := 'MIP6 Home Link Prefix';
-    248: Result := 'Operator Name';
-    249: Result := 'Location Information';
-    250: Result := 'Location';
-    251: Result := 'Location Data';
-    252: Result := 'Basic Location Policy Rules';
-    253: Result := 'Extended Location Policy Rules';
-    254: Result := 'Location Capable';
-    255: Result := 'Requested Location Info';    
+    AVTYPE_CONTROL_MESSAGE              : Result := 'Control Message';
+    AVTYPE_RESULT_ERROR_CODE            : Result := 'Result-Error Code';
+    AVTYPE_PROTOCOL_VERSION             : Result := 'Protocol Version';
+    AVTYPE_FRAMING_CAPABILITIES         : Result := 'Framing Capabilities';
+    AVTYPE_BEARER_CAPABILITIES          : Result := 'Bearer Capabilities';
+    AVTYPE_TIE_BREAKER                  : Result := 'Tie Breaker';
+    AVTYPE_FIRMWARE_REVISION            : Result := 'Firmware Revision';
+    AVTYPE_HOST_NAME                    : Result := 'Host Name';
+    AVTYPE_VENDOR_NAME                  : Result := 'Vendor Name';
+    AVTYPE_ASSIGNED_TUNNEL_ID           : Result := 'Assigned Tunnel ID';
+    AVTYPE_RECEIVE_WINDOW_SIZE          : Result := 'Receive Window Size';
+    AVTYPE_CHALLENGE                    : Result := 'Challenge';
+    AVTYPE_CAUSE_CODE                   : Result := 'Cause Code';
+    AVTYPE_CHALLENGE_RESPONSE           : Result := 'Challenge Response';
+    AVTYPE_ASSIGNED_SESSION             : Result := 'Assigned Session';
+    AVTYPE_CALL_SERIAL_NUMBER           : Result := 'Call Serial Number';
+    AVTYPE_MINIMUM_BPS                  : Result := 'Minimum BPS';
+    AVTYPE_MAXIMUM_BPS                  : Result := 'Maximum BPS';
+    AVTYPE_BEARER_TYPE                  : Result := 'Bearer Type';
+    AVTYPE_FRAMING_TYPE                 : Result := 'Framing Type';
+    20                                  : Result := 'Reserved';
+    AVTYPE_CALLED_NUMBER                : Result := 'Called Number';
+    AVTYPE_CALLING_NUMBER               : Result := 'Calling Number';
+    AVTYPE_SUB_ADDRESS                  : Result := 'Sub-Address';
+    AVTYPE_TX_CONNECT_SPEED             : Result := 'Connect Speed';
+    AVTYPE_PHYSICAL_CHANNEL             : Result := 'Physical Channel';
+    AVTYPE_INITIAL_RECEIVED_LCP_CONFREQ : Result := 'Initial Received LCP CONFREQ';
+    AVTYPE_LAST_SENT_LCP_CONFREQ        : Result := 'Last Sent LCP CONFREQ';
+    AVTYPE_LAST_RECEIVED_LCP_CONFREQ    : Result := 'Last Received LCP CONFREQ';
+    AVTYPE_PROXY_AUTHEN_TYPE            : Result := 'Proxy Authen Type';
+    AVTYPE_PROXY_AUTHEN_NAME            : Result := 'Proxy Authen Name';
+    AVTYPE_PROXY_AUTHEN_CHALLENGE       : Result := 'Proxy Authen Challenge';
+    AVTYPE_PROXY_AUTHEN_ID              : Result := 'Proxy Authen ID';
+    AVTYPE_PROXY_AUTHEN_RESPONSE        : Result := 'Proxy Authen Response';
+    AVTYPE_CALL_STATUS_AVPS             : Result := 'Call status AVPs';
+    AVTYPE_ACCM                         : Result := 'ACCM';
+    AVTYPE_RANDOM_VECTOR                : Result := 'Random Vector';
+    AVTYPE_PRIVATE_GROUP_ID             : Result := 'Private group ID';
+    AVTYPE_RX_CONNECT_SPEED             : Result := 'RxConnect Speed';
+    AVTYPE_SEQUENCING_REQUIRED          : Result := 'Sequencing Required';
+    40                                  : Result := 'Circuit Status';
+    41                                  : Result := 'Class';
+    42                                  : Result := 'Vendor Specific';
+    43                                  : Result := 'Session ID';
+    44                                  : Result := 'Bearer Information';
+    45                                  : Result := 'Framing Information';
+    AVTYPE_PPP_DISCONNECT_CAUSE_CODE    : Result := 'PPP Disconnect Cause Code';
+    47                                  : Result := 'Calling Sub Address';
+    48                                  : Result := 'Called Sub Address';
+    49                                  : Result := 'Tx Connect Time';
+    50                                  : Result := 'Proxy Authen Window';
+    51                                  : Result := 'Status Info';
+    52                                  : Result := 'Acct Session ID';
+    53                                  : Result := 'Acct Multi Session ID';
+    54                                  : Result := 'Acct Link Count';
+    55                                  : Result := 'Acct Input Octets';
+    56                                  : Result := 'Acct Output Octets';
+    57                                  : Result := 'Acct Input Packets';
+    AVTYPE_EXTENDED_VENDOR_ID           : Result := 'Extended Vendor ID';
+    AVTYPE_MESSAGE_DIGEST               : Result := 'Message Digest';
+    AVTYPE_ROUTER_ID                    : Result := 'Router ID';
+    AVTYPE_ASSIGNED_CONTROL_CONN_ID     : Result := 'Assigned Control Connection ID';
+    AVTYPE_PW_CAPABILITY_LIST           : Result := 'Pseudowire Capability List';
+    AVTYPE_LOCAL_SESSION_ID             : Result := 'Local Session ID';
+    AVTYPE_REMOTE_SESSION_ID            : Result := 'Remote Session ID';
+    AVTYPE_ASSIGNED_COOKIE              : Result := 'Assigned Cookie';
+    AVTYPE_REMOTE_END_ID                : Result := 'Remote End ID';
+    67                                  : Result := 'Acct Interim Interval';    
+    AVTYPE_PW_TYPE                      : Result := 'Pseudowire Type';
+    AVTYPE_L2_SPECIFIC_SUBLAYER         : Result := 'Layer2 Specific Sublayer';
+    AVTYPE_DATA_SEQUENCING              : Result := 'Data Sequencing';
+    AVTYPE_CIRCUIT_STATUS               : Result := 'Circuit Status';
+    AVTYPE_PREFERRED_LANGUAGE           : Result := 'Preferred Language';
+    AVTYPE_CTL_MSG_AUTH_NONCE           : Result := 'Control Message Authentication Nonce';
+    AVTYPE_TX_CONNECT_SPEED_V3          : Result := 'Tx Connect Speed Version 3';
+    AVTYPE_RX_CONNECT_SPEED_V3          : Result := 'Rx Connect Speed Version 3';
+    76                           	      : Result := 'Failover Capability';                            
+    77                           	      : Result := 'Tunnel Recovery';                                
+    78                           	      : Result := 'Suggested Control Sequence';                     
+    79                           	      : Result := 'Failover Session State';                         
+    80                           	      : Result := 'Multicast Capability';                           
+    81                           	      : Result := 'New Outgoing Sessions';                          
+    82                           	      : Result := 'New Outgoing Sessions Acknowledgement';          
+    83                           	      : Result := 'Withdraw Outgoing Sessions';                     
+    84                           	      : Result := 'Multicast Packets Priority';                     
+    85                           	      : Result := 'Frame-Relay Header Length';                      
+    86                           	      : Result := 'ATM Maximum Concatenated Cells';                 
+    87                           	      : Result := 'OAM Emulation Required';                         
+    88                           	      : Result := 'ATM Alarm Status';                               
+    89                           	      : Result := 'Attachment Group Identifier';                    
+    90                           	      : Result := 'Local End Identifier';                           
+    91                           	      : Result := 'Interface Maximum Transmission Unit';            
+    92                           	      : Result := 'FCS Retention';                                  
+    93                           	      : Result := 'Tunnel Switching Aggregator ID';                 
+    94                           	      : Result := 'Maximum Receive Unit (MRU)';                     
+    95                           	      : Result := 'Maximum Reassembled Receive Unit (MRRU)';        
+    96                           	      : Result := 'VCCV Capability';                                
+    AVTYPE_CONNECT_SPEED_UPDATE         : Result := 'Connect Speed Update';                           
+    98                           	      : Result := 'Connect Speed Update Enable';                    
+    99                           	      : Result := 'TDM Pseudowire';                                 
+    100                          	      : Result := 'RTP AVP';                                        
+    101                          	  	  : Result := 'PW Switching Point';  
+    102                                 : Result := 'IPv6 Tokens';
+    103                                 : Result := 'NAT Information';
+    104                                 : Result := 'Remote Endpoint IP Information';
+    105                                 : Result := 'Local Endpoint IP Information';
+    106                                 : Result := 'Service ID';
+    107                                 : Result := 'QoS Parameters';
+    108                                 : Result := 'Transit VLAN ID';
+    109                                 : Result := 'Transit Service Name';
+    110                                 : Result := 'IPv6 Prefix Pool';
+    111                                 : Result := 'Subscriber Information';
+    112                                 : Result := 'Subscription ID';
+    113                                 : Result := 'Remote MAC Address';
+    114                                 : Result := 'Session Priority';
+    115                                 : Result := 'Home Gateway IP Address';
+    116                                 : Result := 'Home Gateway IPv6 Address';
+    117                                 : Result := 'IPv4 MTU';
+    118                                 : Result := 'IPv6 MTU';
+    119                                 : Result := 'Outer VLAN ID';
+    120                                 : Result := 'Inner VLAN ID';
+    121                                 : Result := 'Originating Line Info';
+    122                                 : Result := 'NAS Port Type';
+    123                                 : Result := 'Source Port';
+    124                                 : Result := 'Destination Port';
+    125                                 : Result := 'Message Authenticator';
+    126                                 : Result := 'Proxy State';
+    127                                 : Result := 'Proxy Information';
+    128                                 : Result := 'NAS Identifier';
+    129                                 : Result := 'Proxy Action';
+    130                                 : Result := 'Location ID';
+    131                                 : Result := 'Location Name';
+    132                                 : Result := 'Location Type';
+    133                                 : Result := 'Location Data';
+    134                                 : Result := 'ATM VC';
+    135                                 : Result := 'ATM VC Type';
+    136                                 : Result := 'ATM CLP';
+    137                                 : Result := 'ATM NNI';
+    138                                 : Result := 'ATM OAM VPI';
+    139                                 : Result := 'ATM OAM VCI';
+    140                                 : Result := 'IP Technology Type';
+    141                                 : Result := 'IPv6 ND Cache Parameters';
+    142                                 : Result := 'Framed Pool ID';
+    143                                 : Result := 'Class of Service';
+    144                                 : Result := 'Tunnel Type';
+    145                                 : Result := 'Tunnel Medium Type';
+    146                                 : Result := 'Tunnel Client Endpoint';
+    147                                 : Result := 'Tunnel Server Endpoint';
+    148                                 : Result := 'Acct Tunnel Connection';
+    149                                 : Result := 'Tunnel Password';
+    150                                 : Result := 'Tunnel Private Group ID';
+    151                                 : Result := 'Tunnel Assignment ID';
+    152                                 : Result := 'Tunnel Preference';
+    153                                 : Result := 'ARAP Password';
+    154                                 : Result := 'ARAP Features';
+    155                                 : Result := 'ARAP Zone Access';
+    156                                 : Result := 'ARAP Security';
+    157                                 : Result := 'ARAP Security Data';
+    158                                 : Result := 'Password Retry';
+    159                                 : Result := 'Prompt';
+    160                                 : Result := 'Connect Info';
+    161                                 : Result := 'Configuration Token';
+    162                                 : Result := 'EAP Message';
+    163                                 : Result := 'Signature';
+    164                                 : Result := 'ARAP Challenge Response';
+    165                                 : Result := 'Acct Interim Interval Valid';
+    166                                 : Result := 'ARAP Password Change Reason';
+    167                                 : Result := 'ARAP Password Change Date';
+    168                                 : Result := 'Protocol Support';
+    169                                 : Result := 'Framed Management Protocol';
+    170                                 : Result := 'Management Transport Protection';
+    171                                 : Result := 'Management Policy ID';
+    172                                 : Result := 'Management Privilege Level';
+    173                                 : Result := 'PKINIT Anchor';
+    174                                 : Result := 'CoA Information';
+    175                                 : Result := 'Effective Policy ID';
+    176                                 : Result := 'Effective Policy Name';
+    177                                 : Result := 'User Profile';
+    178                                 : Result := 'Acct Input Octets64';
+    179                                 : Result := 'Acct Output Octets64';
+    180                                 : Result := 'Access Point Name';
+    181                                 : Result := 'Event Sub Type';
+    182                                 : Result := 'Circuit ID';
+    183                                 : Result := 'Vendor Specific';
+    184                                 : Result := 'Dialout Allowed';
+    185                                 : Result := 'Filter ID';
+    186                                 : Result := 'Prompt Time';
+    187                                 : Result := 'Idle Timeout';
+    188                                 : Result := 'Connect Progress';
+    189                                 : Result := 'Disconnect Cause';
+    190                                 : Result := 'Calling Station ID';
+    191                                 : Result := 'Called Station ID';
+    192                                 : Result := 'NAS Port Id';
+    193                                 : Result := 'Framed IP Address';
+    194                                 : Result := 'Framed IP Netmask';
+    195                                 : Result := 'Framed IP Route';
+    196                                 : Result := 'Filter Id';
+    197                                 : Result := 'Framed AppleTalk Link';
+    198                                 : Result := 'Framed AppleTalk Network';
+    199                                 : Result := 'Framed AppleTalk Zone';
+    200                                 : Result := 'Acct Input Packets';
+    201                                 : Result := 'Acct Output Packets';
+    202                                 : Result := 'Acct Session Id';
+    203                                 : Result := 'Acct Authentic';
+    204                                 : Result := 'Acct Session Time';
+    205                                 : Result := 'Acct Input Gigawords';
+    206                                 : Result := 'Acct Output Gigawords';
+    207                                 : Result := 'Unassigned';
+    208                                 : Result := 'Event Timestamp';
+    209                                 : Result := 'Egress VLANID';
+    210                                 : Result := 'Ingress Filters';
+    211                                 : Result := 'Egress VLAN Name';
+    212                                 : Result := 'UserName';
+    213                                 : Result := 'VLAN Name';
+    214                                 : Result := 'Filter Name';
+    215                                 : Result := 'IPv6 Interface ID';
+    216                                 : Result := 'IPv6 Client IP Address';
+    217                                 : Result := 'IPv6 Server IP Address';
+    218                                 : Result := 'RADIUS IPv6 Prefix';
+    219                                 : Result := 'Framed IPv6 Prefix';
+    220                                 : Result := 'Login IPv6 Host';
+    221                                 : Result := 'Framed IPv6 Route';
+    222                                 : Result := 'Framed IPv6 Pool';
+    223                                 : Result := 'Error Cause';
+    224                                 : Result := 'EAP Key Name';
+    225                                 : Result := 'Digest Response';
+    226                                 : Result := 'Digest Realm';
+    227                                 : Result := 'Digest Nonce';
+    228                                 : Result := 'Digest Response Auth';
+    229                                 : Result := 'Digest Nextnonce';
+    230                                 : Result := 'Digest Method';
+    231                                 : Result := 'Digest URI';
+    232                                 : Result := 'Digest Qop';
+    233                                 : Result := 'Digest Algorithm';
+    234                                 : Result := 'Digest Entity Body Hash';
+    235                                 : Result := 'Digest CNonce';
+    236                                 : Result := 'Digest Nonce Count';
+    237                                 : Result := 'Digest Username';
+    238                                 : Result := 'Digest Opaque';
+    239                                 : Result := 'Digest Auth Param';
+    240                                 : Result := 'Digest AKA Auts';
+    241                                 : Result := 'Digest Domain';
+    242                                 : Result := 'Digest Stale';
+    243                                 : Result := 'Digest HA1';
+    244                                 : Result := 'SIP AOR';
+    245                                 : Result := 'Delegated IPv6 Prefix';
+    246                                 : Result := 'MIP6 Feature Vector';
+    247                                 : Result := 'MIP6 Home Link Prefix';
+    248                                 : Result := 'Operator Name';
+    249                                 : Result := 'Location Information';
+    250                                 : Result := 'Location';
+    251                                 : Result := 'Location Data';
+    252                                 : Result := 'Basic Location Policy Rules';
+    253                                 : Result := 'Extended Location Policy Rules';
+    254                                 : Result := 'Location Capable';
+    255                                 : Result := 'Requested Location Info';    
   end;
 end;
 
@@ -569,6 +664,38 @@ class function TWPcapProtocolL2TP.OffSetIsPresent(aFlags:Uint16):Boolean;
 begin
   Result := GetBitValue(aFlags,7) =1;
 end;
+
+class function TWPcapProtocolL2TP.GetErrorMessage(const aErrorCode: Uint16): string;
+begin
+  case aErrorCode of
+    ERR_NO_GENERAL              : Result := 'No General Error';
+    ERR_NO_CONTROL              : Result := 'No control connection exists yet for this pair of LCCEs';
+    ERR_LENGTH                  : Result := 'Length is wrong';
+    ERR_FIELD_VALUE             : Result := 'One of the field values was out of range';
+    ERR_INSUFFICIENT_RESOURCES  : Result := 'Insufficient resources to handle this operation now';
+    ERR_INVALID_SESSION         : Result := 'Invalid Session ID';
+    ERR_GENERIC_VENDOR          : Result := 'A generic vendor-specific error occurred';
+    ERR_TRY_ANOTHER             : Result := 'Try another';
+    ERR_UNKNOWN_AVP             : Result := 'Receipt of an unknown AVP with the M bit set';
+    ERR_TRY_ANOTHER_DIRECTED    : Result := 'Try another directed';
+    ERR_NEXT_HOP_UNREACHABLE    : Result := 'Next hop unreachable';
+    ERR_NEXT_HOP_BUSY           : Result := 'Next hop busy';
+    ERR_TSA_BUSY                : Result := 'TSA busy';
+  else
+    Result := 'Unknown error';
+  end;
+end;
+
+class function TWPcapProtocolL2TP.CauseCodeDirectionToString(const aErrorCode: Uint8): string;
+begin
+  case aErrorCode of
+     0: Result := 'global error';
+     1: Result := 'at peer';
+     2: Result := 'at local';
+  else
+    Result := 'Unknown';
+  end;
+end;   
 
 class function TWPcapProtocolL2TP.GetL2TPFlag(aFlags: Uint16;aStartLevel:Integer;AListDetail:TListHeaderString): string;
 begin
@@ -672,7 +799,10 @@ begin
          exchanged as Assigned Session ID AVPs during the creation of a
          session.
        }
-      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SessionId',[AcronymName]), 'Session ID', wpcapntohs(LHeaderL2TP.SessionId), @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
+      AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SessionId',[AcronymName]), 'Session ID',wpcapntohs(LHeaderL2TP.SessionId) , @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
+
+      aAdditionalInfo.Info := Format('Tunnel ID %d Session ID %d %s',[wpcapntohs(LHeaderL2TP.tunnelID),wpcapntohs(LHeaderL2TP.SessionId),aAdditionalInfo.Info]);
+
       if SequencePresent(LHeaderL2TP.Flags) then    
       begin
         {
@@ -710,13 +840,10 @@ begin
       begin
         // Parse L2TP payload for control message AVP
         if LHeaderL2TP.Version = 2 then    
-        begin
-          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID,aAdditionalInfo);
-          DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP MESSAGE CONTROL not implemented',TWLLWarning);                
-        end
-        else if LHeaderL2TP.Version = 3 then  
+          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID,aAdditionalInfo)              
+        else if LHeaderL2TP.Version = 3 then   {TODO version 3}
           DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP Version 3 not implemented',TWLLWarning);                
-        {TODO version 3}
+
       end;
       Result := True;
     Finally
@@ -727,43 +854,109 @@ begin
   End;
 end;
 
+
 Class function TWPcapProtocolL2TP.AvtType0ValueToString(const aAvtValue:Uint16):String;
 begin
   case aAvtValue of
-
-    1 : Result := 'Authorization-Request';
-    2 : Result := 'Authorization-Answer';
-    3 : Result := 'Session-Termination-Request';
-    4 : Result := 'Session-Termination-Answer';
-    5 : Result := 'Abort-Session-Request';
-    6 : Result := 'Abort-Session-Answer';
-    7 : Result := 'Accounting-Request';
-    8 : Result := 'Accounting-Answer';
-    9 : Result := 'Device-Watchdog-Request';
-    10: Result := 'Device-Watchdog-Answer';
-    11: Result := 'Disconnect-Peer-Request';
-    12: Result := 'Disconnect-Peer-Answer';
-    13: Result := 'Device-Application-Auth-Request';
-    14: Result := 'Call-Disconnect';
-    15: Result := 'Re-Auth-Request';
-    16: Result := 'Re-Auth-Answer';
-    17: Result := 'Capability-Exchange-Request';
-    18: Result := 'Capability-Exchange-Answer';
+    MESSAGE_TYPE_SCCRQ      : Result := 'Authorization-Request';
+    MESSAGE_TYPE_SCCRP      : Result := 'Authorization-Answer';
+    MESSAGE_TYPE_SCCCN      : Result := 'Session-Termination-Request';
+    MESSAGE_TYPE_StopCCN    : Result := 'Session-Termination-Answer';
+    MESSAGE_TYPE_Reserved_5 : Result := 'Abort-Session-Request';
+    MESSAGE_TYPE_HELLO      : Result := 'Abort-Session-Answer';
+    MESSAGE_TYPE_OCRQ       : Result := 'Accounting-Request';
+    MESSAGE_TYPE_OCRP       : Result := 'Accounting-Answer';
+    MESSAGE_TYPE_OCCN       : Result := 'Device-Watchdog-Request';
+    MESSAGE_TYPE_ICRQ       : Result := 'Device-Watchdog-Answer';
+    MESSAGE_TYPE_ICRP       : Result := 'Disconnect-Peer-Request';
+    MESSAGE_TYPE_ICCN       : Result := 'Disconnect-Peer-Answer';
+    MESSAGE_TYPE_Reserved_13: Result := 'Device-Application-Auth-Request';
+    MESSAGE_TYPE_CDN        : Result := 'Call-Disconnect';
+    MESSAGE_TYPE_WEN        : Result := 'Re-Auth-Request';
+    MESSAGE_TYPE_SLI        : Result := 'Re-Auth-Answer';
+    MESSAGE_TYPE_MDMST      : Result := 'Capability-Exchange-Request';
+    MESSAGE_TYPE_SRRQ       : Result := 'Capability-Exchange-Answer';
     19..31 : Result := 'Reserved';
   else
     Result := 'Unknown';
   end;
-
-  Result := Format('%s [%d]',[result,aAvtValue])
 end;
 
 Class function TWPcapProtocolL2TP.InitVendorID: TListVendorID;
 begin
+
+
   Result := TDictionary<Integer, string>.Create;
-  Result.Add(0, 'IETF');
-  Result.Add(9, 'Cisco Systems, Inc.');
+  Result.Add(VENDOR_IETF, 'Reserved');
+  Result.Add(VENDOR_ACC, 'ACC');
+  Result.Add(VENDOR_CISCO, 'Cisco');
+  Result.Add(VENDOR_HEWLETT_PACKARD, 'Hewlett-Packard');
+  Result.Add(VENDOR_SUN_MICROSYSTEMS, 'Sun Microsystems');
+  Result.Add(VENDOR_MERIT, 'Merit');
+  Result.Add(VENDOR_AT_AND_T, 'AT&T');
+  Result.Add(VENDOR_MOTOROLA, 'Motorola');
+  Result.Add(VENDOR_SHIVA, 'Shiva');
+  Result.Add(VENDOR_ERICSSON, 'Ericsson');
+  Result.Add(VENDOR_CISCO_VPN5000, 'Cisco VPN 5000');
+  Result.Add(VENDOR_LIVINGSTON, 'Livingston');
+  Result.Add(VENDOR_MICROSOFT, 'Microsoft');
+  Result.Add(VENDOR_3COM, '3Com');
+  Result.Add(VENDOR_ASCEND, 'Ascend');
+  Result.Add(VENDOR_BAY, 'Bay');
+  Result.Add(VENDOR_FOUNDRY, 'Foundry');
+  Result.Add(VENDOR_VERSANET, 'Versanet');
+  Result.Add(VENDOR_REDBACK, 'Redback');
+  Result.Add(VENDOR_JUNIPER, 'Juniper');
+  Result.Add(VENDOR_APTIS, 'Aptis');
+  Result.Add(VENDOR_DT_AG, 'DT_AG');
+  Result.Add(VENDOR_IXIA, 'Ixia');
+  Result.Add(VENDOR_CISCO_VPN3000, 'Cisco VPN 3000');
+  Result.Add(VENDOR_COSINE, 'Cosine');
+  Result.Add(VENDOR_SHASTA, 'Shasta');
+  Result.Add(VENDOR_NETSCREEN, 'Netscreen');
+  Result.Add(VENDOR_NOMADIX, 'Nomadix');
+  Result.Add(VENDOR_T_MOBILE, 'T-Mobile');
+  Result.Add(VENDOR_BROADBAND_FORUM, 'Broadband Forum');
+  Result.Add(VENDOR_NOKIA, 'Nokia');
+  Result.Add(VENDOR_ZTE, 'ZTE');
+  Result.Add(VENDOR_SIEMENS, 'Siemens');
+  Result.Add(VENDOR_CABLELABS, 'CableLabs');
+  Result.Add(VENDOR_UNISPHERE, 'Unisphere');
+  Result.Add(VENDOR_CISCO_BBSM, 'Cisco BBSM');
+  Result.Add(VENDOR_THE3GPP2, '3GPP2');
+  Result.Add(VENDOR_SKT_TELECOM, 'SKT Telecom');
+  Result.Add(VENDOR_IP_UNPLUGGED, 'IP Unplugged');
+  Result.Add(VENDOR_ISSANNI, 'Issanni');
+  Result.Add(VENDOR_NETSCALER, 'Netscaler');
+  Result.Add(VENDOR_DE_TE_MOBIL, 'DeTeMobil');
+  Result.Add(VENDOR_QUINTUM, 'Quintum');
+  Result.Add(VENDOR_INTERLINK, 'Interlink');
+  Result.Add(VENDOR_CNCTC, 'CNCTC');
+  Result.Add(VENDOR_STARENT_NETWORKS, 'Starent Networks');
+  Result.Add(VENDOR_COLUBRIS, 'Colubris');
+  Result.Add(VENDOR_THE3GPP, '3GPP');
+  Result.Add(VENDOR_GEMTEK_SYSTEMS, 'Gemtek Systems');
+  Result.Add(VENDOR_BARRACUDA, 'Barracuda');
+  Result.Add(VENDOR_ERICSSON_PKT_CORE, 'Ericsson PKT Core');
+  Result.Add(VENDOR_DACOM, 'Dacom');
+  Result.Add(VENDOR_COLUMBIA_UNIVERSITY, 'Columbia University');
+  Result.Add(VENDOR_FORTINET, 'Fortinet');
+  Result.Add(VENDOR_VERIZON, 'Verizon');
+  Result.Add(VENDOR_PLIXER, 'Plixer');
+  Result.Add(VENDOR_WIFI_ALLIANCE,'WiFi Alliance');
+  Result.Add(VENDOR_T_SYSTEMS_NOVA,'T-Systems NOVA');
+  Result.Add(VENDOR_TRAVELPING,'Travelport');
+  Result.Add(VENDOR_CHINATELECOM_GUANZHOU,'China Telecom Guangzhou');
+  Result.Add(VENDOR_GIGAMON,'Gigamon');
+  Result.Add(VENDOR_CACE,'CACE Technologies');
+  Result.Add(VENDOR_FASTIP,'FastIP');
+  Result.Add(VENDOR_NTOP,'ntop');
+  Result.Add(VENDOR_ERICSSON_CANADA_INC,'Ericsson Canada Inc.');
+  Result.Add(VENDOR_NIAGARA_NETWORKS,'Niagara Networks');
+  Result.Add(VENDOR_CISCO_WIFI,'Cisco WiFi');
+
   Result.Add(10, 'Ascend Communications, Inc.');
-  Result.Add(11, 'DEC');
+
   Result.Add(14, 'Microsoft Corporation');
   Result.Add(18, '3Com Corporation');
   Result.Add(21, 'US Robotics Corporation');
@@ -772,7 +965,7 @@ begin
   Result.Add(27, 'Lucent Technologies');
   Result.Add(31, 'US Robotics Corporation');
   Result.Add(41, 'Sun Microsystems, Inc.');
-  Result.Add(42, 'IBM Corporation');
+
   Result.Add(44, 'Bay Networks, Inc.');
   Result.Add(45, 'Motorola');
   Result.Add(46, 'Northern Telecom Limited');
@@ -856,7 +1049,6 @@ begin
   Result.Add(298, 'Nortel Networks');
   Result.Add(303, 'Cisco Systems, Inc.');
   Result.Add(306, 'Cisco Systems, Inc.');
-  Result.Add(311, 'Nortel Networks');
   Result.Add(315, 'Microsoft Corporation');
   Result.Add(317, 'Cisco Systems, Inc.');
   Result.Add(318, 'Cisco Systems, Inc.');
@@ -919,405 +1111,443 @@ begin
   Result.Add(432, 'Nortel Networks');
   Result.Add(434, 'Nortel Networks');
   Result.Add(436, 'Nortel Networks');
+
+
+  
 end;
 
-Class function TWPcapProtocolL2TP.ReadAVPValueFromPacket(const aPayloadData: PByte; aCurrentPos: Integer; aAvpLength: Integer; 
-              aAvpType: Integer;aVendorID: TListVendorId;var aEnrichmentType : TWpcapEnrichmentType): TValue;
-var ByteValue         : Uint8;
-    IntValue          : Integer;
-    Int64Value        : Uint64;
-    UIntValue         : Uint32;
-    LongValue         : LongWord;
-    UInt64Value       : UInt64;
-    RawValue          : TBytes;
-    FloatValue        : Extended;
-    I                 : Integer;
-    OctetStringValue  : string;
-    AddressValue      : string;
-    TimeValue         : TDateTime;
-    GroupedValue      : string;
-    TimeStampValue    : TDateTime;
-    UTF8StringValue   : string;
-    AvpLen            : Uint32;
-    Value             : Tvalue;
-    IP6Bytes          : array of Uint8;
+Class function TWPcapProtocolL2TP.ResultCodeStopccnToString(const aCode:Uint16):String;
 begin
-  case aAvpType of
-    0: // Integer32 AVP
-      begin
-        IntValue    := wpcapntohs(PInteger(aPayloadData + aCurrentPos)^);      
-        Result      := TValue.From<String>(AvtType0ValueToString(IntValue));
-      end;
-    14,12,20,31,63,67,124,88,89,90,94,95,98,99,100,114: // Enumer ,Integer32
-      begin
-        IntValue    := wpcapntohs(PInteger(aPayloadData + aCurrentPos)^);      
-        Result      := TValue.From<Integer>(IntValue);
-      end;    
-    1,21,68,122,123,71,73: // Integer64 AVP
-      begin
-        Int64Value  := PInt64(aPayloadData + aCurrentPos)^;      
-        Result      := TValue.From<Uint64>(Int64Value);
-      end;
-    2,44,118,120,121, 72,74,75: // Unsigned32 AVP
-      begin
-        UIntValue   := PCardinal(aPayloadData + aCurrentPos)^;
-        Result      := TValue.From<Uint32>(UIntValue);
-      end;
-         
-    3,45: // Unsigned64 AVP
-      begin
-        UInt64Value := PUInt64(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<UInt64>(UInt64Value);
-      end;
-    4, 5,22,23: // Float32, Float64 AVP
-      begin
-        FloatValue  := PExtended(aPayloadData + aCurrentPos)^;
-        Result      := TValue.From<Extended>(FloatValue);
-      end;
-      
-    6, 7, 8, 9, 10, 11,13,15,18,19,29,30,33,34,36,39,40,46,53,54,55,91,96,51,52,57,80,126,127,134,159,135, 163,
-    164, 165, 166,138, 154, 155, 156, 157, 158,141,59,60,61,62,66,69,70,77,79,92,93: // OctetString, String, DiamIdent, Address, Time, Grouped AVP,UTF8String AVP
-      begin
-        OctetStringValue := String(PAnsiChar(aPayloadData + aCurrentPos));        
-        case aAvpType of
-          6,11,13,18,19,29,30,33,46,91,96,59,60,61,62,66,69,70,77,79,92,93: // OctetString AVP
-            Result := TValue.From<string>(OctetStringValue);
-            
-          7,8,9,15,34,36,40,53,54,55,51,52,57,80,126,127,134,159,135, 163, 164, 
-          165, 166,138, 154, 155, 156, 157, 158,141: // String, UTF8String AVP
-            Result := TValue.From<string>(UTF8ToWideString(OctetStringValue));
-
-          10,39: // Time AVP
-            begin
-              TimeValue := UnixToDateTime(StrToInt(OctetStringValue));
-              Result    := TValue.From<TDateTime>(TimeValue);
-            end;
-        end;
-      end;
-      
-    47,58: // TimeStamp AVP
-      begin
-        Int64Value     := PInt64(aPayloadData + aCurrentPos)^;        
-        TimeStampValue := UnixToDateTime(Int64Value);
-        Result         := TValue.From<TDateTime>(TimeStampValue);
-      end;
-    16: // Unsigned32 AVP (IPv4Address)
-      begin
-        UIntValue       := PCardinal(aPayloadData + aCurrentPos)^;      
-        AddressValue    := MakeUint32IntoIPv4AddressInternal(wpcapntohl(UIntValue));
-        if IsValidPublicIP(AddressValue) then
-          aEnrichmentType := wetIP;  
-        Result          := TValue.From<string>(AddressValue);
-      end;
-    17: // Unsigned64 AVP (IPv6Address)
-      begin
-        Move(aPayloadData[aCurrentPos], IP6Bytes, SizeOf(IP6Bytes));      
-        AddressValue    := IPv6AddressToString(IP6Bytes);
-        if IsValidPublicIP(AddressValue) then
-          aEnrichmentType := wetIP;  
-        Result          := TValue.From<string>(AddressValue);
-      end;
-      
-    24,119: // Time-Seconds AVP
-      begin
-        TimeValue   := UnixToDateTime(PInteger(aPayloadData + aCurrentPos)^);      
-        Result      := TValue.From<TDateTime>(TimeValue);
-      end;
-      
-    25: // Integer16 AVP
-      begin
-        IntValue    := PSmallInt(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<Integer>(IntValue);
-      end;
-       
-    26,49,107,129, 161, 179, 245: // UnsignedShort AVP
-      begin
-        UIntValue   := wpcapntohs(PWord(aPayloadData + aCurrentPos)^);
-        Result      := TValue.From<Uint32>( UIntValue);
-      end;
-      
-    27: // Integer8 AVP
-      begin
-        ByteValue   := PByte(aPayloadData + aCurrentPos)^;
-        Result      := TValue.From<Integer>(ByteValue);
-      end;
-
-    28,50: // Unsigned8 AVP
-      begin
-        ByteValue   := PByte(aPayloadData + aCurrentPos)^;      
-        Result      := TValue.From<Uint32>(ByteValue);
-      end;
-
-    32: //TimeStamp AVP
-      begin
-        TimeStampValue := UnixToDateTime(PUInt32(aPayloadData + aCurrentPos)^);      
-        Result         := TValue.From<TDateTime>(TimeStampValue);
-      end;
-
-    35: // IPAddress AVP
-      begin
-        AddressValue    := Format('%d.%d.%d.%d', [aPayloadData[aCurrentPos], aPayloadData[aCurrentPos + 1], aPayloadData[aCurrentPos + 2], aPayloadData[aCurrentPos + 3]]);        
-        if IsValidPublicIP(AddressValue) then
-        aEnrichmentType := wetIP;
-        Result          := TValue.From<string>(AddressValue);
-      end;
-      
-    37: // IPv6Address AVP
-      begin
-        AddressValue    := Format('%s:%s:%s:%s:%s:%s:%s:%s', [
-                                IntToHex(aPayloadData[aCurrentPos], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 1], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 2], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 3], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 4], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 5], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 6], 2),
-                                IntToHex(aPayloadData[aCurrentPos + 7], 2)]); 
-        if IsValidPublicIP(AddressValue) then    
-          aEnrichmentType := wetIP;                                                 
-        Result := TValue.From<string>(AddressValue);
-      end;
-      
-    38: // IPv6Prefix AVP
-      begin
-        ByteValue := aPayloadData[aCurrentPos];
-        Inc(aCurrentPos);
-        AddressValue    := Format('%d:%s:%s:%s:%s:%s:%s:%s/%d', [
-                                  ByteValue,
-                                  IntToHex(aPayloadData[aCurrentPos], 2),
-                                  IntToHex(aPayloadData[aCurrentPos + 1], 2),
-                                  IntToHex(aPayloadData[aCurrentPos + 2], 2),
-                                  IntToHex(aPayloadData[aCurrentPos + 3], 2),
-                                  IntToHex(aPayloadData[aCurrentPos + 4], 2),
-                                  IntToHex(aPayloadData[aCurrentPos + 5], 2),
-                                  IntToHex(aPayloadData[aCurrentPos + 6], 2),
-                                  aPayloadData[aCurrentPos + 7]]);
-        if IsValidPublicIP(AddressValue) then    
-          aEnrichmentType := wetIP;      
-        Result := TValue.From<string>(AddressValue);
-      end;
-      
-    41: // EUI64 AVP
-      begin
-        
-        SetLength(RawValue, 8);
-        Move((aPayloadData+aCurrentPos+8)^, RawValue[0], 8);        
-        Result := TValue.From<TBytes>(RawValue);
-      end;
-    42: // IPFilterRule AVP
-      begin
-        OctetStringValue := String(PAnsiChar(aPayloadData + aCurrentPos));        
-       // IPFilterRuleValue := ParseIPFilterRule(OctetStringValue);{Todo}
-        Result            := TValue.From<string>(OctetStringValue);
-      end;
-
-    43,48,128, 145, 167, 178, 183, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195,
-    196, 197, 198, 199, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214,
-    215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233,
-    234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255:
-      begin
-        ByteValue   := PByte(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<Uint8>(ByteValue);
-      end;  
-             
-    56: // MACAddress AVP
-      begin
-     //   AddressValue := MACAddrToStr(PayloadData + LCurrentPos);  
-        Result       := TValue.From<string>(AddressValue);
-      end;    
-
-
-    64: //Float32 AVP
-      begin
-        FloatValue  := PSingle(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<Extended>(FloatValue);
-      end;
-    65: //Float64 AVP
-      begin
-        FloatValue  := PDouble(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<Extended>(FloatValue);
-      end;    
-
-    78: //Grouped AVP
-      begin
-        //GroupedValue := TValueDictionary.Create;
-       { LCurrentPos  := LCurrentPos + 8; //Skip the Grouped AVP Header
-        while LCurrentPos < StartPos + AvpLength do
-        begin
-          //Parse the AVP inside the Grouped AVP
-          ParsedAVP := ParseAVP(PayloadData, LCurrentPos, StartPos + AvpLength);
-
-          //Add the parsed AVP to the GroupedValue dictionary
-          //GroupedValue.Add(ParsedAVP.AvpCode, ParsedAVP.Value);
-        end;    }
-        Result := TValue.From<String>('78: //Grouped AVP TODO');
-      end;
-
-    81,142,143,131,162, 200, 201: // Time AVP
-      begin
-        Int64Value   := Uint64(PInt64(aPayloadData + aCurrentPos)^);        
-        Result       := TValue.From<Uint64>(SwapInt64(Int64Value));
-      end;      
- 
-    82,83,84,85,86,87,104,108,109,116,111,112,113: //UTF8String AVP
-      begin
-        UTF8StringValue  := String(PAnsiChar(aPayloadData + aCurrentPos- aAvpLength - 8));        
-        Result           := TValue.From<string>(UTF8StringValue);
-      end;
-
-
-    97: //Subscription-Id AVP
-      begin
-        aCurrentPos     := aCurrentPos + 4;
-        UTF8StringValue := String(PAnsiChar(aPayloadData + aCurrentPos));        
-        Result          := TValue.From<String>(UTF8StringValue); 
-      end;
-
-    105: //IP6Address AVP
-      begin
-        SetLength(RawValue, 16);
-        Move((aPayloadData+aCurrentPos)^, RawValue[0], 16);
-        Result      := TValue.From<TBytes>(RawValue);
-      end;
-      
-    106,117: //IPFilterRule AVP
-      begin
-        if aAvpLength - 8 > 0 then
-        begin
-          SetLength(RawValue, aAvpLength - 8);
-          Move((aPayloadData+aCurrentPos)^, RawValue[0], aAvpLength - 8);        
-          Result      := TValue.From<TBytes>(RawValue);
-        end;
-      end;   
-
-    125,137: // FailedAVP AVP
-      begin
-        GroupedValue := '';
-        while aCurrentPos < aAvpLength do
-        begin
-          // Get the AVP Code
-          UIntValue   := PCardinal(aPayloadData + aCurrentPos)^;
-          aCurrentPos := aCurrentPos + SizeOf(UIntValue);
-
-          // Get the AVP Length
-          AvpLen      := PCardinal(aPayloadData + aCurrentPos)^;
-          aCurrentPos := aCurrentPos + SizeOf(AvpLen);
-
-          // Skip Vendor ID
-          aCurrentPos := aCurrentPos + SizeOf(Uint32);
-
-          // Read the AVP Value
-          Value := ReadAVPValueFromPacket(aPayloadData, aCurrentPos, AvpLen, UIntValue,aVendorID,aEnrichmentType);
-
-          // Append the AVP to the result string
-          GroupedValue := GroupedValue + Format('%d=%s;', [UIntValue, Value.ToString]);
-        end;
-        Result := TValue.From<string>(GroupedValue);
-      end; 
-      
-    110: //Time AVP
-      begin
-        //Get the Time value as a 64-bit unsigned integer and convert it to a TDateTime value.
-       // Int64Value   := PUInt64(PayloadData + LCurrentPos)^;
-       // Int64Value   := SwapInt64(Int64Value);
-      //  DateTimeVal := MakeGmtDateTime(TimeValue - UnixToDateTimeDelta);
-      //  LCurrentPos := LCurrentPos + AvpLength - 8;
-        Result      := TValue.From<TDateTime>(now);
-      end;
-  
-  
-    115,132: //Float32 AVP
-      begin
-        FloatValue  := PSingle(aPayloadData + aCurrentPos)^;
-      //  FloatValue  := Swap(FloatValue);
-        Result      := TValue.From<Single>(FloatValue);
-      end;
-	
-
-    130, 146, 175, 176, 177, 180, 181, 182 :
-      begin
-        LongValue   := PLongWord(aPayloadData + aCurrentPos)^;        
-        Result      := TValue.From<LongWord>(Swap(LongValue));
-      end;
-      
-    133:
-      begin
-        FloatValue  := PDouble(aPayloadData + aCurrentPos)^;
-        Result      := TValue.From<Double>((FloatValue));
-      end;
-
-    136:
-      begin
-      //Extension AVP
-        Result :=  TValue.From<String>('Extension AVP not implemented');
-      end;
-
-    139:
-      begin
-      //IP Filter Rule
-        Result := TValue.From<String>('IP Filter Rule not implemented');
-      end;
-    140:
-      begin
-        //IP Address
-        AddressValue    := Format('%d.%d.%d.%d', [PByte(aPayloadData + aCurrentPos + 1)^,
-                          PByte(aPayloadData + aCurrentPos + 2)^,
-                          PByte(aPayloadData + aCurrentPos + 3)^,
-                          PByte(aPayloadData + aCurrentPos + 4)^]);
-        if IsValidPublicIP(AddressValue) then    
-          aEnrichmentType := wetIP;                                
-        Result := TValue.From<string>(AddressValue);
-      end;
-    144:
-      begin
-        //IPv6 Address
-        SetLength(RawValue, 16);
-        Move((aPayloadData+aCurrentPos + 1)^, RawValue[0], 16);
-        AddressValue := String.Empty;
-        for I := 0 to 7 do
-          AddressValue := AddressValue + IntToHex((RawValue[I * 2] shl 8) or RawValue[I * 2 + 1], 4) + ':';
-        if IsValidPublicIP(AddressValue) then    
-          aEnrichmentType := wetIP;      
-        AddressValue    := Copy(AddressValue, 1, Length(AddressValue) - 1);      
-        Result          := TValue.From<string>(AddressValue);
-      end;
-    256..511:
-    begin
-      // Vendor-specific AVP
-      if aAvpLength < 12 then
-      begin
-        Result  := TValue.From<string>(Format('Invalid vendor-specific AVP length: %d for AVP type ', [aAvpLength,aAvpType]));
-        Exit;
-      end;
-
-      LongValue   := PLongWord(aPayloadData + aCurrentPos)^;
-      LongValue   := Swap(LongValue);
-
-      if not aVendorID.TryGetValue(LongValue, UTF8StringValue) then
-      begin
-        Result  := TValue.From<string>(Format('Unknown vendor ID: %d', [LongValue]));
-        Exit;
-      end;
-
-      Result := Format('Vendor id %s [%d]',[UTF8StringValue,LongValue]);
-      {
-      SubAvpCode := PWord(PayloadData + LCurrentPos)^;
-      SwapWord(@SubAvpCode);
-      inc(LCurrentPos,sizeOf(Word));
-
-
-      SubAvpLength := PWord(PayloadData + LCurrentPos)^;
-      SubAvpLength := Swap(SubAvpLength));
-      inc(LCurrentPos,sizeOf(Word));
-      
-      SubPayloadData := PayloadData + LCurrentPos;
-      Result         := ProcessAVP(UTF8StringValue.AvpDictionary, SubAvpCode, SubPayloadDat - 8,);
-      LCurrentPos    := LCurrentPos + SubAvpLength - 8;   }
-    end;
+  case aCode of
+    0: Result := 'Reserved';
+    1: Result := 'General request to clear control connection';
+    2: Result := 'General error, Error Code indicates the problem';
+    3: Result := 'Control connection already exists';
+    4: Result := 'Requester is not authorized to establish a control connection';
+    5: Result := 'The protocol version of the requester is not supported';
+    6: Result := 'Requester is being shut down';
+    7: Result := 'Finite state machine error or timeout';
+    8: Result := 'Control connection due to mismatching CCDS value';
   else
-    Result  := TValue.From<string>(Format('Unknown AVP type: %d', [aAvpType]));
+    Result := 'Unknown';
+  end;    
+end;
+
+Class function TWPcapProtocolL2TP.ResultCodeToString(const aCode:Uint16):String;
+begin
+  case aCode of
+     0: Result := 'Reserved';
+     1: Result := 'Session disconnected due to loss of carrier or circuit disconnect';
+     2: Result := 'Session disconnected for the reason indicated in Error Code';
+     3: Result := 'Session disconnected for administrative reasons';
+     4: Result := 'Appropriate facilities unavailable (temporary condition)';
+     5: Result := 'Appropriate facilities unavailable (permanent condition)';
+     6: Result := 'Invalid destination';
+     7: Result := 'Call failed due to no carrier detected';
+     8: Result := 'Call failed due to detection of a busy signal';
+     9: Result := 'Call failed due to lack of a dial tone';
+    10: Result := 'Call was not established within time allotted by LAC';
+    11: Result := 'Call was connected but no appropriate framing was detected';
+    12: Result := 'Disconnecting call due to mismatching SDS value';
+    13: Result := 'Session not established due to losing tie breaker';
+    14: Result := 'Session not established due to unsupported PW type';
+    15: Result := 'Session not established, sequencing required without valid L2-Specific Sublayer';
+    16: Result := 'Finite state machine error or timeout';
+    17: Result := 'FR PVC was deleted permanently (no longer provisioned) ';       
+    18: Result := 'FR PVC has been INACTIVE for an extended period of time';       
+    19: Result := 'Mismatched FR Header Length';                                   
+    20: Result := 'HDLC Link was deleted permanently (no longer provisioned)';     
+    21: Result := 'HDLC Link has been INACTIVE for an extended period of time';    
+    22: Result := 'Session not established due to other LCCE can not support the OAM Cell Emulation';  
+    23: Result := 'Mismatching interface MTU';                                      
+    24: Result := 'Attempt to connect to non-existent forwarder';                   
+    25: Result := 'Attempt to connect to unauthorized forwarder';                   
+    26: Result := 'Loop Detected';                                                  
+    27: Result := 'Attachment Circuit bound to different PE';                       
+    28: Result := 'Attachment Circuit bound to different remote Attachment Circuit';
+    29: Result := 'Unassigned';
+    30: Result := 'Return code to indicate connection was refused because of TDM PW parameters. The error code indicates the problem.'; 
+    31: Result := 'Sequencing not supported'; 
+  else
+    Result := 'Unknown';
+  end;    
+end;
+
+Class function TWPcapProtocolL2TP.AuthenTypeToString(const aType:Uint16):String;
+begin
+  case aType of
+    0 : Result := 'Reserved';
+    1 : Result := 'Textual username/password exchange';
+    2 : Result := 'PPP CHAP';
+    3 : Result := 'PPP PAP';
+    4 : Result := 'No Authentication';
+    5 : Result := 'Microsoft CHAP Version 1';
+    6 : Result := 'Reserved';
+    7 : Result := 'EAP';
+  else
+    Result := 'Unknown';
+  end;    
+end;
+
+Class function TWPcapProtocolL2TP.L2SublayerToString(const aSubLayer:Uint16):String;
+begin
+  case aSubLayer of
+    0: Result := 'No L2-Specific Sublayer';
+    1: Result := 'Default L2-Specific Sublayer present';
+    2: Result := 'ATM-Specific Sublayer present';
+    3: Result := 'MPT-Specific Sublayer';
+    4: Result := 'PSP-Specific Sublayer';
+  else
+    Result := 'Unknown';
+  end;    
+end;    
+
+Class function TWPcapProtocolL2TP.PWTypesToString(const aPwType:Uint16):String;
+CONST
+  L2TPv3_PW_DEFAULT     = $0000;
+  L2TPv3_PW_FR          = $0001;
+  L2TPv3_PW_AAL5        = $0002;
+  L2TPv3_PW_ATM_PORT    = $0003;
+  L2TPv3_PW_ETH_VLAN    = $0004;
+  L2TPv3_PW_ETH         = $0005;
+  L2TPv3_PW_CHDLC       = $0006;
+  L2TPv3_PW_PPP         = $0007; // Scaduto, non assegnato
+  L2TPv3_PW_ATM_VCC     = $0009;
+  L2TPv3_PW_ATM_VPC     = $000A;
+  L2TPv3_PW_IP          = $000B; // Scaduto, non assegnato
+  L2TPv3_PW_DOCSIS_DMPT = $000C; // MPEG2-TS
+  L2TPv3_PW_DOCSIS_PSP  = $000D;
+  L2TPv3_PW_E1          = $0011;
+  L2TPv3_PW_T1          = $0012;
+  L2TPv3_PW_E3          = $0013;
+  L2TPv3_PW_T3          = $0014;
+  L2TPv3_PW_CESOPSN     = $0015;
+  L2TPv3_PW_CESOPSN_CAS = $0017;
+begin
+  case aPwType of
+    L2TPv3_PW_FR          : Result := 'Frame Relay DLCI';
+    L2TPv3_PW_AAL5        : Result := 'ATM AAL5 SDU VCC transport';
+    L2TPv3_PW_ATM_PORT    : Result := 'ATM Cell transparent Port Mode';
+    L2TPv3_PW_ETH_VLAN    : Result := 'Ethernet VLAN';
+    L2TPv3_PW_ETH         : Result := 'Ethernet';
+    L2TPv3_PW_CHDLC       : Result := 'HDLC';
+    L2TPv3_PW_PPP         : Result := 'PPP'; 
+    L2TPv3_PW_ATM_VCC     : Result := 'ATM Cell transport VCC Mode';
+    L2TPv3_PW_ATM_VPC     : Result := 'ATM Cell transport VPC Mode';
+    L2TPv3_PW_IP          : Result := 'IP Transport';
+    L2TPv3_PW_DOCSIS_DMPT : Result := 'MPEG-TS Payload Type (MPTPW)';
+    L2TPv3_PW_DOCSIS_PSP  : Result := 'Packet Streaming Protocol (PSPPW)';   
+    L2TPv3_PW_E1          : Result := 'Structure-agnostic E1 circuit';       
+    L2TPv3_PW_T1          : Result := 'Structure-agnostic T1 (DS1) circuit'; 
+    L2TPv3_PW_E3          : Result := 'Structure-agnostic E3 circuit';       
+    L2TPv3_PW_T3          : Result := 'Structure-agnostic T3 (DS3) circuit'; 
+    L2TPv3_PW_CESOPSN     : Result := 'CESoPSN basic mode';                  
+    $0016                 : Result := 'Unassigned';
+    L2TPv3_PW_CESOPSN_CAS : Result := 'CESoPSN TDM with CAS';                
+  else
+    Result := 'Unknown';
+  end;    
+end;
+
+Class function TWPcapProtocolL2TP.DataSequenceToString(const aSubLayer:Uint16):String;
+begin
+  case aSubLayer of
+     0: Result := 'No incoming data packets require sequencing';
+     1: Result := 'Only non-IP data packets require sequencing';
+     2: Result := 'All incoming data packets require sequencing';
+  else
+    Result := 'Unknown';
+  end;    
+end;
+
+Class procedure TWPcapProtocolL2TP.ReadAVPValueFromPacket(const aLabel:String;const aPayloadData: PByte;aPayloadSize:Integer;var aCurrentPos:integer;var aIsStopCcn: Boolean;
+                          const aAvpLength,aAvpType,aStartLevel: Integer; aVendorID: TListVendorId;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);
+var LUint16        : UInt16;   
+    LAvpTypeCaption: STring; 
+    LLabel         : STring;
+    LMessageType   : Uint16;  //L2TPv3
+    LDigit         : String;  //L2TPv3
+    LDigitInxex    : Integer; //L2TPv3
+    LBckAvpLen     : Integer;
+begin
+  LAvpTypeCaption := Format('%s:',[L2TPAVPTypeToString(aAvpType)]);
+  LLabel          := Format('%s.Value',[aLabel]);
+  case aAvpType of
+    AVTYPE_CONTROL_MESSAGE: 
+      begin
+        LUint16 := ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,AvtType0ValueToString,true,aCurrentPos);
+        aAdditionalInfo.Info := Format('%s %s %s',[LAvpTypeCaption,AvtType0ValueToString(LUint16),aAdditionalInfo.Info]);
+        if (LUint16 = MESSAGE_TYPE_StopCCN) then
+          aIsStopCcn := true;
+      end;
+
+    AVTYPE_RESULT_ERROR_CODE:
+      begin  
+        if (aAvpLength < 2)then Exit;
+
+        if aIsStopCcn then
+          ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.StopResulCode',[aLabel]),'Stop result code:',AListDetail,ResultCodeStopccnToString,true,aCurrentPos)
+        else 
+          ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.ResultCode',[aLabel]),'Result code:',AListDetail,ResultCodeToString,true,aCurrentPos);
+
+        if (aAvpLength -2 < 2) then Exit;
+          ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.Code',[aLabel]),'Error code:',AListDetail,GetErrorMessage,true,aCurrentPos);
+      
+        if (aAvpLength -4 < 2) then Exit;
+          ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength -4,aAvpLength -4,Format('%s.Message',[aLabel]),'Error message:',AListDetail,BytesToStringRawInternal,true,aCurrentPos);
+      end;      
+
+    AVTYPE_PROTOCOL_VERSION :
+      begin      
+        if (aAvpLength < 1)then Exit;      
+        ParserUint8Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.ProtocolVersion',[aLabel]),'Protocol version:',AListDetail,nil,true,aCurrentPos);
+        ParserUint8Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.ProtocolRevision',[aLabel]),'Protocol revision:',AListDetail,nil,true,aCurrentPos);
+      end;
+
+    AVTYPE_FRAMING_CAPABILITIES:
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.AsyncFramingSupported',[aLabel]),'Async framing supported:',AListDetail,nil,true,aCurrentPos);
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.SyncFramingSupported',[aLabel]),'Sync framing supported:',AListDetail,nil,true,aCurrentPos);      
+      end;
+
+    AVTYPE_BEARER_CAPABILITIES:
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.AnalogAccessSupported',[aLabel]),'Analog access supported:',AListDetail,nil,true,aCurrentPos);
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.DigitalAccessSupported',[aLabel]),'Digital access supported:',AListDetail,nil,true,aCurrentPos);      
+      end;
+
+    AVTYPE_TIE_BREAKER         : ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,8,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+
+    AVTYPE_CAUSE_CODE          :
+      begin
+        if (aAvpLength < 2)then Exit;
+
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.Coee',[aLabel]),'Cause code:',AListDetail,nil,true,aCurrentPos);
+
+        if (aAvpLength -2 < 1) then Exit;
+          ParserUint8Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.Message',[aLabel]),'Cause message:',AListDetail,nil,true,aCurrentPos);
+      
+        if (aAvpLength -3 <= 0) then Exit;
+          ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength -3,aAvpLength -3,Format('%s.AdvisorMessage',[aLabel]),'Advisor message:',AListDetail,BytesToStringRawInternal,true,aCurrentPos)
+      end;
+
+    AVTYPE_CHALLENGE_RESPONSE : ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,16,Format('%s.ChanllengeResponse',[aLabel]),'ChanllengeResponse:',AListDetail,BytesToStringRawInternal,true,aCurrentPos);
+
+    AVTYPE_BEARER_TYPE        : 
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.AnalogBearType',[aLabel]),'Analog bear type:',AListDetail,nil,true,aCurrentPos);
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.DigitalBearType',[aLabel]),'Digital bear type:',AListDetail,nil,true,aCurrentPos);
+      end;
+
+    AVTYPE_FRAMING_TYPE       : 
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.AsyncFramingType',[aLabel]),'Async framing type:',AListDetail,nil,true,aCurrentPos);
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.SyncFramingType',[aLabel]),'Sync framing type:',AListDetail,nil,true,aCurrentPos);    
+      end;  
+         
+    AVTYPE_LAST_SENT_LCP_CONFREQ,   
+    AVTYPE_LAST_RECEIVED_LCP_CONFREQ,  
+    AVTYPE_INITIAL_RECEIVED_LCP_CONFREQ:
+      begin
+        ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,LAvpTypeCaption,AListDetail,BytesToHex,true,aCurrentPos);
+        {Dissector ??}
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] Dissector not implemented',[aAvpType,aAvpLength]),TWLLWarning);         
+      end;
+
+    AVTYPE_PROXY_AUTHEN_TYPE   :
+      begin
+        LMessageType := ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,AuthenTypeToString,true,aCurrentPos);      
+        //TODO use for next AVP
+      end;
+
+    AVTYPE_CALL_STATUS_AVPS    :
+      begin
+        if (aAvpLength < 6)then Exit;
+
+        Inc(aCurrentPos,2);
+
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.CRCError',[aLabel]),'CRC Error:',AListDetail,nil,True,aCurrentPos);
+
+        if (aAvpLength -10 < 4) then Exit;
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.FremingError',[aLabel]),'Error framing:',AListDetail,nil,True,aCurrentPos);
+      
+        if (aAvpLength -14 < 4) then Exit;
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.HardwareOverruns',[aLabel]),'Hardware overruns:',AListDetail,nil,true,aCurrentPos);
+
+        if (aAvpLength -18 < 4) then Exit;
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.BufferOverruns',[aLabel]),'Buffer overruns:',AListDetail,nil,true,aCurrentPos);
+
+        if (aAvpLength -22 < 4) then Exit;
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.TimeOutErrors',[aLabel]),'Time out errors:',AListDetail,nil,true,aCurrentPos);
+
+        if (aAvpLength -26 < 4) then Exit;        
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.AlignmentErrors',[aLabel]),'Alignment errors:',AListDetail,nil,true,aCurrentPos);
+      end;      
+
+    AVTYPE_ACCM: 
+      begin
+       if (aAvpLength < 6)then Exit;
+
+        Inc(aCurrentPos,2);
+
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.SendACCM',[aLabel]),'Send ACCM:',AListDetail,nil,True,aCurrentPos);
+
+        if (aAvpLength -10 < 4) then Exit;
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.ReceiveACCM',[aLabel]),'Receive ACCM:',AListDetail,nil,true,aCurrentPos);
+       
+      end;
+      
+    AVTYPE_PPP_DISCONNECT_CAUSE_CODE  :
+      begin
+        if (aAvpLength < 2)then Exit;
+
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.DisconnectCode',[aLabel]),'Disconnet code:',AListDetail,nil,True,aCurrentPos);
+
+        if (aAvpLength -2 < 2) then Exit;
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.ProtocolNumber',[aLabel]),'Protocol number:',AListDetail,nil,True,aCurrentPos);
+      
+        if (aAvpLength -4 < 1) then Exit;
+        ParserUint8Value(aPayloadData,aStartLevel,aPayloadSize,Format('%s.CauseCodeDirection',[aLabel]),'Cause code direction:',AListDetail,CauseCodeDirectionToString,True,aCurrentPos);
+
+        if (aAvpLength -5 <= 0) then Exit;
+        ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,Format('%s.CauseCodeMessage',[aLabel]),'Cause code Message:',AListDetail,BytesToStringRawInternal,true,aCurrentPos);              
+      end;
+
+    AVTYPE_MESSAGE_DIGEST      :
+      begin  
+         LDigitInxex := aCurrentPos;
+         LDigit      := ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,LAvpTypeCaption,AListDetail,BytesToHex,true,aCurrentPos);
+         DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] check_control_digest not implemented',[aAvpType,aAvpLength]),TWLLWarning);         
+      end;
+
+    AVTYPE_ASSIGNED_CONTROL_CONN_ID   :
+      begin
+         ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+         DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate lcce1_id and lcce2_id by LMessageType) not implemented',[aAvpType,aAvpLength]),TWLLWarning);
+      end;
+      
+    AVTYPE_PW_CAPABILITY_LIST  :
+      begin
+        AListDetail.Add(AddHeaderInfo(aStartLevel, LLabel ,'Pseudowire Capabilities List',null,PByte(aPayloadData[aCurrentPos]),aAvpLength )); 
+        LBckAvpLen :=  aAvpLength;
+        while (LBckAvpLen >= 2) do
+        begin
+          ParserUint16Value(aPayloadData,aStartLevel+1,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,PWTypesToString,true,aCurrentPos);
+          Dec(LBckAvpLen)
+        end;
+      end;
+
+    AVTYPE_LOCAL_SESSION_ID    :
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate lsession_id) not implemented',[aAvpType,aAvpLength]),TWLLWarning);
+      end;
+
+    AVTYPE_REMOTE_SESSION_ID :
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate lsession_id) not implemented',[aAvpType,aAvpLength]),TWLLWarning);        
+      end;      
+    AVTYPE_ASSIGNED_COOKIE     :
+      begin
+        ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate Cookie) not implemented',[aAvpType,aAvpLength]),TWLLWarning);
+      end;
+
+    AVTYPE_PW_TYPE             :
+      begin
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,PWTypesToString,true,aCurrentPos);
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate pw_type) not implemented',[aAvpType,aAvpLength]),TWLLWarning);        
+      end;
+
+    AVTYPE_L2_SPECIFIC_SUBLAYER : 
+       begin
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,L2SublayerToString,true,aCurrentPos);
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate L2S ublayer) not implemented',[aAvpType,aAvpLength]),TWLLWarning);        
+      end;
+      
+    AVTYPE_CIRCUIT_STATUS:
+      begin
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+        ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel+'.Type',LAvpTypeCaption+ ' type',AListDetail,nil,true,aCurrentPos);
+      end;
+      
+    AVTYPE_CTL_MSG_AUTH_NONCE:
+      begin
+        ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,LAvpTypeCaption,AListDetail,BytesToHex,true,aCurrentPos);
+        DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] L2TPv3 (calculate cma_nonce) not implemented',[aAvpType,aAvpLength]),TWLLWarning);        
+      end;
+
+
+    AVTYPE_TX_CONNECT_SPEED_V3,
+    AVTYPE_RX_CONNECT_SPEED_V3 :
+      begin 
+        if (aAvpLength < 8)then Exit;
+        ParserUint64Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+      end;
+
+    AVTYPE_CONNECT_SPEED_UPDATE:
+      begin
+        ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,LAvpTypeCaption,AListDetail,BytesToHex,true,aCurrentPos);
+        if (aAvpLength = 12) then   // L2TPv2 
+        begin
+          
+          DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVTYPE_CONNECT_SPEED_UPDATE subtree L2TPv2 not implemented',[aAvpType,aAvpLength]),TWLLWarning);        
+        end
+        else if (aAvpLength = 20) then  // L2TPv3 
+        begin
+          DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVTYPE_CONNECT_SPEED_UPDATE subtree L2TPv3 not implemented',[aAvpType,aAvpLength]),TWLLWarning);         
+        end;      
+      end;
+      
+    AVTYPE_DATA_SEQUENCING     : ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,DataSequenceToString,true,aCurrentPos); 
+    AVTYPE_PROXY_AUTHEN_ID     : ParserUint8Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+
+    AVTYPE_ASSIGNED_SESSION,
+    AVTYPE_ASSIGNED_TUNNEL_ID,
+    AVTYPE_RECEIVE_WINDOW_SIZE,
+    AVTYPE_FIRMWARE_REVISION     : ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+              
+    AVTYPE_CALL_SERIAL_NUMBER,
+    AVTYPE_TX_CONNECT_SPEED,
+    AVTYPE_RX_CONNECT_SPEED,
+    AVTYPE_ROUTER_ID,
+    AVTYPE_MINIMUM_BPS,        
+    AVTYPE_MAXIMUM_BPS           : ParserUint32Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,nil,true,aCurrentPos);
+    
+    AVTYPE_CALLED_NUMBER,
+    AVTYPE_CALLING_NUMBER,
+    AVTYPE_PREFERRED_LANGUAGE,
+    AVTYPE_REMOTE_END_ID,
+    AVTYPE_SUB_ADDRESS,
+    AVTYPE_VENDOR_NAME,
+    AVTYPE_CHALLENGE,
+    AVTYPE_PROXY_AUTHEN_NAME,
+    AVTYPE_HOST_NAME              : ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,LAvpTypeCaption,AListDetail,BytesToStringRawInternal,true,aCurrentPos);
+
+    AVTYPE_PROXY_AUTHEN_RESPONSE,
+    AVTYPE_RANDOM_VECTOR,    
+    AVTYPE_PRIVATE_GROUP_ID,
+    AVTYPE_PROXY_AUTHEN_CHALLENGE : ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,LAvpTypeCaption,AListDetail,BytesToHex,true,aCurrentPos);
+    
+    {TODO CONSTANT!!}
+    20,77,79,91,96,92,93      : ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,'Value:',AListDetail,nil,true,aCurrentPos);
+
+    40,53,54,55,51,52,57,80,  
+    126,127,134,159,135, 163, 
+    164, 165, 166,138, 
+    154, 155, 156, 157, 
+    158,141                   : ParserGenericBytesValue(aPayloadData,aStartLevel,aCurrentPos+aAvpLength,aAvpLength,LLabel,'Value:',AListDetail,BytesToHex,true,aCurrentPos); 
+
+  else
+    DoLog('TWPcapProtocolL2TP.ReadAVPValueFromPacket',Format('AVPType [%d] with len [%d] not implemented',[aAvpType,aAvpLength]),TWLLWarning); 
   end;
-end;	     
+end;	   
+
+class function TWPcapProtocolL2TP.HiddenFlagIsSetted(aAvpLen: Integer): Boolean;
+begin
+  Result := (aAvpLen and $4000) = $4000;
+end;  
 
 class function TWPcapProtocolL2TP.ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalInfo: PTAdditionalInfo): string;
 CONST AVP_LENGHT_WITHOUT_VALUE = 6;
@@ -1325,13 +1555,15 @@ var LAvpHeader      : TAVPHeader;
     LAvpType        : Uint16;
     LAvpFlag        : Uint16;
     LAvpLength      : Uint16;
-    LAvpValue       : TValue;
     LCurrentPos     : Integer;
     LByte0          : Uint8;
     LByte1          : Uint8;
     LTypeStr        : string; 
     LLabel          : String;
-    LEnrichment     : TWpcapEnrichmentType;
+    LisStopMsg      : boolean;
+    LBckPos         : Integer;
+    LVendorID       : Uint16;
+    LVendorStr      : String;
 begin
   {
     0                   1                   2                   3
@@ -1346,6 +1578,7 @@ begin
   }
   // Start from the beginning of the payload
   LCurrentPos := 0;
+  LisStopMsg  := False;
   // Loop through the payload data until the end is reached
   while LCurrentPos < aLengthPayload do
   begin
@@ -1353,10 +1586,12 @@ begin
     LAvpHeader := PAVPHeader(aPayloadData + LCurrentPos)^;
     LAvpFlag   := wpcapntohs(LAvpHeader.AvtFlag);
     LAvpType   := wpcapntohs(LAvpHeader.AttrType);
-
-    if LAvpType = 1 then Break; {Error message ?}
-    
     LAvpLength := GetLastNBit(LAvpFlag,10);  
+
+    if LAvpLength < AVP_LENGHT_WITHOUT_VALUE then break;
+    if LCurrentPos+LAvpLength > aLengthPayload then break;
+    
+    
     LTypeStr   := L2TPAVPTypeToString(LAvpType);
     LLabel     := Format('%s.AVP.%s',[AcronymName,LTypeStr]);  
     
@@ -1401,7 +1636,12 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Flags.Mandatory',[LLabel]), 'Mandatory:',GetBitValue(LByte1,1)=1, @LByte1,SizeOf(LByte1), GetBitValue(LByte1,1) ));
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Flags.Hidden',[LLabel]), 'Hidden:',GetBitValue(LByte1,2)=1, @LByte1,SizeOf(LByte1), GetBitValue(LByte1,2) ));
     AListDetail.Add(AddHeaderInfo(aStartLevel+3, Format('%s.Flags.Length',[LLabel]), 'Length:',LAvpLength,@LAvpLength,10)); 
-    
+
+    if HiddenFlagIsSetted(wpcapntohs( PUint16(aPayloadData + LCurrentPos)^)) then 
+    begin
+      Inc(LCurrentPos, LAvpLength);
+      Continue;
+    end;
     {
       Vendor ID: The IANA assigned "SMI Network Management Private
       Enterprise Codes" [RFC1700] value.  The value 0, corresponding to
@@ -1414,7 +1654,11 @@ begin
       are 16 bits allocated for the Vendor ID, thus limiting this feature
       to the first 65,535 enterprises.
     }    
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Vendor',[LLabel]), 'Vendor:',wpcapntohs(LAvpHeader.VendorID),@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID)));       
+    LVendorID := wpcapntohs(LAvpHeader.VendorID);
+    if aVendorID.TryGetValue(LVendorID,LVendorStr) then    
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Vendor',[LLabel]), 'Vendor:',LVendorStr,@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID),LVendorID))
+    else                                       
+      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Vendor',[LLabel]), 'Vendor:',LVendorID,@LAvpHeader.VendorID,sizeOf(LAvpHeader.VendorID)));
 
     {Attribute Type: A 2 octet value with a unique interpretation across
      all AVPs defined under a given Vendor ID.}    
@@ -1422,39 +1666,27 @@ begin
     
     // Check if the AVP has a value
 
-    if LAvpLength > AVP_LENGHT_WITHOUT_VALUE then
-    begin
-      {Attribute Value: This is the actual value as indicated by the Vendor
-       ID and Attribute Type. It follows immediately after the Attribute
-       Type field, and runs for the remaining octets indicated in the Length
-       (i.e., Length minus 6 octets of header). This field is absent if the
-       Length is 6.}
+    {Attribute Value: This is the actual value as indicated by the Vendor
+     ID and Attribute Type. It follows immediately after the Attribute
+     Type field, and runs for the remaining octets indicated in the Length
+     (i.e., Length minus 6 octets of header). This field is absent if the
+     Length is 6.}
 
-      Inc(LCurrentPos, SizeOf(TAVPHeader));       
-      
-      LAvpValue  := wpcapntohs(Pcardinal(aPayloadData + LCurrentPos)^);
-      LEnrichment:= wetNone;
-      LAvpValue  := ReadAVPValueFromPacket(aPayloadData,LCurrentPos,LAvpLength,LAvpType,aVendorID,LEnrichment);
-      if LEnrichment <> wetNone then
-        aAdditionalInfo.EnrichmentPresent := True;
-      
-      AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:',LAvpValue.ToString, @LAvpValue,SizeOF(LAvpValue),-1,LEnrichment ));
+    Inc(LCurrentPos, SizeOf(TAVPHeader));  
+    LBckPos := LCurrentPos;     
 
-      {TODO message by AVP Type}
-      DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP MESSAGE AVP type not implemented',TWLLWarning);                
-
-      // Move to the next AVP
-      Inc(LCurrentPos, LAvpLength - SizeOf(TAVPHeader));
-    end
-    else
-    begin
-      // AVP has no value
-      if LAvpType = 0 then
-        AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.TypeValue',[LLabel]), 'Type value:','not present',nil,0, LAvpType));
-      Inc(LCurrentPos, SizeOf(TAVPHeader));
+    {TODO AVP For Vendor}
+    case LVendorID of
+      VENDOR_CISCO          : DoLog('TWPcapProtocolL2TP.HeaderToString','AVPValue custom VENDOR_CISCO not implemented',TWLLWarning);                
+      VENDOR_BROADBAND_FORUM: DoLog('TWPcapProtocolL2TP.HeaderToString','AVPValue custom VENDOR_BROADBAND_FORUM not implemented',TWLLWarning);                
+      VENDOR_ERICSSON       : DoLog('TWPcapProtocolL2TP.HeaderToString','AVPValue custom VENDOR_ERICSSON not implemented',TWLLWarning);                
     end;
-  end;
+    ReadAVPValueFromPacket(LLabel,aPayloadData,aLengthPayload,LCurrentPos,LisStopMsg,LAvpLength,LAvpType,aStartLevel+2,aVendorID,AListDetail,aAdditionalInfo);
+    
+    if ( LAvpLength -SizeOf(TAVPHeader) )- (LCurrentPos - LBckPos) > 0 then
+      Inc(LCurrentPos,( LAvpLength -SizeOf(TAVPHeader) )- (LCurrentPos - LBckPos) );    
 
+  end;
 end;
 
 

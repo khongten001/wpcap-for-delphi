@@ -216,7 +216,6 @@ var LHeaderNTP     : PNTPHeader;
   function GetDateTimeFromNTPTimeStamp(const aNTPTimestamp: TNtpTimestamp): TDateTime;
   begin
     Result := UnixToDateTime(Int64(wpcapntohl(PCardinal(@aNTPTimestamp.IntegerPart)^)) - 2208988800);
-    {TODO add milliseconds...}
   end;
  
 begin
@@ -241,7 +240,7 @@ begin
   //VN: 3 bit - Version Number 
   //VM: 3 bit - Mode
 
-  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.LeapIndicator',[AcronymName]), 'Leap Indicator', GetNTPLeapIndicatorString(LHeaderNTP.LI_VN_MODE and $03), @LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), LHeaderNTP.LI_VN_MODE and $03));   {TODO TO STRING}
+  AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.LeapIndicator',[AcronymName]), 'Leap Indicator', GetNTPLeapIndicatorString(LHeaderNTP.LI_VN_MODE and $03), @LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), LHeaderNTP.LI_VN_MODE and $03)); 
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Version',[AcronymName]), 'Version',  (LHeaderNTP.LI_VN_MODE and $38) shr 3, @LHeaderNTP.LI_VN_MODE,SizeOf(LHeaderNTP.LI_VN_MODE), (LHeaderNTP.LI_VN_MODE and $38) shr 3));
 
   LMode := MessageTypeToString(GetLastNBit(LHeaderNTP.LI_VN_MODE,3));
