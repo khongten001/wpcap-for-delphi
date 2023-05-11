@@ -84,7 +84,6 @@ type
      class function GetFlowTimeOut : Byte;virtual;
      class function GetInfoFlow(const aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
      class procedure UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort,aDstPort: Uint16; aTCPFlags: Uint8; aCurrentSeq, aCurrentAck: Uint32;aAdditionalInfo: PTAdditionalInfo); virtual;
-
   public
 
     /// <summary>

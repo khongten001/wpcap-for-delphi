@@ -808,6 +808,7 @@ var LOffset         : Integer;
     LTCPPayLoad     : PByte;
     LTCPPayLoadLen  : Integer;
     LContectLen     : Integer;
+    LindexVersion   : Integer; //TODO Update version
     LContentStr     : String;
     LByteValue      : Uint8;
     LByteValue2     : Uint8;
@@ -958,7 +959,6 @@ var LOffset         : Integer;
                       ParserUint8Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.StatusRequest.CertStatusType',[AcronymName,aContentType]), 'Certificate Status Type:',AListDetail,nil,false,LOffset);   
                       ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.StatusRequest.Listlen',[AcronymName,aContentType]), 'Responder ID List length:',AListDetail,SizeWordToStr,True,LOffset);   
                       ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.%s.Extension.StatusRequest.ReqExtLen',[AcronymName,aContentType]), 'Request extensions length:',AListDetail,SizeWordToStr,True,LOffset);               
-
                       SkipUnsupportlabel(5);
                     end;
                     
@@ -1147,204 +1147,212 @@ begin
 
   while LOffset < LTCPPayLoadLen do
   begin
+    if LOffset + SizeOf(TTLSRecordHeader) > LTCPPayLoadLen then break;
+    
     LRecord      := PTTLSRecordHeader(LTCPPayLoad + LOffset);
     LContectLen  := wpcapntohs(LRecord.Length);
+
+    if LContectLen <= 0 then exit;
+    if LContectLen > LTCPPayLoadLen then exit;
+
+    if LContectLen < SizeOf(TTLSRecordHeader) then
+    begin
+      Inc(LOffset, SizeOf(TTLSRecordHeader));
+      Continue;
+    end;
+    
     LContentStr  := ContentTypeToString(LRecord.ContentType);
 
     if LInfoProtocols.IsEmpty then
       LInfoProtocols := LContentStr
     else if not LInfoProtocols.Contains(LContentStr) then         
       LInfoProtocols := Format('%s %s',[LInfoProtocols,LContentStr]);
-      
-    
-    if LContectLen <= 0 then exit;
-    if LContectLen > LTCPPayLoadLen then exit;
         
     ParserGenericBytesValue(LTCPPayLoad,aStartLevel+1,LTCPPayLoadLen,LContectLen,Format('%s.RecordLayer',[AcronymName]),Format('%s record layer: %s', [TLSVersionToString(LRecord.ProtocolVersion), ContentTypeToString(LRecord.ContentType)]),AListDetail,nil,True,LOffset);
     Dec(LOffset,LContectLen);
         
     Inc(LOffset, SizeOf(TTLSRecordHeader));
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentType',[AcronymName]), 'Content type', LContentStr, @LRecord.ContentType, SizeOf(LRecord.ContentType), LRecord.ContentType ));
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Version',[AcronymName]), 'Version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion), LRecord.ProtocolVersion ));    
+    LindexVersion := AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Version',[AcronymName]), 'Version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion), LRecord.ProtocolVersion ));    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentLen',[AcronymName]), 'Content length',SizeToStr(LContectLen), @LRecord.Length, SizeOf(LRecord.Length),LContectLen ));  
-      case LRecord.ContentType of
 
-        TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC   :
-            ParserUint8Value(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,Format('%s.ChangeCipherr.Type',[AcronymName]), 'Change cipher:',AListDetail,nil,True,LOffset);   
+    {* In TLS 1.3 only Handshake and Application Data can be fragmented.
+     * Alert messages MUST NOT be fragmented across }
+    case LRecord.ContentType of
 
-        TLS_CONTENT_TYPE_ALERT                : 
-            ParserGenericBytesValue(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,LContectLen,Format('%s.Alert.Message',[AcronymName]), 'Alert Message:',AListDetail,BytesToHex,True,LOffset);            
+      TLS_CONTENT_TYPE_CHANGE_CIPHER_SPEC   :
+          ParserUint8Value(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,Format('%s.ChangeCipherr.Type',[AcronymName]), 'Change cipher:',AListDetail,nil,True,LOffset);   
+
+      TLS_CONTENT_TYPE_ALERT                : 
+          ParserGenericBytesValue(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,LContectLen,Format('%s.Alert.Message',[AcronymName]), 'Alert Message:',AListDetail,BytesToHex,True,LOffset);            
             
-          TLS_CONTENT_TYPE_HANDSHAKE          :
-          begin
-
-            LTypeRecord          := PByte(LTCPPayLoad+LOffset)^;
-            LTypeRecordStr       := HandShakeTypeToString(LTypeRecord);
-            if not LInfoProtocols.Contains(LTypeRecordStr) then            
-              LInfoProtocols := Format('%s %s',[LInfoProtocols,LTypeRecordStr]);            
-            AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake.%s',[AcronymName,LTypeRecordStr]), Format('Handshake: %s',[LTypeRecordStr]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
-            
-            ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Type',[AcronymName,LTypeRecordStr]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   
-            
-            LHandShakeLen := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Len',[AcronymName,LTypeRecordStr]), 'Length:',AListDetail,SizeCardinalToStr,true,LOffset);            
-
-            if LHandShakeLen <= 0 then  continue;
-            if LHandShakeLen > 16384  then Break;
-           
-            case LTypeRecord of
-              TLS_HANDSHAKE_TYPE_HELLO_REQUEST,
-              TLS_HANDSHAKE_TYPE_SERVER_HELLO_DONE,
-              TLS_HANDSHAKE_TYPE_HELLO_VERIFY_REQUEST : ;//nothing to do!!
-              
-              TLS_HANDSHAKE_TYPE_CLIENT_HELLO :
-                begin
-                  LoadCommonFieldHello('ClientHello');
-                  LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CipherSuites.Len',[AcronymName]), 'Cipher Suites length:',AListDetail,SizeWordToStr,True,LOffset);   
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ClientHello.CipherSuites',[AcronymName]), 'Cipher Suites:',AListDetail,nil,True,LOffset);
-                  Dec(LOffset,LUInt16Value);                    
-
-                  for I := 0 to (LUInt16Value div 2) - 1 do
-                  begin
-                    if LOffset > LTCPPayLoadLen then Exit;
-                    
-                    ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CipherSuites.value',[AcronymName]), 'Cipher Suites:',AListDetail,ChipherToString,True,LOffset);   
-                  end;
-
-                  LByteValue2 := ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CompressionMethods.Len',[AcronymName]), 'Compression Methods Length:',AListDetail,SizeaUint8ToStr,True,LOffset);                     
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LByteValue2,Format('%s..Handshake.ClientHello.CompressionMethods',[AcronymName]), 'Compression Methods:',AListDetail,nil,True,LOffset);
-                  Dec(LOffset,LByteValue2);         
-                          
-                  for I := 0 to LByteValue2 - 1 do
-                  begin
-                    if LOffset > LTCPPayLoadLen then Exit;
-
-                    ParserUint8Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CompressionMethods.value',[AcronymName]), 'Compression Methods:',AListDetail,CompressionToString,True,LOffset);                     
-                  end;
-
-                  ParserExtentions('ClientHello');
-                end;
-
-              TLS_HANDSHAKE_TYPE_SERVER_HELLO :
-                begin
-                  LoadCommonFieldHello('ServerHello');
-
-                  ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.CipherSuites',[AcronymName]), 'Cipher Suites:',AListDetail,ChipherToString,True,LOffset); 
-                  ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.CompressionMethods.value',[AcronymName]), 'Compression Methods:',AListDetail,CompressionToString,True,LOffset);                     
-                  ParserExtentions('ServerHello');      
-                end;                
-                
-              TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE:
-                begin
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.Record',[AcronymName]), 'Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
-                  Dec(LOffset,LHandShakeLen);  
-                  LByteValue := ParserUint8Value(LTCPPayLoad,aStartLevel+4,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.PubkeyLen',[AcronymName]),'Pubkey Length:',AListDetail,nil,True,LOffset);
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LByteValue,Format('%s.Handshake.ClientKeyExChange.Pubkey',[AcronymName]), 'Pubkey:',AListDetail,BytesToHex,True,LOffset);            
-                end;
-
-              TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE :
-                begin
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ServerKeyExChange.Record',[AcronymName]), 'EC Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
-                  Dec(LOffset,LHandShakeLen);  
-                  LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.p.Len',[AcronymName]), 'p Length:',AListDetail,SizeWordToStr,True,LOffset);             
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.p',[AcronymName]), 'p:',AListDetail,BytesToHex,True,LOffset);                                
-
-                  LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.g.Len',[AcronymName]), 'g Length:',AListDetail,SizeWordToStr,True,LOffset);             
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.g',[AcronymName]), 'g:',AListDetail,BytesToHex,True,LOffset);                                                
-                
-                  LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.PublicKey.Len',[AcronymName]), 'PublicKey Length:',AListDetail,SizeWordToStr,True,LOffset);
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.PublicKey',[AcronymName]), 'PublicKey:',AListDetail,BytesToHex,True,LOffset);                                                
-
-                  LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.Signature.Len',[AcronymName]), 'Signature Length:',AListDetail,SizeWordToStr,True,LOffset);             
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.Signature',[AcronymName]), 'Signature:',AListDetail,BytesToHex,True,LOffset);                                                                                  
-                end;  
-
-              TLS_HANDSHAKE_TYPE_CERTIFICATE :
-                begin
-                  LtmpVaue := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.Certificates.Len',[AcronymName]), 'Certificates length:',AListDetail,nil,True,LOffset);   
-                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LtmpVaue,Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
-                  Dec(LOffset,LtmpVaue);  
-                                       
-                  while LOffset < LHandShakeLen do
-                  begin
-                    LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Certificate.Certificates.Len',[AcronymName]), 'Certificate length:',AListDetail,nil,True,LOffset);      
-                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.Certificates.Certificate',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
-                    Dec(LOffset,LtmpVaue2);  
-                    DoLog('TWPcapProtocolTLS.HeaderToString','TLS_HANDSHAKE_TYPE_CERTIFICATE not compleated',TWLLWarning);
-                    
-                    {TODO info certificate}
-                    Inc(LOffset,LtmpVaue2);                                          
-                  end;                  
-                end;
-                      
-                TLS_HANDSHAKE_TYPE_NEWSESSION_TICKET  :
-                  begin
-                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.TLSSessionTicket',[AcronymName]), 'TLS session ticket:',AListDetail,nil,True,LOffset);
-                    Dec(LOffset,LHandShakeLen);  
-                    ParserUint32Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.TLSSessionTicket.Lifetime',[AcronymName]), 'Session Ticket Lifetime Hint(s):',AListDetail,nil,True,LOffset);             
-                    LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.TLSSessionTicket.len',[AcronymName]), 'Session Ticket Length:',AListDetail,SizeWordToStr,True,LOffset);             
-                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.TLSSessionTicket.value',[AcronymName]), 'Session Ticket:',AListDetail,BytesToHex,True,LOffset);
-                  end;
-                  
-                TLS_HANDSHAKE_TYPE_CERT_STATUS :
-                  begin
-                    ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.CertificateStatus.Type',[AcronymName]), 'Certificate Status Type:',AListDetail,nil,True,LOffset);                                       
-                    LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.CertificateStatus.Response.Len',[AcronymName]), 'OCSP response length:',AListDetail,nil,True,LOffset);      
-                    ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.CertificateStatus.Response',[AcronymName]), 'OCSP Response:',AListDetail,nil,True,LOffset);
-                    Dec(LOffset,LtmpVaue2);  
-
-                    DoLog('TWPcapProtocolTLS.HeaderToString','TLS_HANDSHAKE_TYPE_CERT_STATUS not compleated',TWLLWarning);
-                    
-                    {TODO info reponse certificate}
-                    Inc(LOffset,LtmpVaue2);                     
-                  end;
-                  
-                TLS_HANDSHAKE_TYPE_END_OF_EARLY_DATA      ,
-                TLS_HANDSHAKE_TYPE_HELLO_RETRY_REQUEST    ,
-                TLS_HANDSHAKE_TYPE_ENCRYPTED_EXTENSIONS   ,   
-                TLS_HANDSHAKE_TYPE_CERTIFICATE_REQUEST    ,
-                TLS_HANDSHAKE_TYPE_CERTIFICATE_VERIFY     ,    
-                TLS_HANDSHAKE_TYPE_FINISHED               ,
-                TLS_HANDSHAKE_TYPE_CERT_URL               ,
-                TLS_HANDSHAKE_TYPE_SUPPLEMENTAL_DATA      ,
-                TLS_HANDSHAKE_TYPE_KEY_UPDATE             ,
-                TLS_HANDSHAKE_TYPE_COMPRESSED_CERTIFICATE ,
-                TLS_HANDSHAKE_TYPE_ENCRYPTED_EXTS         :
-                  begin
-                     //TODO
-                    DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] not implemented',[LTypeRecord,LTypeRecordStr]),TWLLWarning);
-                    Inc(LOffset,LContectLen);  
-                  end   
-                
-            else
-                DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] invalid',[LTypeRecord,LTypeRecordStr]),TWLLError);                  
-               Inc(LOffset,LContectLen); 
-            end;
-          
-          end;     
-             
-        TLS_CONTENT_TYPE_APPLICATION_DATA     :
-            ParserGenericBytesValue(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,LContectLen,Format('%s.ApplicationData.Message',[AcronymName]), 'Application data message:',AListDetail,BytesToHex,True,LOffset);                                                                                  
-
-        TLS_CONTENT_TYPE_ID_HEARTBEAT  :
-          begin              //TODO
-            DoLog('TWPcapProtocolTLS.HeaderToString','TLS_CONTENT_TYPE_ID_HEARTBEAT not implemented',TWLLWarning);          
-             Inc(LOffset,LContectLen);
-          end;
-        TLS_CONTENT_TYPE_ID_TLS12_CID : 
-          begin             //TODO
-             DoLog('TWPcapProtocolTLS.HeaderToString','TLS_CONTENT_TYPE_ID_TLS12_CID not implemented',TWLLWarning);        
-             Inc(LOffset,LContectLen);
-          end;
-          
-      else
+      TLS_CONTENT_TYPE_HANDSHAKE            :
         begin
-          DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record  ContentType [%d ] invalid',[LRecord.ContentType]),TWLLError);      
-          Inc(LOffset,LContectLen); // TODO invalid
-        end;
+
+          LTypeRecord          := PByte(LTCPPayLoad+LOffset)^;
+          LTypeRecordStr       := HandShakeTypeToString(LTypeRecord);
+          if not LInfoProtocols.Contains(LTypeRecordStr) then            
+            LInfoProtocols := Format('%s %s',[LInfoProtocols,LTypeRecordStr]);            
+          AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Handshake.%s',[AcronymName,LTypeRecordStr]), Format('Handshake: %s',[LTypeRecordStr]),null,PByte(LTCPPayLoad+LOffset),LContectLen ));                 
+            
+          ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Type',[AcronymName,LTypeRecordStr]), 'Handshake type:',AListDetail,HandShakeTypeToString,True,LOffset);   
+            
+          LHandShakeLen := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.%s.Len',[AcronymName,LTypeRecordStr]), 'Length:',AListDetail,SizeCardinalToStr,true,LOffset);            
+
+          if LHandShakeLen <= 0 then  continue;
+          if LHandShakeLen > 16384  then Break;
+           
+          case LTypeRecord of
+            TLS_HANDSHAKE_TYPE_HELLO_REQUEST,
+            TLS_HANDSHAKE_TYPE_SERVER_HELLO_DONE,
+            TLS_HANDSHAKE_TYPE_HELLO_VERIFY_REQUEST : ;//nothing to do!!
+              
+            TLS_HANDSHAKE_TYPE_CLIENT_HELLO :
+              begin
+                LoadCommonFieldHello('ClientHello');
+                LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CipherSuites.Len',[AcronymName]), 'Cipher Suites length:',AListDetail,SizeWordToStr,True,LOffset);   
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ClientHello.CipherSuites',[AcronymName]), 'Cipher Suites:',AListDetail,nil,True,LOffset);
+                Dec(LOffset,LUInt16Value);                    
+
+                for I := 0 to (LUInt16Value div 2) - 1 do
+                begin
+                  if LOffset > LTCPPayLoadLen then Exit;
+                    
+                  ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CipherSuites.value',[AcronymName]), 'Cipher Suites:',AListDetail,ChipherToString,True,LOffset);   
+                end;
+
+                LByteValue2 := ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CompressionMethods.Len',[AcronymName]), 'Compression Methods Length:',AListDetail,SizeaUint8ToStr,True,LOffset);                     
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LByteValue2,Format('%s..Handshake.ClientHello.CompressionMethods',[AcronymName]), 'Compression Methods:',AListDetail,nil,True,LOffset);
+                Dec(LOffset,LByteValue2);         
+                          
+                for I := 0 to LByteValue2 - 1 do
+                begin
+                  if LOffset > LTCPPayLoadLen then Exit;
+
+                  ParserUint8Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ClientHello.CompressionMethods.value',[AcronymName]), 'Compression Methods:',AListDetail,CompressionToString,True,LOffset);                     
+                end;
+
+                ParserExtentions('ClientHello');
+              end;
+
+            TLS_HANDSHAKE_TYPE_SERVER_HELLO :
+              begin
+                LoadCommonFieldHello('ServerHello');
+
+                ParserUint16Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.CipherSuites',[AcronymName]), 'Cipher Suites:',AListDetail,ChipherToString,True,LOffset); 
+                ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.ServerHello.CompressionMethods.value',[AcronymName]), 'Compression Methods:',AListDetail,CompressionToString,True,LOffset);                     
+                ParserExtentions('ServerHello');      
+              end;                
+                
+            TLS_HANDSHAKE_TYPE_CLIENT_KEY_EXCHANGE:
+              begin
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.Record',[AcronymName]), 'Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
+                Dec(LOffset,LHandShakeLen);  
+                LByteValue := ParserUint8Value(LTCPPayLoad,aStartLevel+4,LHandShakeLen,Format('%s.Handshake.ClientKeyExChange.PubkeyLen',[AcronymName]),'Pubkey Length:',AListDetail,nil,True,LOffset);
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LByteValue,Format('%s.Handshake.ClientKeyExChange.Pubkey',[AcronymName]), 'Pubkey:',AListDetail,BytesToHex,True,LOffset);            
+              end;
+
+            TLS_HANDSHAKE_TYPE_SERVER_KEY_EXCHANGE :
+              begin
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.ServerKeyExChange.Record',[AcronymName]), 'EC Diffie-Hellman Server Params:',AListDetail,nil,True,LOffset);
+                Dec(LOffset,LHandShakeLen);  
+                LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.p.Len',[AcronymName]), 'p Length:',AListDetail,SizeWordToStr,True,LOffset);             
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.p',[AcronymName]), 'p:',AListDetail,BytesToHex,True,LOffset);                                
+
+                LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.g.Len',[AcronymName]), 'g Length:',AListDetail,SizeWordToStr,True,LOffset);             
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.g',[AcronymName]), 'g:',AListDetail,BytesToHex,True,LOffset);                                                
+                
+                LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.PublicKey.Len',[AcronymName]), 'PublicKey Length:',AListDetail,SizeWordToStr,True,LOffset);
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.PublicKey',[AcronymName]), 'PublicKey:',AListDetail,BytesToHex,True,LOffset);                                                
+
+                LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.ServerKeyExChange.Signature.Len',[AcronymName]), 'Signature Length:',AListDetail,SizeWordToStr,True,LOffset);             
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.ServerKeyExChange.Signature',[AcronymName]), 'Signature:',AListDetail,BytesToHex,True,LOffset);                                                                                  
+              end;  
+
+            TLS_HANDSHAKE_TYPE_CERTIFICATE :
+              begin
+                LtmpVaue := ParserUint24Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.Certificates.Len',[AcronymName]), 'Certificates length:',AListDetail,nil,True,LOffset);   
+                ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LtmpVaue,Format('%s.Handshake.Certificate.Certificates',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
+                Dec(LOffset,LtmpVaue);  
+                                       
+                while LOffset < LHandShakeLen do
+                begin
+                  LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Certificate.Certificates.Len',[AcronymName]), 'Certificate length:',AListDetail,nil,True,LOffset);      
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.Certificates.Certificate',[AcronymName]), 'Certificate:',AListDetail,nil,True,LOffset);
+                  Dec(LOffset,LtmpVaue2);  
+                  DoLog('TWPcapProtocolTLS.HeaderToString','TLS_HANDSHAKE_TYPE_CERTIFICATE not compleated',TWLLWarning);
+                    
+                  {TODO info certificate}
+                  Inc(LOffset,LtmpVaue2);                                          
+                end;                  
+              end;
+                      
+              TLS_HANDSHAKE_TYPE_NEWSESSION_TICKET  :
+                begin
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,LHandShakeLen,Format('%s.Handshake.TLSSessionTicket',[AcronymName]), 'TLS session ticket:',AListDetail,nil,True,LOffset);
+                  Dec(LOffset,LHandShakeLen);  
+                  ParserUint32Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.TLSSessionTicket.Lifetime',[AcronymName]), 'Session Ticket Lifetime Hint(s):',AListDetail,nil,True,LOffset);             
+                  LUInt16Value := ParserUint16Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.Handshake.TLSSessionTicket.len',[AcronymName]), 'Session Ticket Length:',AListDetail,SizeWordToStr,True,LOffset);             
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LUInt16Value,Format('%s.Handshake.TLSSessionTicket.value',[AcronymName]), 'Session Ticket:',AListDetail,BytesToHex,True,LOffset);
+                end;
+                  
+              TLS_HANDSHAKE_TYPE_CERT_STATUS :
+                begin
+                  ParserUint8Value(LTCPPayLoad,aStartLevel+3,LTCPPayLoadLen,Format('%s.Handshake.CertificateStatus.Type',[AcronymName]), 'Certificate Status Type:',AListDetail,nil,True,LOffset);                                       
+                  LtmpVaue2 := ParserUint24Value(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,Format('%s.CertificateStatus.Response.Len',[AcronymName]), 'OCSP response length:',AListDetail,nil,True,LOffset);      
+                  ParserGenericBytesValue(LTCPPayLoad,aStartLevel+4,LTCPPayLoadLen,LtmpVaue2,Format('%s.Handshake.CertificateStatus.Response',[AcronymName]), 'OCSP Response:',AListDetail,nil,True,LOffset);
+                  Dec(LOffset,LtmpVaue2);  
+
+                  DoLog('TWPcapProtocolTLS.HeaderToString','TLS_HANDSHAKE_TYPE_CERT_STATUS not compleated',TWLLWarning);
+                    
+                  {TODO info reponse certificate}
+                  Inc(LOffset,LtmpVaue2);                     
+                end;
+                  
+              TLS_HANDSHAKE_TYPE_END_OF_EARLY_DATA      ,
+              TLS_HANDSHAKE_TYPE_HELLO_RETRY_REQUEST    ,
+              TLS_HANDSHAKE_TYPE_ENCRYPTED_EXTENSIONS   ,   
+              TLS_HANDSHAKE_TYPE_CERTIFICATE_REQUEST    ,
+              TLS_HANDSHAKE_TYPE_CERTIFICATE_VERIFY     ,    
+              TLS_HANDSHAKE_TYPE_FINISHED               ,
+              TLS_HANDSHAKE_TYPE_CERT_URL               ,
+              TLS_HANDSHAKE_TYPE_SUPPLEMENTAL_DATA      ,
+              TLS_HANDSHAKE_TYPE_KEY_UPDATE             ,
+              TLS_HANDSHAKE_TYPE_COMPRESSED_CERTIFICATE ,
+              TLS_HANDSHAKE_TYPE_ENCRYPTED_EXTS         :
+                begin
+                   //TODO
+                  DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] not implemented',[LTypeRecord,LTypeRecordStr]),TWLLWarning);
+                  Inc(LOffset,LContectLen);  
+                end   
+                
+          else
+              DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record type [%d --> %s] invalid',[LTypeRecord,LTypeRecordStr]),TWLLError);                  
+             Inc(LOffset,LContectLen); 
+          end;
+          
+        end;     
+             
+      TLS_CONTENT_TYPE_APPLICATION_DATA     :
+          ParserGenericBytesValue(LTCPPayLoad,aStartLevel+2,LTCPPayLoadLen,LContectLen,Format('%s.ApplicationData.Message',[AcronymName]), 'Application data message:',AListDetail,BytesToHex,True,LOffset);                                                                                  
+
+      TLS_CONTENT_TYPE_ID_TLS12_CID : Inc(LOffset,LContectLen);
+
+      TLS_CONTENT_TYPE_ID_HEARTBEAT  :
+        begin             
+          if LRecord.ProtocolVersion = TLS_VERSION_1_3 then
+            DoLog('TWPcapProtocolTLS.HeaderToString','Record type is not allowed in TLS 1.3',TWLLError)                      
+          else
+            DoLog('TWPcapProtocolTLS.HeaderToString','TLS_CONTENT_TYPE_ID_HEARTBEAT not implemented',TWLLWarning);          
+          Inc(LOffset,LContectLen);
+        end;          
+    else
+      begin
+        DoLog('TWPcapProtocolTLS.HeaderToString',Format('Record  ContentType [%d ] invalid',[LRecord.ContentType]),TWLLError);      
+        Inc(LOffset,LContectLen); // TODO invalid
       end;
-
+    end;
   end;
-
   aAdditionalInfo.Info := Format('%s TCP: %s',[LInfoProtocols,aAdditionalInfo.INfo] ).Trim;
   Result               := True;
 end;

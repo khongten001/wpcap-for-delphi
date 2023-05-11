@@ -508,6 +508,7 @@ type
   TSeqAckInfo = record
     FrameNumber : Integer;
     PayloadSize : Integer;
+    PrevWinSize : Uint16;
   end;
   
   TSeqAckList = Class(TDictionary<string, TSeqAckInfo>) ;
@@ -517,6 +518,7 @@ type
     DstIP        : String;
     prevSeqNum   : Uint32;
     prevAckNum   : Uint32;
+    prevWinSize  : Uint16;
     FirstSeqNum  : Uint32;
     FirstAckNum  : Uint32;    
     TCPTimeStamp : Integer;
