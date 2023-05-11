@@ -204,7 +204,6 @@ begin
   Result := PNTPHeader(aUDPPayLoad);
 end;
 
-
 class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;  
 var LHeaderNTP     : PNTPHeader;
     LPUDPHdr       : PUDPHdr;
@@ -313,7 +312,6 @@ begin
     Result := 'Unknown leap indicator';
   end;
 end;
-
 
 class Function TWPcapProtocolNTP.MessageTypeToString(aMsgType:Uint8):String;
 begin

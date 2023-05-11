@@ -158,7 +158,7 @@ type
     /// <NBNS>
     ///   A string representation of the DNS flags.
     /// </returns>    
-    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:integer; AListDetail: TListHeaderString);override;
+    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);override;
     
     /// <summary>
     ///  Returns a string representation of a NBNS question class.
@@ -559,7 +559,7 @@ begin
 
 end;
 
-class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Uint16;aStartLevel:integer;AListDetail: TListHeaderString);
+class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Uint16;aStartLevel:integer;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);
 var LtmpResult       : String;
     LByteValue       : Uint8;
     LByte0           : Uint8;
@@ -582,10 +582,16 @@ begin
   }
   LByteValue := GetBitValue(LByte0,1);
   LisQuery   := LByteValue = 0;
-  if LisQuery then
+  if LisQuery then       
+  begin
+    aAdditionalInfo.Info := 'Message query';
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is query', @LByte0,SizeOf(LByte0), LByteValue  ))
+  end
   else
+  begin
+    aAdditionalInfo.Info := 'Msg response';
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Response:','Message is response', @LByte0,SizeOf(LByte0), LByteValue )); 
+  end;
 
   {
      Symbol     Bit(s)   Description

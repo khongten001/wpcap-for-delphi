@@ -31,7 +31,7 @@ interface
 
 uses
   wpcap.Protocol.Base, wpcap.Conts, wpcap.Protocol.UDP, System.SysUtils,IdGlobal,wpcap.packet,
-  Variants, wpcap.StrUtils, wpcap.Types, wpcap.BufferUtils, System.StrUtils,
+  Variants, wpcap.StrUtils, wpcap.Types, wpcap.BufferUtils, System.StrUtils,System.Math,
   winSock, WinApi.Windows, System.Classes, wpcap.IpUtils,System.AnsiStrings;
 
  CONST
@@ -155,7 +155,7 @@ type
   TWPcapProtocolDNS = Class(TWPcapProtocolBaseUDP)
   private
     CONST MAX_RSS_AND_QUESTIONS = 65535;
-    class function GetQuestions(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer):String;
+    class function GetQuestions(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer;aAdditionalInfo: PTAdditionalInfo):String;
   protected
     class function RSSTypeToString(const aRRsType: TRRsType): String; static;
     class procedure GetRSS(const aRRsType:TRRsType;const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo;var aOffset : Integer);virtual;
@@ -224,7 +224,7 @@ type
     /// <returns>
     ///   A string representation of the DNS flags.
     /// </returns>
-    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:Integer; AListDetail: TListHeaderString);virtual;
+    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:Integer; AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);virtual;
 
     /// <summary>
     ///  Returns a string representation of a DNS question class.
@@ -379,7 +379,7 @@ begin
 end;
 
 
-class procedure TWPcapProtocolDNS.GetDNSFlags(aFlags: Uint16;aStartLevel:Integer;AListDetail:TListHeaderString);  
+class procedure TWPcapProtocolDNS.GetDNSFlags(aFlags: Uint16;aStartLevel:Integer;AListDetail:TListHeaderString;aAdditionalInfo: PTAdditionalInfo);  
 var LtmpResult  : String;
     LByteValue  : Uint8;
     LByte0      : Uint8;
@@ -398,9 +398,15 @@ begin
   LByteValue := GetBitValue(LByte0,1);
   LIsQuery   := LByteValue = 0;
   if LIsQuery then
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Type:','Query',@LByte0,1, LByteValue ))
+  begin
+    aAdditionalInfo.Info := 'Query';
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Type:','Query',@LByte0,1, LByteValue ));
+  end
   else
+  begin
+    aAdditionalInfo.Info := 'Response';
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Type',[AcronymName]), 'Type:','Response',@LByte0,1,LByteValue ));       
+  end;
 
   {
   OPCODE  A four bit field that specifies kind of query in this
@@ -524,39 +530,74 @@ begin
 end;
 
 class function TWPcapProtocolDNS.ParseDNSName(const aPacket: TBytes;aMaxLen:Integer; var aOffset,aTotalNameLen: integer;aApplyyConversion:Boolean=True): AnsiString;
-var LLen        : integer;
-    LCompressPos: integer;
-    LCompressed : boolean;
-    LastOffset  : Integer;  
-    LNewLen     : Integer;  
+var LLen             : integer;
+    LCompressPos     : integer;
+    LCompressed      : boolean;
+    LastOffset       : Integer;  
+    LNewLen          : Integer;  
+    LStartOffset     : Integer;
+    LIsExtendedLabel : Boolean;
+    LLabelLen        : Integer;
+    LFixLenResult    : Integer;
 begin
-  Result        := String.Empty;
-  LCompressed   := False;
-  aTotalNameLen := 0;
-  LCompressPos  := aOffset;
+  Result           := String.Empty;
+  LCompressed      := False;
 
-  LastOffset    := 0;
+  LCompressPos     := aOffset;
+  LStartOffset     := aOffset;
+  LastOffset       := -1;
+  LIsExtendedLabel := False;
+  aTotalNameLen    := -1;
   while True do 
   begin
+    if(aOffset - LStartOffset > 254) then Break;
+
     LLen := aPacket[aOffset];
+        
     if aOffset > aMaxLen then Break;
     
+    case (LLen and $C0) of
+      $C0  :
+            begin
+              // pointer to compressed name
+              if not LCompressed then 
+              begin
+                // first compression, save current offset
+                LCompressPos := aOffset;
+                LCompressed  := True;
+              end;
+              // follow pointer
+              if (aTotalNameLen < 0) then
+              begin
+                aTotalNameLen := aOffset+1 - LStartOffset;
+                aOffset       := 0;//LStartOffset - ( ( (LLen and not $C0) shl 8 ) or aPacket[aOffset+1] ) - 9;
+              end
+              else
+                aOffset :=  LStartOffset- ( ( (LLen and not $C0) shl 8 ) or aPacket[aOffset+1] );
+               
+            
+              if LastOffset = aOffset then 
+              begin
+                aTotalNameLen := Length(Result);
+                break;
+              end;
 
-    if (LLen and $C0) = $C0 then 
-    begin
-      // pointer to compressed name
-      if not LCompressed then 
-      begin
-        // first compression, save current offset
-        LCompressPos := aOffset;
-        LCompressed  := True;
-      end;
-      // follow pointer
-      aOffset := aOffset + (((LLen and $3F) shl 8) or aPacket[aOffset+1]);
-      if LastOffset = aOffset then break;
-
-      LastOffset := aOffset;          
-      LLen       := aPacket[aOffset];
+              LastOffset       := aOffset;          
+              LLen             := aPacket[aOffset];      
+              LIsExtendedLabel := false;
+            end;     
+            
+      $40:  begin 
+               { // Extended label (RFC 2673)
+                LIsExtendedLabel := True;
+                LLabelLen        := aPacket[aOffset + 1];
+                LLen             := 1;  }
+            end;
+            
+      $80:  begin
+              DoLog('TWPcapProtocolDNS.ParseDNSName','Invalid parser DNS name',TWLLError);         
+              Break;
+            end;
     end;
     
     Inc(aOffset);
@@ -567,27 +608,53 @@ begin
     end;
     
     if aOffset > aMaxLen then break;    
+
     if not Trim(String(Result)).IsEmpty then
       Result := AnsiString(Format('%s.',[Result]));
-    LNewLen :=  Length(Result)+LLen -1;
       
-    if (aOffset > 0) and (aOffset+LLen-1 <= aMaxLen) then
+    if not LIsExtendedLabel  then
     begin
-      SetLength(Result,LNewLen+1);  
-      Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
-      Result := StringReplace(Result,#0,'',[rfReplaceAll]) ;
-    end;
-    
+      LNewLen :=  Length(Result)+LLen -1;
+      if (aOffset > 0) and (aOffset+LLen-1 <= aMaxLen) then
+      begin
+        SetLength(Result,LNewLen+1);  
+        Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
+        Result := StringReplace(Result,#0,'',[rfReplaceAll]) ;
+      end;
+    end
+    else
+    begin
+      // Handle extended label
+      if aOffset + LLabelLen - 1 <= aMaxLen then
+      begin
+        SetLength(Result, Length(Result) + LLabelLen + 1);
+        Move(aPacket[aOffset], Result[Length(Result) - LLabelLen - 1], LLabelLen + 1);
+        Result := StringReplace(Result, #0, '', [rfReplaceAll]);
+      end;
+    end;    
+
     Inc(aOffset, LLen);
-    inc(aTotalNameLen,LLen);
+    if LLen > 0 then    
+      inc(aTotalNameLen,LLen);
 
+    LIsExtendedLabel  := False;
   end;
+  
   if LCompressed then
-    aOffset := LCompressPos+2; // skip compressed name pointer      
+    aOffset := LCompressPos+2; // skip compressed name pointer         
 
+  if (aTotalNameLen < 0) then
+    aTotalNameLen := aOffset - LStartOffset;
+    
   if aApplyyConversion then    
     Result := ApplyConversionName(Result);  
 
+  LFixLenResult := Length(Result) - aTotalNameLen;  
+  if LFixLenResult > 2 then
+    DoLog('TWPcapProtocolDNS.ParseDNSName',Format('Invalid parser DNS name length result [%d] > calculate Length [%d]',[Length(Result), aTotalNameLen]),TWLLDebug)
+  else if LFixLenResult > 0 then
+    Inc(aTotalNameLen,LFixLenResult);       
+  
 end;
 
 class function TWPcapProtocolDNS.ApplyConversionName(const aName:AnsiString):AnsiString;
@@ -604,7 +671,7 @@ begin
 end;
 
 
-class function TWPcapProtocolDNS.GetQuestions(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer):String;
+class function TWPcapProtocolDNS.GetQuestions(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;var aOffSetQuestion : Integer;aAdditionalInfo: PTAdditionalInfo):String;
 var LPUDPHdr        : PUDPHdr;
     LHeaderDNS      : PTDnsHeader;
     LDataQuestions  : TBytes;
@@ -648,13 +715,13 @@ begin
   LUDPPayLoad    := GetUDPPayLoad(aPacketData,aPacketSize);    
   LHeaderDNS     := Header(LUDPPayLoad);
   LCountQuestion := wpcapntohs(LHeaderDNS.Questions);
-  LLenQuestion   := UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags);
+  LLenQuestion   := UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags)-8;
   if LLenQuestion <= 0 then  exit;
   if not isValidLen(aOffSetQuestion,LLenQuestion,LCountQuestion)  then exit;
   
   SetLength(LDataQuestions,LLenQuestion);
   LDataQuestions := TBytes(LUDPPayLoad+HeaderLength(LHeaderDNS.Flags));
-
+  LTotalNameLen  := 0;
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Questions.Query',[AcronymName]), 'Query',NULL,Pbyte(@LDataQuestions),Length(LDataQuestions)));              
   for i := 0 to LCountQuestion -1 do
   begin
@@ -673,7 +740,10 @@ begin
     
     LQName := String(ParseDNSName(LDataQuestions,LLenQuestion,aOffSetQuestion,LTotalNameLen));
     AListDetail.Add(AddHeaderInfo(aStartLevel+2,Format('%s.Questions.Name',[AcronymName]), 'Name',LQName,nil,LQName.Length));  
-    AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Questions.Name.Len',[AcronymName]), 'Name length',LTotalNameLen,nil,0));  
+
+    aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LQName]);
+    
+    AListDetail.Add(AddHeaderInfo(aStartLevel+3,Format('%s.Questions.Name.Len',[AcronymName]), 'Name length',Max(LQName.Length,LTotalNameLen),nil,0));  
 
     {
       QTYPE  a two octet code which specifies the type of the query.
@@ -736,7 +806,7 @@ var LPUDPHdr        : PUDPHdr;
     LRecordLength   : uint16;
     LTotalNameLen   : Integer;
     LInternalOffset : Integer;
-    LIPAddr         : LongWord;
+    LIPAddr         : Uint32;
     LIPv6Addr       : TIPv6AddrBytes;   
     LEnrichment     : TWpcapEnrichmentType;
 begin
@@ -766,7 +836,8 @@ begin
  }
 
   
-  LCountRss := 0;
+  LCountRss     := 0;
+  LTotalNameLen := 0;
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
 
   LUDPPayLoad := GetUDPPayLoad(aPacketData,aPacketSize);    
@@ -779,14 +850,13 @@ begin
   end;  
   
   if LCountRss = 0 then Exit;
-  LLength := UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags);
+  LLength := UDPPayLoadLength(LPUDPHdr)-HeaderLength(LHeaderDNS.Flags)-8;
 
   if LLength < 1 then Exit;
   
   
   SetLength(LDataRss,LLength);
   LDataRss := TBytes(LUDPPayLoad+HeaderLength(LHeaderDNS.Flags));
-
 
   aLabelForName  := Format('%s.%s',[AcronymName,RSSTypeToString(aRRsType)]);
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, aLabelForName, RSSTypeToString(aRRsType), NULL,nil,0 ));      
@@ -853,7 +923,7 @@ begin
         TYPE_DNS_QUESTION_A:
         begin
 
-          LIPAddr  := PLongword(@LDataRss[LInternalOffset])^;
+          LIPAddr  := wpcapntohl(PUint32(@LDataRss[LInternalOffset])^);
           LCaption := 'A address';
           LRssName := AnsiString(MakeUint32IntoIPv4AddressInternal(LIPAddr));
           if IsValidPublicIP(LRssName) then
@@ -949,6 +1019,8 @@ var LHeaderDNS        : PTDnsHeader;
     LPUDPHdr          : PUDPHdr;
     LcountAddRrs      : Integer;
     LOffSetQuestion   : Integer;
+    LSessionID        : Uint16;
+    LBckInfo          : String;
 begin
   Result := False;
   if not HeaderUDP(aPacketData,aPacketSize,LPUDPHdr) then Exit;
@@ -962,15 +1034,17 @@ begin
   LcountAddRrs     := wpcapntohs(LHeaderDNS.AdditionalRRs);
   LCountAnswer     := wpcapntohs(LHeaderDNS.AnswerRRs);
   LCountAuthority  := wpcapntohs(LHeaderDNS.AuthorityRRs);   
-
+  LSessionID       := wpcapntohs(LHeaderDNS.ID);
+  LBckInfo         := aAdditionalInfo.Info;
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName, Format('%s (%s)',[ProtoName,AcronymName]),NULL, LUDPPayLoad,LPayLoadLen ));            
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ID',[AcronymName]), 'ID:',wpcapntohs(LHeaderDNS.ID),PByte(@LHeaderDNS.ID),SizeOf(LHeaderDNS.ID)));        
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.ID',[AcronymName]), 'Session ID:',LSessionID,PByte(@LHeaderDNS.ID),SizeOf(LHeaderDNS.ID)));        
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Flags',[AcronymName]), 'Flags:',Format('%s %s',[ByteToBinaryString(GetByteFromWord(LHeaderDNS.Flags,0)),
                                                                                                           ByteToBinaryString(GetByteFromWord(LHeaderDNS.Flags,1))]),
                   PByte(@LHeaderDNS.Flags), SizeOf(LHeaderDNS.Flags) ,LHeaderDNS.Flags));    
-                    
-  GetDNSFlags(LHeaderDNS.Flags,aStartLevel,AListDetail);  
+                      
+  GetDNSFlags(LHeaderDNS.Flags,aStartLevel,AListDetail,aAdditionalInfo);  
 
+  aAdditionalInfo.Info := Format('%s Session ID %d',[aAdditionalInfo.Info,LSessionID]);    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Questions',[AcronymName]), 'Questions:',LCountQuestion,PByte(@LHeaderDNS.Questions),SizeOf(LHeaderDNS.Questions) ));      
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AnswerRRs',[AcronymName]), 'Answer RRs:',LCountAnswer,PByte(@LHeaderDNS.AnswerRRs),SizeOf(LHeaderDNS.AnswerRRs) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.AuthorityRRs',[AcronymName]), 'Authority RRs:',LCountAuthority,PByte(@LHeaderDNS.AuthorityRRs),SizeOf(LHeaderDNS.AuthorityRRs) )); 
@@ -979,7 +1053,7 @@ begin
   {QUESTION}
   LOffSetQuestion := 0;
   if ( LCountQuestion > 0) and (LCountQuestion <= MAX_RSS_AND_QUESTIONS) then
-    GetQuestions(aPacketData,aPacketSize,aStartLevel,AListDetail,LOffSetQuestion);
+    GetQuestions(aPacketData,aPacketSize,aStartLevel,AListDetail,LOffSetQuestion,aAdditionalInfo);
    
   {ANSWER}
   if LCountAnswer > 0 then
@@ -993,6 +1067,7 @@ begin
   if LcountAddRrs > 0 then
     GetRSS(rtAdditional,aPacketData,aPacketSize,aStartLevel,AListDetail,aAdditionalInfo,LOffSetQuestion);
 
+   aAdditionalInfo.Info := Format('%s %S',[aAdditionalInfo.Info,LBckInfo]);               
   Result := True;
 end;
 
