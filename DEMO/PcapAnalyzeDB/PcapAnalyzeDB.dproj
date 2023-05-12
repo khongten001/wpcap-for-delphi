@@ -186,6 +186,7 @@
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="..\..\Source\wpcap.Logger.pas"/>
+        <DCCReference Include="..\..\Source\wpcap.MNC.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

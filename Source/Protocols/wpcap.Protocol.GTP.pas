@@ -29,7 +29,7 @@ unit wpcap.Protocol.GTP;
 interface
 
 uses
-  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils, wpcap.StrUtils,
+  wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, System.SysUtils, wpcap.StrUtils, wpcap.MNC,
   System.StrUtils, Wpcap.protocol.UDP, WinApi.Windows, wpcap.BufferUtils,wpcap.packet,
   Variants, idGlobal, wpcap.IPUtils, winsock2,wpcap.MCC,IdGlobalProtocols;
 
@@ -532,17 +532,14 @@ var LBytes         : TidBytes;
         LMCC2      : Uint8;
         LMCC1      : Uint8;
     begin
-      LWordValue    := wpcapntohl(PUint32(aPayload+aCurrentPos)^);
-
+      LWordValue  := wpcapntohl(PUint32(aPayload+aCurrentPos)^);
       LFirstByte  := PByte(aPayload+aCurrentPos)^;
       LMCC1       := LFirstByte and $0f;
       LMCC2       := LFirstByte shr 4;
-      Inc(aCurrentPos);
-      
+      Inc(aCurrentPos);      
       LSecondByte := PByte(aPayload+aCurrentPos)^ ;
       LMCC3       := LSecondByte and $0f;      
-      LMCC        :=  (100 * LMCC1) + (10 * LMCC2 )+ LMCC3;
-  
+      LMCC        :=  (100 * LMCC1) + (10 * LMCC2 )+ LMCC3;  
       AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MCC', [aLabelIEType]), 'Mobile Country Code (MCC):', LMCC, @LWordValue, SizeOf(LWordValue), LMCC));
       AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCC), nil, 0, LMCC, wetMcc ));
       aAdditionalInfo.EnrichmentPresent := True;
@@ -561,6 +558,7 @@ var LBytes         : TidBytes;
       LMNC3       := LFirstByte shr 4;
       LMNC        := (10 * LMNC2) + LMNC3;
       AListDetail.Add(AddHeaderInfo(aLevel,Format('%s.MNC',[aLabelIEType]), 'Mobile Network Code (MNC):',LMNC, @LWordValue,sizeOf(LWordValue),-1,wetMNC));
+      AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MNC.Provider', [aLabelIEType]), 'Provider:', MNCDescription(LMCC,LMNC), nil, 0, LMNC, WetMNC ));
       Inc(aCurrentPos);         
     end;  
 
@@ -569,6 +567,7 @@ var LBytes         : TidBytes;
         LIMSIString: string;
         LIndex     : Integer;
         LMCCImsi   : String;
+        LMNCImsi   : String;
     begin
       if isValidLen(aCurrentPos,aMaxLen,LLenIE) then
       begin
@@ -583,9 +582,12 @@ var LBytes         : TidBytes;
           if (LIMSI[LIndex] shr 4) <= 9 then
             LIMSIString := Format('%s%d',[LIMSIString,(LIMSI[LIndex] shr 4)]);
         end;
+        
         LMCCImsi := Copy(LIMSIString,1,3);
+        LMNCImsi := Copy(LIMSIString,3,2).PadLeft(3,'0');        
         AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.IMSI', [aLabelIEType]), 'IMSI:',LIMSIString,@LIMSI,sizeOf(LIMSI)));
         AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger, wetMcc ));      
+        AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MNC.Provider', [aLabelIEType]), 'Provider:', MNCDescription(LMCCImsi.ToInteger,LMNCImsi.ToInteger), nil, 0, LMCCImsi.Tointeger, WetMNC ));
         aAdditionalInfo.EnrichmentPresent := True;        
         Inc(aCurrentPos,LLenIE);
       end;
@@ -622,6 +624,7 @@ var LBytes         : TidBytes;
     end;  
            
 begin
+  LMCC := 0;
   if aCurrentPos+1 <= aMaxLen then
   begin
     while aCurrentPos < aMaxLen do

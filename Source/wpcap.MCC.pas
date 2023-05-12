@@ -28,11 +28,11 @@ You may use/change/modify the component under 1 conditions:
 unit wpcap.MCC;
 
 interface
-uses  wpcap.Types,wpcap.Geometry;
-
+uses  
+  wpcap.Types,wpcap.Geometry,wpcap.Conts;
 
 CONST
-MCC_ROWS: array [0..199] of TMCCRow = (
+  MCC_ROWS: array [0..199] of TMCCRow = (
     (MCC:	412;	COUNTRY:	'Afghanistan';						           	LATITUDINE:		34.51666;			LONGITUDINE:	69.183333),
     (MCC:	276;	COUNTRY:	'Albania';								           	LATITUDINE:		41.33165;			LONGITUDINE:	19.817222),
     (MCC:	603;	COUNTRY:	'Algeria';								           	LATITUDINE:		36.75;				LONGITUDINE:	3.05),
@@ -246,6 +246,7 @@ var LMccRow : TMCCRow;
   
 begin
   Result := 'Unknown';
+  if aMCC < MIN_MCC then exit;  
   for LMccRow in MCC_ROWS do
   begin
     if LMccRow.MCC = aMCC then

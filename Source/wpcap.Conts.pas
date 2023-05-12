@@ -224,10 +224,10 @@ const
  DETECT_PROTO_GNUTELLA = 34;
  DETECT_PROTO_OPVPN    = 35; 
  
- SRC_MAC_RAW_DATA = '41:41:41:41:41:41';
- DST_MAC_RAW_DATA = '4D:4D:4D:4D:4D:4D';
+ SRC_MAC_RAW_DATA      = '41:41:41:41:41:41';
+ DST_MAC_RAW_DATA      = '4D:4D:4D:4D:4D:4D';
 
-const
+ MIN_MCC               = 202;
   VENDOR_IETF = 0; // reserved - used by the IETF in L2TP?
   VENDOR_ACC = 5;
   VENDOR_CISCO = 9;

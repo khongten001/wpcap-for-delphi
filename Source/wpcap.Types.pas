@@ -64,6 +64,12 @@ type
     LATITUDINE  : Extended;
     LONGITUDINE : Extended;    
   end;
+
+  TMNCRow = record
+    MCC          : integer;
+    MNC          : integer;
+    DESCRIPTION  : String;   
+  end;  
   
   //PacketBurst is a structure defined in the WinPcap library that represents a burst of packets to be sent via PacketSendPackets.
   //The structure contains the following fields:
