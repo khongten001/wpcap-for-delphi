@@ -299,7 +299,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function HeaderLength(aFlag:byte): word; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: UInt8): Boolean; override;        
   end;
 
@@ -352,7 +352,7 @@ begin
 end;
 
 
-class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolDHCP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LUDPPayLoad         : PByte;
     LDummy              : Integer;
     LHeaderDHCP         : PTDHCPHeader;
@@ -434,7 +434,7 @@ begin
   LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ClientIP));    
   if IsValidPublicIP(LTmpIP) then
   begin
-    aAdditionalInfo.EnrichmentPresent := true;
+    aAdditionalParameters.EnrichmentPresent := true;
     LEnrichment                       := WetIP;
   end;
              
@@ -445,7 +445,7 @@ begin
   LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.YourIP));    
   if IsValidPublicIP(LTmpIP) then
   begin
-    aAdditionalInfo.EnrichmentPresent := true;
+    aAdditionalParameters.EnrichmentPresent := true;
     LEnrichment                       := WetIP;
   end;  
 
@@ -457,7 +457,7 @@ begin
   LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.ServerIP));    
   if IsValidPublicIP(LTmpIP) then
   begin
-    aAdditionalInfo.EnrichmentPresent := true;
+    aAdditionalParameters.EnrichmentPresent := true;
     LEnrichment                       := WetIP;
   end;    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1,Format('%s.ServerIP',[AcronymName]), 'Next server IP address:',LTmpIP, @LHeaderDHCP.ServerIP,SizeOf(LHeaderDHCP.ServerIP),-1,LEnrichment ));            
@@ -468,7 +468,7 @@ begin
   LTmpIP      := MakeUint32IntoIPv4AddressInternal(wpcapntohl( LHeaderDHCP.RelayAgentIP));    
   if IsValidPublicIP(LTmpIP) then
   begin
-    aAdditionalInfo.EnrichmentPresent := true;
+    aAdditionalParameters.EnrichmentPresent := true;
     LEnrichment                       := WetIP;
   end;    
   
@@ -638,7 +638,7 @@ begin
                 LTmpIP := BytesToIPv4Str(LBytesTmp);
                 if IsValidPublicIP(LTmpIP) then
                 begin
-                  aAdditionalInfo.EnrichmentPresent := true;
+                  aAdditionalParameters.EnrichmentPresent := true;
                   LEnrichment                       := WetIP;
                 end;
                 AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.IP',[GetLabelOptions(LOption)]), Format('%s:',[OptionValueToCaption(LOption)]),LTmpIP, @LBytesTmp,SizeOf(LBytesTmp),-1,LEnrichment ))
@@ -649,7 +649,7 @@ begin
                 
                 if IsValidPublicIP(LTmpIP) then
                 begin
-                  aAdditionalInfo.EnrichmentPresent := true;
+                  aAdditionalParameters.EnrichmentPresent := true;
                   LEnrichment                       := WetIP;
                 end;
 
@@ -842,7 +842,7 @@ begin
     end
     else break;
   end;
-  aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,LMsgType]).Trim;  
+  aAdditionalParameters.Info := FOrmat('%s %s',[aAdditionalParameters.Info,LMsgType]).Trim;  
   Result := True;
 end;
 

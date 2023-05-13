@@ -145,7 +145,7 @@ type
     /// Returns the acronym name of the Telnet protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;
   end;
 
 
@@ -333,7 +333,7 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Data',[AcronymName]), 'Data:',LDataStr, @LDataStr,Length(LDataStr)));      
 end;
 
-class function TWPcapProtocolTelnet.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolTelnet.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LTCPPayLoad        : PByte;
     LDummy             : Integer;
     LDataSize          : Integer;
@@ -487,7 +487,7 @@ begin
       end;
     end
   end;  
-  aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LInfo]).Trim;  
+  aAdditionalParameters.Info := Format('%s %s',[aAdditionalParameters.Info,LInfo]).Trim;  
   Result := True;
 end;
 

@@ -172,7 +172,7 @@ type
     /// Checks whether the packet is valid for the TLS protocol.
     /// </summary>
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override; 
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;       
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;override;       
 End;
 
 
@@ -801,7 +801,7 @@ begin
   end;
 end;
 
-class function TWPcapProtocolTLS.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolTLS.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LOffset         : Integer;
     LRecord         : PTTLSRecordHeader;    
     LTCPHdr         : PTCPHdr;
@@ -1353,7 +1353,7 @@ begin
       end;
     end;
   end;
-  aAdditionalInfo.Info := Format('%s TCP: %s',[LInfoProtocols,aAdditionalInfo.INfo] ).Trim;
+  aAdditionalParameters.Info := Format('%s TCP: %s',[LInfoProtocols,aAdditionalParameters.INfo] ).Trim;
   Result               := True;
 end;
 

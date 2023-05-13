@@ -193,13 +193,13 @@ type
       ERR_TSA_BUSY                        = 12;    
          
     class function GetL2TPFlag(aFlags: Uint16;aStartLevel:Integer;AListDetail: TListHeaderString): string; static;
-    class function ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalInfo: PTAdditionalInfo): string; static;
+    class function ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalParameters: PTAdditionalParameters): string; static;
     class function LenghtIsPresent(aFlags: Uint16): Boolean; static;
     class function SequencePresent(aFlags: Uint16): Boolean; static;
     class function OffSetIsPresent(aFlags: Uint16): Boolean; static;
     class function AvtType0ValueToString(const aAvtValue: Uint16): String;
     Class function InitVendorID: TListVendorID;Static;
-    class procedure ReadAVPValueFromPacket(const aLabel:String;const aPayloadData: PByte;aPayloadSize:Integer;var aCurrentPos:Integer;var aIsStopCcn: Boolean;const aAvpLength,aAvpType,aStartLevel: Integer; aVendorID: TListVendorId;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo); static;
+    class procedure ReadAVPValueFromPacket(const aLabel:String;const aPayloadData: PByte;aPayloadSize:Integer;var aCurrentPos:Integer;var aIsStopCcn: Boolean;const aAvpLength,aAvpType,aStartLevel: Integer; aVendorID: TListVendorId;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters); static;
     class function L2TPAVPTypeToString(AVPType: Uint16): string; static;
     class function HiddenFlagIsSetted(aAvpLen: Integer): Boolean; static;
     class function GetErrorMessage(const aErrorCode: Uint16): string;
@@ -260,7 +260,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override; 
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override; 
   end;  
   
 implementation
@@ -741,7 +741,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.Priority',[AcronymName]), 'Priority:',GetBitValue(aFlags,8)=1, @aFlags,SizeOf(aFlags), GetBitValue(aFlags,8) ));  
 end;
 
-class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; 
+class function TWPcapProtocolL2TP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; 
 var LHeaderL2TP   : PTL2TPHdrInternal;
     LPUDPHdr      : PUDPHdr;
     LUDPPayLoad   : PByte;
@@ -801,7 +801,7 @@ begin
        }
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SessionId',[AcronymName]), 'Session ID',wpcapntohs(LHeaderL2TP.SessionId) , @LHeaderL2TP.sessionID, SizeOf(LHeaderL2TP.sessionID)));
 
-      aAdditionalInfo.Info := Format('Tunnel ID %d Session ID %d %s',[wpcapntohs(LHeaderL2TP.tunnelID),wpcapntohs(LHeaderL2TP.SessionId),aAdditionalInfo.Info]);
+      aAdditionalParameters.Info := Format('Tunnel ID %d Session ID %d %s',[wpcapntohs(LHeaderL2TP.tunnelID),wpcapntohs(LHeaderL2TP.SessionId),aAdditionalParameters.Info]);
 
       if SequencePresent(LHeaderL2TP.Flags) then    
       begin
@@ -840,7 +840,7 @@ begin
       begin
         // Parse L2TP payload for control message AVP
         if LHeaderL2TP.Version = 2 then    
-          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID,aAdditionalInfo)              
+          ParseL2TPControlAVP(@LUDPPayLoad[HeaderLength(LHeaderL2TP.Flags)+Loffset],AListDetail,wpcapntohs(LHeaderL2TP.Length),aStartLevel,LVendorID,aAdditionalParameters)              
         else if LHeaderL2TP.Version = 3 then   {TODO version 3}
           DoLog('TWPcapProtocolL2TP.HeaderToString','L2TP Version 3 not implemented',TWLLWarning);                
 
@@ -1261,7 +1261,7 @@ begin
 end;
 
 Class procedure TWPcapProtocolL2TP.ReadAVPValueFromPacket(const aLabel:String;const aPayloadData: PByte;aPayloadSize:Integer;var aCurrentPos:integer;var aIsStopCcn: Boolean;
-                          const aAvpLength,aAvpType,aStartLevel: Integer; aVendorID: TListVendorId;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);
+                          const aAvpLength,aAvpType,aStartLevel: Integer; aVendorID: TListVendorId;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters);
 var LUint16        : UInt16;   
     LAvpTypeCaption: STring; 
     LLabel         : STring;
@@ -1276,7 +1276,7 @@ begin
     AVTYPE_CONTROL_MESSAGE: 
       begin
         LUint16 := ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,AvtType0ValueToString,true,aCurrentPos);
-        aAdditionalInfo.Info := Format('%s %s %s',[LAvpTypeCaption,AvtType0ValueToString(LUint16),aAdditionalInfo.Info]);
+        aAdditionalParameters.Info := Format('%s %s %s',[LAvpTypeCaption,AvtType0ValueToString(LUint16),aAdditionalParameters.Info]);
         if (LUint16 = MESSAGE_TYPE_StopCCN) then
           aIsStopCcn := true;
       end;
@@ -1549,7 +1549,7 @@ begin
   Result := (aAvpLen and $4000) = $4000;
 end;  
 
-class function TWPcapProtocolL2TP.ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalInfo: PTAdditionalInfo): string;
+class function TWPcapProtocolL2TP.ParseL2TPControlAVP(const aPayloadData: PByte;AListDetail: TListHeaderString;aLengthPayload:Uint16;aStartLevel:Integer;aVendorID: TListVendorId;aAdditionalParameters: PTAdditionalParameters): string;
 CONST AVP_LENGHT_WITHOUT_VALUE = 6;
 var LAvpHeader      : TAVPHeader;
     LAvpType        : Uint16;
@@ -1681,7 +1681,7 @@ begin
       VENDOR_BROADBAND_FORUM: DoLog('TWPcapProtocolL2TP.HeaderToString','AVPValue custom VENDOR_BROADBAND_FORUM not implemented',TWLLWarning);                
       VENDOR_ERICSSON       : DoLog('TWPcapProtocolL2TP.HeaderToString','AVPValue custom VENDOR_ERICSSON not implemented',TWLLWarning);                
     end;
-    ReadAVPValueFromPacket(LLabel,aPayloadData,aLengthPayload,LCurrentPos,LisStopMsg,LAvpLength,LAvpType,aStartLevel+2,aVendorID,AListDetail,aAdditionalInfo);
+    ReadAVPValueFromPacket(LLabel,aPayloadData,aLengthPayload,LCurrentPos,LisStopMsg,LAvpLength,LAvpType,aStartLevel+2,aVendorID,AListDetail,aAdditionalParameters);
     
     if ( LAvpLength -SizeOf(TAVPHeader) )- (LCurrentPos - LBckPos) > 0 then
       Inc(LCurrentPos,( LAvpLength -SizeOf(TAVPHeader) )- (LCurrentPos - LBckPos) );    

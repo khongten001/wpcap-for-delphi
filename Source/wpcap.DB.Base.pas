@@ -30,7 +30,7 @@ You may use/change/modify the component under 1 conditions:
 interface                        
 
 uses
-  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat,
+  FireDAC.Stan.ExprFuncs, FireDAC.Phys.SQLiteWrapper.Stat, wpcap.Types,
   FireDAC.Phys.SQLiteDef, Winapi.Windows, FireDAC.Stan.Intf, FireDAC.Stan.Option,
   System.Classes, FireDAC.Stan.Error, FireDAC.UI.Intf, FireDAC.Phys.Intf,
   FireDAC.Stan.Def, FireDAC.Stan.Pool, FireDAC.Stan.Async, FireDAC.Phys,
@@ -43,6 +43,8 @@ Type
   strict private
     CONST METADATA_VERSION_LABEL = 'Version';
   private
+    FOnLog   : TWpcapLog;     //Event for logging
+
     procedure DoOnErrorCreateDatabase(ASender, AInitiator: TObject;var AException: Exception);
 
     ///<summary>
@@ -59,6 +61,7 @@ Type
     ///   Insert metadata version
     ///</summary>
     procedure InsertVersion;
+    
   protected
     var FConnection       : TFDConnection; 
     var FFDQueryTmp       : TFdQuery; 
@@ -68,6 +71,12 @@ Type
     function GetMetadataCOLUMN_NAME_NAME: String;
     function GetMetadataCOLUMN_NAME_VALUE: String;     
     function GetMetadataTableName:String;
+
+    /// <summary>
+    /// Log a message with the given function name, description, and log level.
+    /// </summary>         
+    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
+        
     ///<summary>
     /// Creates a new FireDAC database connection object.
     ///</summary>
@@ -211,6 +220,11 @@ Type
     ///   This query object is used to populate a grid with data retrieved from a database.
     /// </remarks>    
     property FDQueryGrid : TFDQuery      read FFDQueryGrid write FFDQueryGrid;     
+
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>        
+    property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;      
   End;
 
 implementation
@@ -378,6 +392,12 @@ begin
   Finally
     FreeAndNil(LFDGetVersion);
   End;
+end;
+
+procedure TWPcapDBBase.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel)
 end;
 
 Procedure TWPcapDBBase.InsertMetadata(const aName:String;aValue:String);

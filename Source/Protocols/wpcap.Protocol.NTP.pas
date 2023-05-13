@@ -155,7 +155,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>    
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;     
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;     
 end;
 
 
@@ -204,7 +204,7 @@ begin
   Result := PNTPHeader(aUDPPayLoad);
 end;
 
-class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;  
+class function TWPcapProtocolNTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;  
 var LHeaderNTP     : PNTPHeader;
     LPUDPHdr       : PUDPHdr;
     LUDPPayLoad    : PByte;
@@ -286,7 +286,7 @@ begin
   // 8-byte field that specifies the time when the request was sent by the client
   // expressed as a 64-bit timestamp in seconds since January 1, 1900 (in network byte order)
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TrasmitTimeStamp',[AcronymName]), 'Transmit Timestamp', FormatDateTime('yyyy-mm-dd hh:nn:ss.zzz', GetDateTimeFromNTPTimeStamp(LHeaderNTP.TransmitTS)), PByte(@LHeaderNTP.TransmitTS), SizeOf(LHeaderNTP.TransmitTS)));
-  aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,LMode]).Trim;
+  aAdditionalParameters.Info := FOrmat('%s %s',[aAdditionalParameters.Info,LMode]).Trim;
   Result := True;
 end;
 

@@ -71,22 +71,21 @@ Type
   end;
   PTInternalIP = ^TInternalIP;
   
-
-  TAdditionalInfo = record
-    isRetrasmission       : Boolean;
-    RetrasmissionFn       : Integer;
-    SequenceNumber        : Uint32;
+  TTCPParameter = record
     AcknowledgmentNumber  : Uint32;
-    TCPTimeStamp          : Integer;
-    Info                  : String;
-    FlowID                : Integer;
-    PacketDate            : TDateTime;
-    EnrichmentPresent     : Boolean;
-    ContentExt            : String;
-    FrameNumber           : Integer;  
-    PayLoadSize           : Integer;
-    CompressType          : Integer;
-    
+    TimeStamp             : Integer;
+    Retrasmission         : Boolean;    
+    RetrasmissionFn       : Integer;
+  end;
+  
+  TAdditionalInfo = record
+    SequenceNumber    : Uint32;
+    TCP               : TTCPParameter;        
+    Info              : String;
+    FlowID            : Integer;
+    EnrichmentPresent : Boolean;
+    ContentExt        : String;
+    CompressType      : Integer;    
   end;
   PTAdditionalInfo = ^TAdditionalInfo;
 

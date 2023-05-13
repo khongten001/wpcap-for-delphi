@@ -60,7 +60,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;    
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;          
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;          
     class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer;var aSize,aSizeTotal:Integer): PByte; override;    
   end;
 
@@ -168,7 +168,7 @@ begin
   end;  
 end;
 
-class function TWPcapProtocolHTTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolHTTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
     LDummy         : Integer;
@@ -185,7 +185,7 @@ begin
   FIsFilterMode   := aIsFilterMode;
   AListDetail.Add(AddHeaderInfo(aStartLevel,AcronymName, Format('%s (%s)', [ProtoName, AcronymName]),null, LTCPPayLoad, LTCPPayLoadLen ));
   LOffSet  := 0;  
-  Result   := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalInfo);
+  Result   := ParserByEndOfLine(aStartLevel,LTCPPayLoadLen,LTCPPayLoad,AListDetail,LOffSet,aAdditionalParameters);
 end;
 
 class function TWPcapProtocolHTTP.GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte;
@@ -220,13 +220,10 @@ begin
           Inc(LOffset,LtmpLen-1);
           break;
         end
-        else
-          if (aSizeTotal = 0) and LValue.Contains('Content-Length') then
-            aSizeTotal := Copy(LValue,Pos(':',LValue)+1).Trim.ToInteger;
-          
+        else if (aSizeTotal = 0) and LValue.Contains('Content-Length:') then
+          aSizeTotal := Copy(LValue,Pos(':',LValue)+1).Trim.ToInteger;
       end;
     end;
-
     Inc(LOffset);
   end;
   
@@ -235,8 +232,7 @@ begin
   begin
     Result := AllocMem(aSize);
     Move(LTCPPayLoad[LOffset], Result^, ASize);
-  end;
-    
+  end;    
 end;
 
 end.

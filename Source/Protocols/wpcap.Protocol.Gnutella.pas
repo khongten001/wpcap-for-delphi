@@ -58,7 +58,7 @@ type
     /// Returns the acronym name of the Gnutella protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;                
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;                
   end;
 
 
@@ -87,7 +87,7 @@ begin
   Result := 'Gnutella';
 end;
 
-class function TWPcapProtocolGnutella.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolGnutella.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LTCPPayLoad    : PByte;
     LTCPPayLoadLen : Integer;
     LDummy         : Integer;

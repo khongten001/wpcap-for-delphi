@@ -533,10 +533,24 @@ type
     FLowId       : Integer;
   end;
   PTFlowInfo = ^TFlowInfo;
+    
+  TFlowInfoList = Class(TDictionary<string, TFlowInfo>);
+
 
   
-  
-  TFlowInfoList = Class(TDictionary<string, TFlowInfo>);
+  TAdditionalParameters = record
+    PacketDate            : TDateTime;
+    FrameNumber           : Integer;  
+    SequenceNumber        : Uint32;
+    PayLoadSize           : Integer;
+    TCP                   : TTCPParameter;    
+    Info                  : String;
+    FlowID                : Integer;
+    EnrichmentPresent     : Boolean;
+    ContentExt            : String;
+    CompressType          : Integer;    
+  end;
+  PTAdditionalParameters = ^TAdditionalParameters;  
   
      
 implementation

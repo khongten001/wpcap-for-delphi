@@ -501,11 +501,11 @@ begin
 end;
 
 function AnalyzePacketCallBack(const aPacketData : Pbyte;aFrameNumber:Integer;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID) : PTInternalPacket;
-var LLen              : Integer;
-    LListDetail       : TListHeaderString;
-    LLikLayersSize    : Integer;
-    LEthParser        : TWpcapEthHeader;
-    LAdditionalInfo   : TAdditionalInfo;
+var LLen                    : Integer;
+    LListDetail             : TListHeaderString;
+    LLikLayersSize          : Integer;
+    LEthParser              : TWpcapEthHeader;
+    LAdditionalParameters   : TAdditionalParameters;
 begin
   Result := nil;
   if not Assigned(aPacketData) then Exit;
@@ -532,24 +532,30 @@ begin
     LListDetail     := TListHeaderString.Create;
     Try
 
-      LAdditionalInfo.isRetrasmission       := False;
-      LAdditionalInfo.RetrasmissionFn       := -1;
-      LAdditionalInfo.SequenceNumber        := 0;
-      LAdditionalInfo.PayLoadSize           := 0;            
-      LAdditionalInfo.AcknowledgmentNumber  := 0;    
-      LAdditionalInfo.TCPTimeStamp          := 0;                
-      LAdditionalInfo.FlowID                := 0;                        
-      LAdditionalInfo.Info                  := String.Empty;
-      LAdditionalInfo.EnrichmentPresent     := False;
-      LAdditionalInfo.ContentExt            := String.Empty;      
-      LAdditionalInfo.CompressType          := -1;
-      LAdditionalInfo.FrameNumber           := aFrameNumber;
-      LAdditionalInfo.PacketDate            := Result.PacketDate;
+      LAdditionalParameters.TCP.Retrasmission         := False;
+      LAdditionalParameters.TCP.RetrasmissionFn       := -1;        
+      LAdditionalParameters.TCP.AcknowledgmentNumber  := 0;    
+      LAdditionalParameters.TCP.TimeStamp             := 0;                
+      LAdditionalParameters.SequenceNumber            := 0;
+      LAdditionalParameters.PayLoadSize               := 0;    
+      LAdditionalParameters.FlowID                    := 0;                        
+      LAdditionalParameters.Info                      := String.Empty;
+      LAdditionalParameters.EnrichmentPresent         := False;
+      LAdditionalParameters.ContentExt                := String.Empty;      
+      LAdditionalParameters.CompressType              := -1;
+      LAdditionalParameters.FrameNumber               := aFrameNumber;
+      LAdditionalParameters.PacketDate                := Result.PacketDate;
      
-      if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@LAdditionalInfo) then 
+      if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@LAdditionalParameters) then 
       begin         
-        Result.AdditionalInfo := LAdditionalInfo;
-        Result.XML_Detail := HeaderStringListToXML(LListDetail,aListLabelByLevel)
+        Result.AdditionalInfo.SequenceNumber    := LAdditionalParameters.SequenceNumber;
+        Result.AdditionalInfo.TCP               := LAdditionalParameters.TCP;
+        Result.AdditionalInfo.Info              := LAdditionalParameters.Info;
+        Result.AdditionalInfo.FlowID            := LAdditionalParameters.FlowID;
+        Result.AdditionalInfo.EnrichmentPresent := LAdditionalParameters.EnrichmentPresent;
+        Result.AdditionalInfo.CompressType      := LAdditionalParameters.CompressType;                                
+        Result.AdditionalInfo.ContentExt        := LAdditionalParameters.ContentExt;                                        
+        Result.XML_Detail                       := HeaderStringListToXML(LListDetail,aListLabelByLevel)
       end
       else
         Result.XML_Detail := String.empty;

@@ -23,11 +23,11 @@ uses
   cxTLdxBarBuiltInMenu, cxInplaceContainer, dxBarBuiltInMenu,UnFormMap,
   cxGridCustomPopupMenu, cxGridPopupMenu, cxCheckBox, dxToggleSwitch,
   cxBarEditItem,wpcap.Geometry, Vcl.Menus, cxButtons, dxStatusBar,
-  dxCalloutPopup, cxImageComboBox, cxMaskEdit,wpcap.IPUtils;
+  dxCalloutPopup, cxImageComboBox, cxMaskEdit,wpcap.IPUtils, dxShellDialogs,
+  cxPropertiesStore;
 
 type
   TFormMain = class(TForm)
-    OpenDialog1: TOpenDialog;
     GridPcapLevel1: TcxGridLevel;
     GridPcap: TcxGrid;
     GridPcapDBTableView1: TcxGridDBTableView;
@@ -116,6 +116,15 @@ type
     GridPcapDBTableView1PACKET_INFO: TcxGridDBColumn;
     GridPcapDBTableView1FLOW_ID: TcxGridDBColumn;
     GridPcapDBTableView1ENRICHMENT_PRESENT: TcxGridDBColumn;
+    TActiveVerobse: TcxBarEditItem;
+    BSettings: TdxBarSubItem;
+    dxBarManager1Bar3: TdxBar;
+    BMenuFile: TdxBarSubItem;
+    dxBarButton2: TdxBarButton;
+    BUtility: TdxBarSubItem;
+    dxSaveFileDialog1: TdxSaveFileDialog;
+    dxOpenFileDialog1: TdxOpenFileDialog;
+    PSSettings: TcxPropertiesStore;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -154,10 +163,10 @@ type
     procedure GridPcapDBTableView1CellClick(Sender: TcxCustomGridTableView;
       ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
       AShift: TShiftState; var AHandled: Boolean);
-    procedure GridPcapDBTableView1InitEditValue(Sender: TcxCustomGridTableView;
-      AItem: TcxCustomGridTableItem; AEdit: TcxCustomEdit; var AValue: Variant);
     procedure BWhoiseClientClick(Sender: TObject);
     procedure BWhoiseServerClick(Sender: TObject);
+    procedure dxBarButton2Click(Sender: TObject);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -365,6 +374,11 @@ begin
   MemoHex.Style.Font.Size := 10;
   FWPcapDBSqLite          := TWPcapDBSqLitePacket.Create;
   FWpcapGeoLite           := TWpcapGEOLITE.Create;
+  FPcapImport             := TPCAP2SQLite.Create; 
+  ForceDirectories(Format('%SConfig\',[ExtractFilePath(Application.ExeName)]));
+  PSSettings.Active := True;
+  PSSettings.RestoreFrom; 
+  PSSettings.Active := False;  
 end;
 
 procedure TFormMain.FormDestroy(Sender: TObject);
@@ -384,11 +398,11 @@ var I                : Integer;
     LPacket          : PByte;
     LPcketSize       : Integer;
     LPacketToDump    : PTPacketToDump;
-    LAdditionalInfo  : TAdditionalInfo;
+    LAdditionalInfo  : TAdditionalParameters;
 begin
-  SaveDialog1.Filter     := 'Pcap file|*.pcap';
-  SaveDialog1.DefaultExt := '.pcap'; 
-  if SaveDialog1.Execute then
+  dxSaveFileDialog1.Filter     := 'Pcap file|*.pcap';
+  dxSaveFileDialog1.DefaultExt := '.pcap'; 
+  if dxSaveFileDialog1.Execute then
   begin
     LListPacket := TList<PTPacketToDump>.Create;
     Try
@@ -407,7 +421,7 @@ begin
       end;
 
       if LListPacket.Count > 0 then
-        FPcapImport.PcapUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
+        FPcapImport.PcapUtils.SavePacketListToPcapFile(LListPacket,dxSaveFileDialog1.FileName);
     Finally
       FreeAndNil(LListPacket);
     End;
@@ -469,13 +483,13 @@ var LListPacket      : TList<PTPacketToDump>;
     LPacket          : PByte;
     LPcketSize       : Integer;
     LPacketToDump    : PTPacketToDump;
-    LAdditionalInfo  : TAdditionalInfo;
+    LAdditionalInfo  : TAdditionalParameters;
 begin
-  SaveDialog1.Filter     := 'Pcap file|*.pcap|Text file|*.txt';
-  SaveDialog1.DefaultExt := '.pcap'; 
-  if SaveDialog1.Execute then
+  dxSaveFileDialog1.Filter     := 'Pcap file|*.pcap|Text file|*.txt';
+  dxSaveFileDialog1.DefaultExt := '.pcap'; 
+  if dxSaveFileDialog1.Execute then
   begin
-    case SaveDialog1.FilterIndex of
+    case dxSaveFileDialog1.FilterIndex of
       1 : begin
             if GridPcapDBTableView1.Controller.SelectedRowCount = 0 then
             begin
@@ -496,13 +510,13 @@ begin
               end;
 
               if LListPacket.Count > 0 then
-                FPcapImport.PcapUtils.SavePacketListToPcapFile(LListPacket,SaveDialog1.FileName);      
+                FPcapImport.PcapUtils.SavePacketListToPcapFile(LListPacket,dxSaveFileDialog1.FileName);      
             Finally
               FreeAndNil(LListPacket);
             End;
       
           end;
-      2: MemoHex.Lines.SaveToFile(ChangeFileExt(SaveDialog1.FileName,'.txt'));
+      2: MemoHex.Lines.SaveToFile(ChangeFileExt(dxSaveFileDialog1.FileName,'.txt'));
     end;
   end;
 end;
@@ -527,6 +541,7 @@ begin
   FormImportGeoLite := TFormImportGeoLite.Create(nil);
   Try
     FormImportGeoLite.DatabaseOutPut := GetGeoLiteDatabaseName;
+    FormImportGeoLite.Logger.Debug   := Boolean(TActiveVerobse.EditValue);
     FormImportGeoLite.ShowModal;
   Finally
     FreeAndNil(FormImportGeoLite);
@@ -726,18 +741,21 @@ begin
       FWPcapDBSqLite.Connection.Close;
       FWPcapDBSqLite.FDQueryGrid.Close;
       SetPositionProgressBar(0);
-      FLastFileOpened := LFormOpenDialog.Filename;
-      FInitialDir     := ExtractFilePath(FLastFileOpened);
-      Caption         := Format('PCAP Analisys %s - %s',[ExtractFileName(FLastFileOpened),PacketGetVersion]);      
-      DeleteFile(ChangeFileExt(FLastFileOpened,'.db'));
+      
+      FLastFileOpened          := LFormOpenDialog.Filename;
+      FInitialDir              := ExtractFilePath(FLastFileOpened);
+      Caption                  := Format('PCAP Analisys %s - %s',[ExtractFileName(FLastFileOpened),PacketGetVersion]);      
+      FWpcapGeoLite.OnLog      := FPcapImport.DoLog;
+      FPcapImport.Logger.Debug := Boolean(TActiveVerobse.EditValue);
+      
+      DeleteFile(ChangeFileExt(FLastFileOpened,'.db'));      
       if Boolean(TActiveGEOIP.EditValue ) and FileExists(GetGeoLiteDatabaseName) then
         FWpcapGeoLite.OpenDatabase(GetGeoLiteDatabaseName)
       else
-        FWPcapDBSqLite.Connection.Connected := False;
+        FWpcapGeoLite.Connection.Connected := False;
 
-      BMap.Enabled := FWPcapDBSqLite.Connection.Connected;    
-      if not Assigned(FPcapImport) then
-        FPcapImport := TPCAP2SQLite.Create;
+      BMap.Enabled := FWpcapGeoLite.Connection.Connected;    
+
       FPcapImport.PCAP2SQLite(FLastFileOpened,ChangeFileExt(FLastFileOpened,'.db'),LFormOpenDialog.EFilter.Text,FWpcapGeoLite,DoPCAPOfflineCallBackError,DoPCAPOfflineCallBackEnd,DoPCAPOfflineCallBackProgress);
     end;
   Finally
@@ -883,9 +901,9 @@ end;
 
 procedure TFormMain.BLoadSQLLiteDatabaseClick(Sender: TObject);
 begin
-  OpenDialog1.Filter := 'SQLite database(*.db)|*.db';
-  if OpenDialog1.Execute then
-    OpenDatabase(OpenDialog1.FileName,True);
+  dxOpenFileDialog1.Filter := 'SQLite database(*.db)|*.db';
+  if dxOpenFileDialog1.Execute then
+    OpenDatabase(dxOpenFileDialog1.FileName,True);
 end;
 
 procedure TFormMain.BFilterByLabelFormClick(Sender: TObject);
@@ -916,18 +934,6 @@ begin
   end;
 end;
 
-procedure TFormMain.GridPcapDBTableView1InitEditValue(
-  Sender: TcxCustomGridTableView; AItem: TcxCustomGridTableItem;
-  AEdit: TcxCustomEdit; var AValue: Variant);
-var InnerControl: TWinControl;  
-begin  
-  if AEdit is TcxCustomTextEdit then  
-  begin  
-    InnerControl:= (AEdit as TcxCustomTextEdit).InnerControl;  
-   // PostMessage(InnerControl.Handle, EM_SETSEL, -1, MaxInt);  
-  end;  
-end;
-
 procedure TFormMain.BWhoiseClientClick(Sender: TObject);
 begin
   if not Assigned(GridPcapDBTableView1.Controller.FocusedRow) then Exit;
@@ -947,14 +953,21 @@ var  LFormMemo: TFormMemo;
 begin
   if VarIsNull(aIP) then Exit;
   LFormMemo := TFormMemo.Create(nil);
-  Try
-    LFormMemo.Caption := Format('Whois %s',[VarToStrDef(aIP,String.Empty)]);
-    LFormMemo.Show;
-    LFormMemo.cxMemo1.Lines.Text := Whois(VarToStrDef(aIP,String.Empty))
+  LFormMemo.Caption := Format('Whois %s',[VarToStrDef(aIP,String.Empty)]);
+  LFormMemo.Show;
+  LFormMemo.cxMemo1.Lines.Text := Whois(VarToStrDef(aIP,String.Empty))
+end;
 
-  Finally
+procedure TFormMain.dxBarButton2Click(Sender: TObject);
+begin
+  Close;
+end;
 
-  End;
+procedure TFormMain.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  PSSettings.Active := True;
+  PSSettings.StoreTo; 
+  PSSettings.Active := False;  
 end;
 
 end.

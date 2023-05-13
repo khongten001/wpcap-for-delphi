@@ -111,7 +111,7 @@ type
     /// Returns the acronym name of the POP3 protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -295,7 +295,7 @@ begin
     Result := b;
 end;
 
-class function TWPcapProtocolQUIC.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolQUIC.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LUDPPayLoad      : PByte;
     LUDPPayLoadLen   : Integer;
     LDummy           : Integer;
@@ -516,7 +516,7 @@ begin
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Flags.SpinBit',[AcronymName]), 'Spin bit:', LSpinBit, @LSpinBit,SizeOf(LSpinBit), GetBitValue(TtmpByte,3) ));  
     LInfo := LLongTypeStr
   end;
-  aAdditionalInfo.Info := Format('%s %s',[LInfo,aAdditionalInfo.Info]).Trim;
+  aAdditionalParameters.Info := Format('%s %s',[LInfo,aAdditionalParameters.Info]).Trim;
   Result := True;
 end;
 

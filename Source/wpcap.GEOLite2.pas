@@ -31,9 +31,10 @@ interface
 
 uses
   wpcap.Types, System.Generics.Collections, FireDAC.Phys, FireDAC.Phys.SQLite,
-  FireDAC.Comp.Client, FireDac.Stan.Param, wpcap.DB.SQLite, winApi.Windows,wpcap.IpUtils,
-  System.Classes, FireDAC.Stan.Option, FireDAC.Stan.Intf, System.SysUtils,IdGlobal, System.NetEncoding,
-  wpcap.BufferUtils, wpcap.Packet, Data.DB, System.Threading,IdGlobalProtocols;
+  FireDAC.Stan.Error, FireDAC.Comp.Client, FireDac.Stan.Param, wpcap.DB.SQLite,
+  winApi.Windows, wpcap.IpUtils, System.Classes, FireDAC.Stan.Option,
+  FireDAC.Stan.Intf, System.SysUtils, IdGlobal, System.NetEncoding,
+  wpcap.BufferUtils, wpcap.Packet, Data.DB, System.Threading, IdGlobalProtocols;
 
 type
   TGeoLiteDBType = (gbtASNv4,gbtASNv6,gbtLocationv4,gbtLocationv6);
@@ -97,13 +98,25 @@ type
     var FOnImportCompleate: TOnImportTerminate;    
     var FLastPercProg     : Integer;
     var FFormatSettings   : TFormatSettings;
+    var FOnLog            : TWpcapLog;     //Event for logging    
   protected
     procedure Execute; override;
   private
+    /// <summary>
+    /// Log a message with the given function name, description, and log level.
+    /// </summary>         
+    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
+  
      /// <summary>
-    /// Private method ParseASNBlocksRow parses a single row of data from the ASN blocks file and inserts it into the database.
+    /// Private method ParseASNBlocksRow parses a single row of data from the ASN blocks Ipv4 file and inserts it into the database.
     /// </summary>
-    procedure ParseASNBlocksRow(const aRow: string);
+    procedure ParseASNBlocksRow(const aRow: string;aIndex:integer);
+
+    /// <summary>
+    /// Private method ParseASNBlocksRow parses a single row of data from the ASN blocks Ipv6 file and inserts it into the database.
+    /// </summary>
+    procedure ParseASNBlocksRowIPv6(const aRow: string;aIndex:integer);
+    
     /// <summary>
     /// Private method GetSubnetBounds returns the lower and upper bounds of the subnet for the specified IP address.
     /// </summary>
@@ -113,16 +126,19 @@ type
     /// </summary>
     function CIDRToSubnetMask(const ACIDR: Integer): UInt32;  
     procedure LoadGeoLiteCSV(const aFileNameASNv4,aFileNameASNv6,aFileLocationV4,aFileLocationV6,aFileOutput:String);
-    procedure ParseLocationBlocksRow(const aRow: string);
     function GetSubnetBoundsIPv6(const AIPAddress: string): TArray<UInt64>;
-    procedure ParseASNBlocksRowIPv6(const aRow: string);
-    procedure ParseLocationBlocksRowIpv6(const aRow: string);
+    procedure ParseLocationBlocksRow(const aRow: string;aIndex:Integer);
+    procedure ParseLocationBlocksRowIpv6(const aRow: string;aIndex:Integer);
   public
     constructor Create(const FileNameASNv4, FileNameASNv6, FileLocationV4, FileLocationV6, FileOutput: string;AConnectionParams:TFDConnectionDefParams);
     destructor Destroy; override;
     property OnProgressImport : TOnProgressImport   read FOnProgressImport  write FOnProgressImport;
-    property OnImportCompleate: TOnImportTerminate  read FOnImportCompleate write FOnImportCompleate;   
-
+    property OnImportCompleate: TOnImportTerminate  read FOnImportCompleate write FOnImportCompleate; 
+      
+    /// <summary>
+    /// Gets or sets the TWpcapLog event for logging.
+    /// </summary>        
+    property OnLog            : TWpcapLog           read FOnLog             write FOnLog;
   end;
 
 
@@ -138,11 +154,13 @@ function TWpcapGEOLITE.GetSQLScriptDatabaseSchema: String;
                       '  ORGANIZATION TEXT,                        '+sLineBreak+
                       '  IS_IPV6 NUMBER                            '+sLineBreak+
                       ');                                          ';
-                      
-//           SQL_INDEX_1 = 'CREATE UNIQUE INDEX ASN_IP_START_IDX ON ASN (IP_START);  ';
-  //         SQL_INDEX_2 = 'CREATE UNIQUE INDEX ASN_IP_END_IDX ON ASN (IP_END);  ';  
-           SQL_INDEX   = 'CREATE UNIQUE INDEX ASN_UQ_IDX ON ASN (IP_START,IP_END,IS_IPV6);  ';
+                   
+       {Ipv6 database has a duplicate row }
+       //    SQL_INDEX_1 = 'CREATE UNIQUE INDEX ASN_IP_START_IDX ON ASN (IP_START);  ';
+       //    SQL_INDEX_2 = 'CREATE UNIQUE INDEX ASN_IP_END_IDX ON ASN (IP_END);  ';  
+          // SQL_INDEX   = 'CREATE UNIQUE INDEX ASN_UQ_IDX ON ASN (IP_START,IP_END,IS_IPV6);  ';
 
+          
            SQL_LOCATION = ' CREATE TABLE LOCATION (                                '+sLineBreak+
                           '   ID INTEGER PRIMARY KEY AUTOINCREMENT,                '+sLineBreak+
                           '   IP_START INTEGER,                                    '+sLineBreak+
@@ -158,20 +176,21 @@ function TWpcapGEOLITE.GetSQLScriptDatabaseSchema: String;
                           '   IS_IPV6 NUMBER ,                                      '+sLineBreak+                          
                           '   ACCURACY_RADIUS INTEGER DEFAULT NULL                 '+sLineBreak+
                         ');                                                     ';
-    //       SQL_INDEX_3 = 'CREATE UNIQUE INDEX LOCATION_IP_START_IDX ON LOCATION (IP_START);  ';
-    //       SQL_INDEX_4 = 'CREATE UNIQUE INDEX LOCATION_IP_END_IDX ON LOCATION (IP_END);  ';  
-           SQL_INDEX_5 = 'CREATE UNIQUE INDEX LOCATION_UQ_IDX ON ASN (IP_START,IP_END,IS_IPV6);  ';           
+         {Ipv6 database has a duplicate row }
+         //  SQL_INDEX_3 = 'CREATE UNIQUE INDEX LOCATION_IP_START_IDX ON LOCATION (IP_START);  ';
+         //  SQL_INDEX_4 = 'CREATE UNIQUE INDEX LOCATION_IP_END_IDX ON LOCATION (IP_END);  ';  
+         //  SQL_INDEX_5 = 'CREATE UNIQUE INDEX LOCATION_UQ_IDX ON ASN (IP_START,IP_END,IS_IPV6);  ';           
 {$ENDREGION}
 begin
 
   Result := SQL_TABLE    +sLineBreak+
-            SQL_INDEX    +sLineBreak+
-            //SQL_INDEX_1  +sLineBreak+
-       //     SQL_INDEX_2  +sLineBreak+
-            SQL_LOCATION +sLineBreak+
-     //       SQL_INDEX_3  +sLineBreak+
-    //        SQL_INDEX_4  +sLineBreak+
-            SQL_INDEX_5;
+           // SQL_INDEX    +sLineBreak+
+           // SQL_INDEX_1  +sLineBreak+
+           // SQL_INDEX_2  +sLineBreak+
+            SQL_LOCATION +sLineBreak;
+           // SQL_INDEX_3  +sLineBreak+
+           // SQL_INDEX_4  +sLineBreak+
+           // SQL_INDEX_5;
 end;
 
 Procedure TWpcapGEOLITE.DoOnProgressImport(aKink : TGeoLiteDBType;aProgress:Integer;aMax:Integer;var aAbort:Boolean);
@@ -184,93 +203,93 @@ Procedure TWpcapGEOLITE.GetGeoIPByIp(const aIP:String;aGeoStructure:PTRecordGeoI
 CONST MAX_CACHE_SIZE = 3000;
 var aGeoCache : TRecordGeoIP;
 begin
-  aGeoStructure.ASNumber       := String.Empty;
-  aGeoStructure.ASOrganization := String.Empty;
-  aGeoStructure.Location       := String.Empty;
-  aGeoStructure.Latitude       := 0;
-  aGeoStructure.Longitude      := 0;      
-  if aIP.Trim.IsEmpty then Exit;
+  Try
+    aGeoStructure.ASNumber       := String.Empty;
+    aGeoStructure.ASOrganization := String.Empty;
+    aGeoStructure.Location       := String.Empty;
+    aGeoStructure.Latitude       := 0;
+    aGeoStructure.Longitude      := 0;      
+    if aIP.Trim.IsEmpty then Exit;
 
-  if not Assigned(FQueryCache) then
-    FQueryCache := TDictionary<string, TRecordGeoIP>.Create;
+    if not Assigned(FQueryCache) then
+      FQueryCache := TDictionary<string, TRecordGeoIP>.Create;
 
 
-  if FQueryCache.TryGetValue(aIP,aGeoCache) then
-  begin
-    aGeoStructure.ASNumber       := aGeoCache.ASNumber;
-    aGeoStructure.ASOrganization := aGeoCache.ASOrganization;
-    aGeoStructure.Latitude       := aGeoCache.Latitude;
-    aGeoStructure.Longitude      := aGeoCache.Longitude;    
-    Exit;
-  end;
+    if FQueryCache.TryGetValue(aIP,aGeoCache) then
+    begin
+      aGeoStructure.ASNumber       := aGeoCache.ASNumber;
+      aGeoStructure.ASOrganization := aGeoCache.ASOrganization;
+      aGeoStructure.Latitude       := aGeoCache.Latitude;
+      aGeoStructure.Longitude      := aGeoCache.Longitude;    
+      Exit;
+    end;
       
-  if not FFDGetASNByIP.Prepared then
-    FFDGetASNByIP.Prepare;
-  FFDGetASNByIP.Close;
-  if aIP.Contains('.') then
-  begin
-    FFDGetASNByIP.ParamByName('pIP').AsInteger     := IPv4ToUInt32(aIP);  
-    FFDGetASNByIP.ParamByName('pIpType').AsInteger := 0;
-  end
-  else
-  begin
-    FFDGetASNByIP.ParamByName('pIP').Value          := IPv6ToUInt64(aIP);  
-    FFDGetASNByIP.ParamByName('pIpType').AsInteger  := 1;  
-  end;
+    if not FFDGetASNByIP.Prepared then
+      FFDGetASNByIP.Prepare;
+    FFDGetASNByIP.Close;
+    if aIP.Contains('.') then
+    begin
+      FFDGetASNByIP.ParamByName('pIP').AsInteger     := IPv4ToUInt32(aIP);  
+      FFDGetASNByIP.ParamByName('pIpType').AsInteger := 0;
+    end
+    else
+    begin
+      FFDGetASNByIP.ParamByName('pIP').Value          := IPv6ToUInt64(aIP);  
+      FFDGetASNByIP.ParamByName('pIpType').AsInteger  := 1;  
+    end;
   
-  FFDGetASNByIP.Open;  
-  if FFDGetASNByIP.RecordCount > 0 then
-  begin
-    aGeoStructure.ASNumber       := FFDGetASNByIP.FieldByName('ASN_NUMBER').AsString; 
-    aGeoStructure.ASOrganization := FFDGetASNByIP.FieldByName('ORGANIZATION').AsString;
-    aGeoCache.ASNumber           := FFDGetASNByIP.FieldByName('ASN_NUMBER').AsString; 
-    aGeoCache.ASOrganization     := FFDGetASNByIP.FieldByName('ORGANIZATION').AsString;
-  end
-  else
-  begin
-    aGeoCache.ASNumber       := String.Empty;
-    aGeoCache.ASOrganization := String.Empty;
-  end;
+    FFDGetASNByIP.Open;  
+    if FFDGetASNByIP.RecordCount > 0 then
+    begin
+      aGeoStructure.ASNumber       := FFDGetASNByIP.FieldByName('ASN_NUMBER').AsString; 
+      aGeoStructure.ASOrganization := FFDGetASNByIP.FieldByName('ORGANIZATION').AsString;
+      aGeoCache.ASNumber           := FFDGetASNByIP.FieldByName('ASN_NUMBER').AsString; 
+      aGeoCache.ASOrganization     := FFDGetASNByIP.FieldByName('ORGANIZATION').AsString;
+    end
+    else
+    begin
+      aGeoCache.ASNumber       := String.Empty;
+      aGeoCache.ASOrganization := String.Empty;
+    end;
 
-  if not FFDGetLocationByIP.Prepared then
-    FFDGetLocationByIP.Prepare;
+    if not FFDGetLocationByIP.Prepared then
+      FFDGetLocationByIP.Prepare;
 
-  FFDGetLocationByIP.Close;
-  if aIP.Contains('.') then
-  begin
-    FFDGetLocationByIP.ParamByName('pIP').AsInteger     := IPv4ToUInt32(aIP);  
-    FFDGetLocationByIP.ParamByName('pIpType').AsInteger := 0;
-  end
-  else
-  begin
-    FFDGetLocationByIP.ParamByName('pIP').Value          := IPv6ToUInt64(aIP);  
-    FFDGetLocationByIP.ParamByName('pIpType').AsInteger  := 1;  
-  end;
+    FFDGetLocationByIP.Close;
+    if aIP.Contains('.') then
+    begin
+      FFDGetLocationByIP.ParamByName('pIP').AsInteger     := IPv4ToUInt32(aIP);  
+      FFDGetLocationByIP.ParamByName('pIpType').AsInteger := 0;
+    end
+    else
+    begin
+      FFDGetLocationByIP.ParamByName('pIP').Value          := IPv6ToUInt64(aIP);  
+      FFDGetLocationByIP.ParamByName('pIpType').AsInteger  := 1;  
+    end;
   
-  FFDGetLocationByIP.Open;
+    FFDGetLocationByIP.Open;
 
-  if FFDGetLocationByIP.RecordCount > 0 then
-  begin
-    aGeoStructure.Latitude   := FFDGetLocationByIP.FieldByName('LATITUDE').AsFloat; 
-    aGeoStructure.Longitude  := FFDGetLocationByIP.FieldByName('LONGITUDE').AsFloat;
-    aGeoCache.Latitude       := aGeoStructure.Latitude;
-    aGeoCache.Longitude      := aGeoStructure.Longitude;
-    FQueryCache.TryAdd(aIP,aGeoCache);
-  end
-  else
-  begin
-    aGeoCache.Location  := String.Empty;
-    aGeoCache.Latitude  := 0;
-    aGeoCache.Longitude := 0;
-    FQueryCache.TryAdd(aIP,aGeoCache);
-  end;      
+    if FFDGetLocationByIP.RecordCount > 0 then
+    begin
+      aGeoStructure.Latitude   := FFDGetLocationByIP.FieldByName('LATITUDE').AsFloat; 
+      aGeoStructure.Longitude  := FFDGetLocationByIP.FieldByName('LONGITUDE').AsFloat;
+      aGeoCache.Latitude       := aGeoStructure.Latitude;
+      aGeoCache.Longitude      := aGeoStructure.Longitude;
+      FQueryCache.TryAdd(aIP,aGeoCache);
+    end
+    else
+    begin
+      aGeoCache.Location  := String.Empty;
+      aGeoCache.Latitude  := 0;
+      aGeoCache.Longitude := 0;
+      FQueryCache.TryAdd(aIP,aGeoCache);
+    end;      
 
- { if FQueryCache.Count > MAX_CACHE_SIZE then
-    FQueryCache.Remove();
-  }
-  FFDGetASNByIP.Close;
+    FFDGetASNByIP.Close;
+  Except on E:Exception  do
+    DoLog('TWpcapGEOLITE.GetGeoIPByIp',Format('IPAddress [%s] Exception [%s] ',[aIP,e.Message]),TWLLException);
+  End;
 end;
-
 
 procedure TWpcapGEOLITE.InitConnection;
 begin
@@ -300,7 +319,6 @@ begin
   Connection.Params.Values['Cache']                     := 'True'; 
   Connection.Params.Values['JournalMode']               := 'MEMORY';
   Connection.Params.Values['PageSize']                  := '20480';
-
 end;
 
 procedure TWpcapGEOLITE.LoadGeoLiteCSVAsync(const aFileNameASNv4,aFileNameASNv6,aFileLocationV4,aFileLocationV6,aFileOutput:String);
@@ -321,7 +339,8 @@ begin
 
   LThreadImport                    := TImportThreadGeoLite.Create(aFileNameASNv4, aFileNameASNv6, aFileLocationV4, aFileLocationV6, aFileOutput,LConnectionParams);
   LThreadImport.OnProgressImport   := DoOnProgressImport;
-  LThreadImport.OnImportCompleate  := OnImportCompleate; 
+  LThreadImport.OnImportCompleate  := OnImportCompleate;
+  LThreadImport.OnLog              := OnLog; 
   LThreadImport.FreeOnTerminate    := True;
   LThreadImport.Start;
 end;
@@ -349,8 +368,7 @@ begin
   FFDInsertQuery.Connection        := FConnection;
   FFDInsertQuery.CachedUpdates     := True;   
   FFormatSettings                  := TFormatSettings.Create;
-  FFormatSettings.DecimalSeparator := '.';
-  
+  FFormatSettings.DecimalSeparator := '.';  
 end;
 
 procedure TImportThreadGeoLite.Execute;
@@ -359,11 +377,13 @@ begin
 end;  
 
 procedure TImportThreadGeoLite.LoadGeoLiteCSV(const aFileNameASNv4,aFileNameASNv6,aFileLocationV4,aFileLocationV6,aFileOutput:String);
+CONST MAX_INSERT = 2000;
 var LStringListImport: TStringList;
     LRow          : string;
     LCount        : Integer;
     LMaxRow       : Integer;
-
+    LIndex        : Integer;
+    
     Procedure SyncDoOnProgressImport(aKink : TGeoLiteDBType;aProgress:Integer;aMax:Integer);
     var LPercProg : integer;
     begin
@@ -377,8 +397,18 @@ var LStringListImport: TStringList;
           begin
             if Assigned(FOnProgressImport) then          
               FOnProgressImport(aKink,aProgress,aMax,FImportAborted);
+
           end);
       end;
+    end;
+
+    Procedure PrepareFDQuery(const aQuery:String);
+    begin
+      FFDInsertQuery.SQL.Text         := aQuery ;
+      LCount                          := 0;
+      LIndex                          := -1;
+      LMaxRow                         := LStringListImport.Count;
+      FFDInsertQuery.Params.ArraySize := MAX_INSERT; 
     end;
 begin
   LStringListImport := TStringList.Create;
@@ -390,82 +420,113 @@ begin
         Try
           if FileExists(aFileNameASNv4) then
           begin
-            FFDInsertQuery.SQL.Text := 'INSERT INTO ASN (IP_START,IP_END,ASN_NUMBER,ORGANIZATION,IS_IPV6) VALUES (:pIPStart,:pIPEnd,:pASN,:pOrganizzation,0)';
-
             LStringListImport.LoadFromFile(aFileNameASNv4);
-            LCount   := 0;
-            LMaxRow  := LStringListImport.Count;
-            SyncDoOnProgressImport(gbtASNv4,LCount,LMaxRow);
+            PrepareFDQuery('INSERT INTO ASN (IP_START,IP_END,ASN_NUMBER,ORGANIZATION,IS_IPV6) VALUES (:pIPStart,:pIPEnd,:pASN,:pOrganizzation,0)');
+            SyncDoOnProgressImport(gbtASNv4,LCount,LMaxRow);   
             for LRow in LStringListImport do
             begin
               Inc(LCount);
               if LCount = 1 then Continue;//Header
               if FImportAborted then Exit;
-
-              ParseASNBlocksRow(LRow);
               SyncDoOnProgressImport(gbtASNv4,LCount,LMaxRow);
-            end;      
+              Inc(LIndex);        
+              ParseASNBlocksRow(LRow,LIndex);
+
+              if LIndex = MAX_INSERT-1 then
+              begin
+                FFDInsertQuery.Execute(LIndex);
+                LIndex := -1;
+              end;              
+
+            end;
+
+            if LIndex > 0 then
+             FFDInsertQuery.Execute(LIndex)     
           end;
 
           if FileExists(aFileNameASNv6) then
           begin
-            FFDInsertQuery.SQL.Text := 'INSERT INTO ASN (IP_START,IP_END,ASN_NUMBER,ORGANIZATION,IS_IPV6) VALUES (:pIPStart,:pIPEnd,:pASN,:pOrganizzation,1)';
             LStringListImport.LoadFromFile(aFileNameASNv6);
-            LCount   := 0;
-            LMaxRow  := LStringListImport.Count;  
-              
-            SyncDoOnProgressImport(gbtASNv6,LCount,LMaxRow);            
+            PrepareFDQuery('INSERT INTO ASN (IP_START,IP_END,ASN_NUMBER,ORGANIZATION,IS_IPV6) VALUES (:pIPStart,:pIPEnd,:pASN,:pOrganizzation,1)');
+            SyncDoOnProgressImport(gbtASNv6,LCount,LMaxRow);   
             for LRow in LStringListImport do
             begin
               Inc(LCount);
               if LCount = 1 then Continue;//Header
               if FImportAborted then Exit;
-              SyncDoOnProgressImport(gbtASNv6,LCount,LMaxRow);            
-              ParseASNBlocksRowIPv6(LRow);
-            end;    
+              SyncDoOnProgressImport(gbtASNv6,LCount,LMaxRow); 
+              Inc(LIndex);           
+              ParseASNBlocksRowIPv6(LRow,LIndex);
+
+              if LIndex >= MAX_INSERT-1 then
+              begin
+                FFDInsertQuery.Execute(LIndex);
+                LIndex := -1;
+              end;
+            
+            end;   
+            if LIndex > -1 then
+             FFDInsertQuery.Execute(LIndex)               
           end;
 
           if FileExists(aFileLocationV4) then
           begin
-            FFDInsertQuery.SQL.Text := 'INSERT INTO Location (IS_IPV6,IP_START,IP_END,GEONAME_ID,REGISTERED_COUNTRY_GEONAME_ID,REPRESENTED_COUNTRY_GEONAME_ID,IS_ANONYMOUS_PROXY,IS_SATELLITE_PROVIDER,POSTAL_CODE,LATITUDE,LONGITUDE,ACCURACY_RADIUS) ' + sLineBreak+
-                                       'VALUES (0,:pIPStart,:pIPEnd,:pGeoNameID,:pRegCountryGeoNameID,:pRepCountryGeoNameID,:pIsAnonymousProxy,:pIsSatelliteProvider,:pPostalCode,:pLatitude,:pLongitude,:pAccuracyRadius)';          
             LStringListImport.LoadFromFile(aFileLocationV4);
-            LCount   := 0;
-            LMaxRow  := LStringListImport.Count;    
+
+            PrepareFDQuery('INSERT INTO Location (IS_IPV6,IP_START,IP_END,GEONAME_ID,REGISTERED_COUNTRY_GEONAME_ID,REPRESENTED_COUNTRY_GEONAME_ID,IS_ANONYMOUS_PROXY,IS_SATELLITE_PROVIDER,POSTAL_CODE,LATITUDE,LONGITUDE,ACCURACY_RADIUS) ' + sLineBreak+
+                                       'VALUES (0,:pIPStart,:pIPEnd,:pGeoNameID,:pRegCountryGeoNameID,:pRepCountryGeoNameID,:pIsAnonymousProxy,:pIsSatelliteProvider,:pPostalCode,:pLatitude,:pLongitude,:pAccuracyRadius)' );          
             SyncDoOnProgressImport(gbtLocationv4,LCount,LMaxRow);              
             for LRow in LStringListImport do
             begin
               Inc(LCount);
               if LCount = 1 then Continue;//Header
               if FImportAborted then Exit;
-               SyncDoOnProgressImport(gbtLocationv4,LCount,LMaxRow);                        
-               ParseLocationBlocksRow(LRow);
-            end; 
+              SyncDoOnProgressImport(gbtLocationv4,LCount,LMaxRow);                        
+              Inc(LIndex);
+              ParseLocationBlocksRow(LRow,LIndex);
+               
+              if LIndex >= MAX_INSERT-1 then
+              begin
+                FFDInsertQuery.Execute(LIndex);
+                LIndex := -1;
+              end;
+            
+            end;   
+            if LIndex > -1 then
+             FFDInsertQuery.Execute(LIndex)               
           end;    
 
           if FileExists(aFileLocationV6) then
           begin
-            FFDInsertQuery.SQL.Text := 'INSERT INTO Location (IS_IPV6,IP_START,IP_END,GEONAME_ID,REGISTERED_COUNTRY_GEONAME_ID,REPRESENTED_COUNTRY_GEONAME_ID,IS_ANONYMOUS_PROXY,IS_SATELLITE_PROVIDER,POSTAL_CODE,LATITUDE,LONGITUDE,ACCURACY_RADIUS) ' + sLineBreak+
-                             'VALUES (1,:pIPStart,:pIPEnd,:pGeoNameID,:pRegCountryGeoNameID,:pRepCountryGeoNameID,:pIsAnonymousProxy,:pIsSatelliteProvider,:pPostalCode,:pLatitude,:pLongitude,:pAccuracyRadius)';          
 
             LStringListImport.LoadFromFile(aFileLocationV6);
-            LCount   := 0;
-            LMaxRow  := LStringListImport.Count; 
+            PrepareFDQuery('INSERT INTO Location (IS_IPV6,IP_START,IP_END,GEONAME_ID,REGISTERED_COUNTRY_GEONAME_ID,REPRESENTED_COUNTRY_GEONAME_ID,IS_ANONYMOUS_PROXY,IS_SATELLITE_PROVIDER,POSTAL_CODE,LATITUDE,LONGITUDE,ACCURACY_RADIUS) ' + sLineBreak+
+                             'VALUES (1,:pIPStart,:pIPEnd,:pGeoNameID,:pRegCountryGeoNameID,:pRepCountryGeoNameID,:pIsAnonymousProxy,:pIsSatelliteProvider,:pPostalCode,:pLatitude,:pLongitude,:pAccuracyRadius)');
             SyncDoOnProgressImport(gbtLocationv4,LCount,LMaxRow);
             for LRow in LStringListImport do
             begin
               Inc(LCount);
               if LCount = 1 then Continue;//Header
               if FImportAborted then Exit;
-               SyncDoOnProgressImport(gbtLocationv6,LCount,LMaxRow);                                    
-               ParseLocationBlocksRowIPv6(LRow);
-            end;         
+              SyncDoOnProgressImport(gbtLocationv6,LCount,LMaxRow);                                    
+              Inc(LIndex);
+              ParseLocationBlocksRowIPv6(LRow,LIndex);
+              if LIndex >= MAX_INSERT-1 then
+              begin
+                FFDInsertQuery.Execute(LIndex);
+                LIndex := -1;
+              end;
+            
+            end;   
+            if LIndex > -1 then
+             FFDInsertQuery.Execute(LIndex)                  
           end;
         Except on E: Exception do
           begin
             FImportAborted := True;
             if FConnection.InTransaction then
               FConnection.Rollback;
+            DoLog('TImportThreadGeoLite.LoadGeoLiteCSV',e.Message,TWLLException);              
             raise Exception.CreateFmt('Error Import database %s',[e.Message]);
           end;
         End;
@@ -490,7 +551,7 @@ begin
   end; 
 end;
 
-procedure TImportThreadGeoLite.ParseLocationBlocksRowIpv6(const aRow: string);
+procedure TImportThreadGeoLite.ParseLocationBlocksRowIpv6(const aRow: string;aIndex:Integer);
 var LFields              : TArray<string>;
     LNetwork             : string;
     LGeoNameID           : Integer;
@@ -507,7 +568,7 @@ begin
   LFields := aRow.Split([',']);
 
   if Length(LFields) < 10 then
-    raise Exception.Create('Invalid row format');
+    raise Exception.CreateFmt('ParseLocationBlocksRowIpv6 - Invalid row format [%s] , field number [%d]',[aRow,Length(LFields)]);
 
   LNetwork             := LFields[0].Trim;
   LGeoNameID           := StrToIntDef(LFields[1].Trim,0);
@@ -538,25 +599,45 @@ begin
   end;
 
   Try
-    FFDInsertQuery.ParamByName('pGeoNameID').AsInteger           := LGeoNameID;
-    FFDInsertQuery.ParamByName('pRegCountryGeoNameID').AsInteger := LRegCountryGeoNameID;
-    FFDInsertQuery.ParamByName('pRepCountryGeoNameID').AsInteger := LRepCountryGeoNameID;
-    FFDInsertQuery.ParamByName('pIsAnonymousProxy').AsInteger    := LIsAnonymousProxy;
-    FFDInsertQuery.ParamByName('pIsSatelliteProvider').AsInteger := LIsSatelliteProvider;
-    FFDInsertQuery.ParamByName('pPostalCode').AsString           := LPostalCode;
-    FFDInsertQuery.ParamByName('pLatitude').AsFloat              := LLatitude;
-    FFDInsertQuery.ParamByName('pLongitude').AsFloat             := LLongitude;
-    FFDInsertQuery.ParamByName('pAccuracyRadius').AsInteger      := LAccuracyRadius;
-    FFDInsertQuery.ParamByName('pIPStart').AsLargeInt            := LIpRange[0];
-    FFDInsertQuery.ParamByName('pIPEnd').AsLargeInt              := LIpRange[1];
-    FFDInsertQuery.ExecSQL;
+    Try
+      FFDInsertQuery.ParamByName('pGeoNameID').AsIntegers[aIndex]           := LGeoNameID;
+      FFDInsertQuery.ParamByName('pRegCountryGeoNameID').AsIntegers[aIndex] := LRegCountryGeoNameID;
+      FFDInsertQuery.ParamByName('pRepCountryGeoNameID').AsIntegers[aIndex] := LRepCountryGeoNameID;
+      FFDInsertQuery.ParamByName('pIsAnonymousProxy').AsIntegers[aIndex]    := LIsAnonymousProxy;
+      FFDInsertQuery.ParamByName('pIsSatelliteProvider').AsIntegers[aIndex] := LIsSatelliteProvider;
+      FFDInsertQuery.ParamByName('pPostalCode').AsStrings[aIndex]           := LPostalCode;
+      FFDInsertQuery.ParamByName('pLatitude').AsFloats[aIndex]              := LLatitude;
+      FFDInsertQuery.ParamByName('pLongitude').AsFloats[aIndex]             := LLongitude;
+      FFDInsertQuery.ParamByName('pAccuracyRadius').AsIntegers[aIndex]      := LAccuracyRadius;
+      FFDInsertQuery.ParamByName('pIPStart').AsLargeInts[aIndex]            := LIpRange[0];
+      FFDInsertQuery.ParamByName('pIPEnd').AsLargeInts[aIndex]              := LIpRange[1];
+    Except 
+      on E:EFDDBEngineException do
+      begin        
+        if E.Kind = ekUKViolated then
+        begin
+          DoLog('TImportThreadGeoLite.ParseLocationBlocksRowIpv6', Format('Unique constraint violated. IPAddress [%s] pIPStart [%d] pIPEnd [%d]', [aRow, LIpRange[0], LIpRange[1]]), TWLLWarning);
+          Exit;
+        end
+        else
+        begin
+          DoLog('TImportThreadGeoLite.ParseLocationBlocksRowIpv6', Format('Error code [%d] exception [%s] IPAddress [%s] pIPStart [%d] pIPEnd [%d]', [E.ErrorCode, E.Message, aRow, LIpRange[0], LIpRange[1]]), TWLLException);
+          raise;
+        end;
+      end;
+
+      on E:Exception  do
+      begin
+        DoLog('TImportThreadGeoLite.ParseLocationBlocksRowIpv6',Format('IPAddress [%s] pIPStart [%d] pIPEnd [%d] ',[aRow,LIpRange[0],LIpRange[1]]),TWLLException);
+        raise;
+      end;
+    End;
   finally
     SetLength(LIpRange, 0);
   end;
 end;
 
-
-procedure TImportThreadGeoLite.ParseLocationBlocksRow(const aRow: string);
+procedure TImportThreadGeoLite.ParseLocationBlocksRow(const aRow: string;aIndex:Integer);
 var LFields              : TArray<string>;
     LNetwork             : string;
     LGeoNameID           : Integer;
@@ -573,7 +654,7 @@ begin
   LFields := aRow.Split([',']);
 
   if Length(LFields) < 10 then
-    raise Exception.Create('Invalid row format');
+    raise Exception.CreateFmt('ParseLocationBlocksRow - Invalid row format [%s] , field number [%d]',[aRow,Length(LFields)]);
 
   LNetwork             := LFields[0].Trim;
   LGeoNameID           := StrToIntDef(LFields[1].Trim,0);
@@ -604,18 +685,17 @@ begin
   end;
 
   Try
-    FFDInsertQuery.ParamByName('pGeoNameID').AsInteger           := LGeoNameID;
-    FFDInsertQuery.ParamByName('pRegCountryGeoNameID').AsInteger := LRegCountryGeoNameID;
-    FFDInsertQuery.ParamByName('pRepCountryGeoNameID').AsInteger := LRepCountryGeoNameID;
-    FFDInsertQuery.ParamByName('pIsAnonymousProxy').AsInteger    := LIsAnonymousProxy;
-    FFDInsertQuery.ParamByName('pIsSatelliteProvider').AsInteger := LIsSatelliteProvider;
-    FFDInsertQuery.ParamByName('pPostalCode').AsString           := LPostalCode;
-    FFDInsertQuery.ParamByName('pLatitude').AsFloat              := LLatitude;
-    FFDInsertQuery.ParamByName('pLongitude').AsFloat             := LLongitude;
-    FFDInsertQuery.ParamByName('pAccuracyRadius').AsInteger      := LAccuracyRadius;
-    FFDInsertQuery.ParamByName('pIPStart').AsInteger             := LIpRange[0];
-    FFDInsertQuery.ParamByName('pIPEnd').AsInteger               := LIpRange[1];
-    FFDInsertQuery.ExecSQL;
+    FFDInsertQuery.ParamByName('pGeoNameID').AsIntegers[aIndex]           := LGeoNameID;
+    FFDInsertQuery.ParamByName('pRegCountryGeoNameID').AsIntegers[aIndex] := LRegCountryGeoNameID;
+    FFDInsertQuery.ParamByName('pRepCountryGeoNameID').AsIntegers[aIndex] := LRepCountryGeoNameID;
+    FFDInsertQuery.ParamByName('pIsAnonymousProxy').AsIntegers[aIndex]    := LIsAnonymousProxy;
+    FFDInsertQuery.ParamByName('pIsSatelliteProvider').AsIntegers[aIndex] := LIsSatelliteProvider;
+    FFDInsertQuery.ParamByName('pPostalCode').AsStrings[aIndex]           := LPostalCode;
+    FFDInsertQuery.ParamByName('pLatitude').AsFloats[aIndex]              := LLatitude;
+    FFDInsertQuery.ParamByName('pLongitude').AsFloats[aIndex]             := LLongitude;
+    FFDInsertQuery.ParamByName('pAccuracyRadius').AsIntegers[aIndex]      := LAccuracyRadius;
+    FFDInsertQuery.ParamByName('pIPStart').AsIntegers[aIndex]             := LIpRange[0];
+    FFDInsertQuery.ParamByName('pIPEnd').AsIntegers[aIndex]               := LIpRange[1];
   finally
     SetLength(LIpRange, 0);
   end;
@@ -653,6 +733,11 @@ begin
   Result := not ((1 shl (32 - ACIDR)) - 1);
 end;
 
+procedure TImportThreadGeoLite.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
+begin
+  if Assigned(FOnLog) then
+    FOnLog(aFunctionName,aDescription,aLevel)
+end;
 
 function TImportThreadGeoLite.GetSubnetBoundsIPv6(const AIPAddress: string): TArray<UInt64>;
 var 
@@ -665,12 +750,13 @@ var
 begin
   LParts := AIPAddress.Split(['/']);
   if Length(LParts) <> 2 then
-    raise Exception.Create('Invalid IPv6 address with CIDR format');
+    raise Exception.CreateFmt('GetSubnetBoundsIPv6 - Invalid IPv6 address with CIDR formatt [%s] , field number [%d]',[AIPAddress,Length(AIPAddress)]);  
   if not IsValidIP(LParts[0]) then
-    raise Exception.Create('Invalid IPv6 address');
+    raise Exception.CreateFmt('GetSubnetBoundsIPv6 - Invalid IPv6 address [%s] ',[LParts[0]]);    
 
   // Convert IP address from string to TIdIPv6Address
   IPv6ToIdIPv6Address(LParts[0], LAddress);
+
   LCIDR := StrToInt(LParts[1]);
 
   // Calculate the IP start and IP end
@@ -685,13 +771,21 @@ begin
   end;
 
   Result    := [LFirstPart, LSecondPart];
-  Result[0] := Result[0] shl (128 - LCIDR);
-  Result[1] := Result[1] or ((UInt64(1) shl (128 - LCIDR)) - 1);
+  if LCIDR = 128 then
+  begin
+    // Special case when CIDR is 128, start and end IP are the same
+    Result[1] := LSecondPart;
+  end
+  else
+  begin
+    // Calculate the IP end using the CIDR prefix length
+    Result[0] := Result[0] shl (128 - LCIDR);
+    Result[1] := (Result[0] or ((UInt64(1) shl (128 - LCIDR)) - 1));
+  end;  
+  DoLog('TImportThreadGeoLite.GetSubnetBoundsIPv6',Format('Address [%s] IP start [%d] IP end [%d]',[AIPAddress,Result[0], Result[1] ]),TWLLDebug);    
 end;
 
-
-
-procedure TImportThreadGeoLite.ParseASNBlocksRowIPv6(const aRow: string);
+procedure TImportThreadGeoLite.ParseASNBlocksRowIPv6(const aRow: string;aIndex:integer);
 var LFields        : TArray<string>;
     LNetwork       : string;
     LASNumber      : String;
@@ -700,7 +794,7 @@ var LFields        : TArray<string>;
 begin                        
   LFields := aRow.Split([',']);
   if Length(LFields) < 3 then
-    raise Exception.Create('Invalid row format');
+    raise Exception.CreateFmt('ParseASNBlocksRowIPv6 - Invalid row format [%s] , field number [%d]',[aRow,Length(LFields)]);
 
   LNetwork        := LFields[0].Trim;
   LASNumber       := LFields[1].Trim;
@@ -717,18 +811,39 @@ begin
   end;
   
   Try  
-    FFDInsertQuery.ParamByName('pASN').AsString           := LASNumber;
-    FFDInsertQuery.ParamByName('pOrganizzation').AsString := LASOrganization;
-    FFDInsertQuery.ParamByName('pIPStart').AsLargeInt     := LIpRange[0];  
-    FFDInsertQuery.ParamByName('pIPEnd').AsLargeInt       := LIpRange[1];
-    FFDInsertQuery.ExecSQL; 
+    Try
+      FFDInsertQuery.ParamByName('pASN').AsStrings[aIndex]           := LASNumber;
+      FFDInsertQuery.ParamByName('pOrganizzation').AsStrings[aIndex] := LASOrganization;
+      FFDInsertQuery.ParamByName('pIPStart').AsLargeInts[aIndex]     := LIpRange[0];  
+      FFDInsertQuery.ParamByName('pIPEnd').AsLargeInts[aIndex]       := LIpRange[1];
+    except 
+      on E:EFDDBEngineException do
+      begin        
+        if E.Kind = ekUKViolated then
+        begin
+          DoLog('TImportThreadGeoLite.ParseLocationBlocksRowIpv6', Format('Unique constraint violated. IPAddress [%s] pIPStart [%d] pIPEnd [%d]', [aRow, LIpRange[0], LIpRange[1]]), TWLLWarning);
+          Exit;
+        end
+        else
+        begin
+          DoLog('TImportThreadGeoLite.ParseLocationBlocksRowIpv6', Format('Error code [%d] exception [%s] IPAddress [%s] pIPStart [%d] pIPEnd [%d]', [E.ErrorCode, E.Message, aRow, LIpRange[0], LIpRange[1]]), TWLLException);
+          raise;
+        end;
+      end;
+
+      on E:Exception  do
+      begin
+        DoLog('TImportThreadGeoLite.ParseASNBlocksRowIPv6',Format('IPAddress [%s] pIPStart [%d] pIPEnd [%d] ',[aRow,LIpRange[0],LIpRange[1]]),TWLLException);
+        raise;
+      end;
+    End;
   finally
     SetLength(LIpRange,0);
   end;
 end;
 
 
-procedure TImportThreadGeoLite.ParseASNBlocksRow(const aRow: string);
+procedure TImportThreadGeoLite.ParseASNBlocksRow(const aRow: string;aIndex:integer);
 var LFields        : TArray<string>;
     LNetwork       : string;
     LASNumber      : String;
@@ -737,7 +852,7 @@ var LFields        : TArray<string>;
 begin                        
   LFields := aRow.Split([',']);
   if Length(LFields) < 3 then
-    raise Exception.Create('Invalid row format');
+    raise Exception.CreateFmt('ParseASNBlocksRow - Invalid row format [%s] , field number [%d]',[aRow,Length(LFields)]);
 
   LNetwork        := LFields[0].Trim;
   LASNumber       := LFields[1].Trim;
@@ -754,11 +869,10 @@ begin
   end;
   
   Try  
-    FFDInsertQuery.ParamByName('pASN').AsString           := LASNumber;
-    FFDInsertQuery.ParamByName('pOrganizzation').AsString := LASOrganization;
-    FFDInsertQuery.ParamByName('pIPStart').AsInteger      := LIpRange[0];  
-    FFDInsertQuery.ParamByName('pIPEnd').AsInteger        := LIpRange[1];
-    FFDInsertQuery.ExecSQL; 
+    FFDInsertQuery.ParamByName('pASN').AsStrings[aIndex]           := LASNumber;
+    FFDInsertQuery.ParamByName('pOrganizzation').AsStrings[aIndex] := LASOrganization;
+    FFDInsertQuery.ParamByName('pIPStart').AsIntegers[aIndex]      := LIpRange[0];  
+    FFDInsertQuery.ParamByName('pIPEnd').AsIntegers[aIndex]        := LIpRange[1];
   finally
     SetLength(LIpRange,0);
   end;

@@ -3,12 +3,13 @@
 interface
 
 uses
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, cxGraphics, cxControls, cxLookAndFeels,
-  cxLookAndFeelPainters, dxSkinsCore, dxSkinBasic, dxCustomWizardControl,System.UiTypes,
-  dxWizardControl, System.ImageList, Vcl.ImgList, cxImageList, cxContainer,
-  cxEdit, cxLabel, cxTextEdit, cxMaskEdit, cxButtonEdit, cxGroupBox,
-  dxShellDialogs, cxProgressBar,wpcap.GEOLite2, dxFormattedLabel;
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,wpcap.types,
+  System.Classes, Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, cxGraphics,
+  cxControls, cxLookAndFeels, wpcap.Logger, cxLookAndFeelPainters, dxSkinsCore,
+  dxSkinBasic, dxCustomWizardControl, System.UiTypes, dxWizardControl,
+  System.ImageList, Vcl.ImgList, cxImageList, cxContainer, cxEdit, cxLabel,
+  cxTextEdit, cxMaskEdit, cxButtonEdit, cxGroupBox, dxShellDialogs,
+  cxProgressBar, wpcap.GEOLite2, dxFormattedLabel;
 
 type
   TFormImportGeoLite = class(TForm)
@@ -48,13 +49,17 @@ type
   private
     { Private declarations }
     var FAbort          : Boolean;
+    procedure DoOnLog(const aFunctionName, aDescription: String;
+      aLevel: TWpcapLvlLog);
     var FDatabaseOutPut : String;
     var FWpcapGeoLite   : TWpcapGEOLITE;
+    var FLogger         : TwpcapLogger;   
     Procedure DoOnProgressImport(aKink : TGeoLiteDBType;aProgress:Integer;aMax:Integer;var aAbort:Boolean);
     procedure DoOnImportCompleate(const AImportAborted: boolean);
   public
     { Public declarations }
-    Property DatabaseOutPut : String read FDatabaseOutPut write FDatabaseOutPut;
+    Property DatabaseOutPut : String       read FDatabaseOutPut write FDatabaseOutPut;
+    Property Logger         : TwpcapLogger read FLogger         write FLogger;
   end;
 
 var
@@ -104,7 +109,7 @@ begin
       begin
         FWpcapGeoLite.OnProgressImport  := DoOnProgressImport; 
         FWpcapGeoLite.OnImportCompleate := DoOnImportCompleate;
-        FWpcapGeoLite.LoadGeoLiteCSVAsync(EASNIpv4.Text,EASNIpv6.Text,ELocationIPv4.Text,EASNIpv6.Text,DatabaseOutPut);
+        FWpcapGeoLite.LoadGeoLiteCSVAsync(EASNIpv4.Text,EASNIpv6.Text,ELocationIPv4.Text,ELocationIPv6.Text,DatabaseOutPut);
         dxWizardControl1.Buttons.Finish.Enabled := False;
       end;
   end;
@@ -127,11 +132,23 @@ end;
 
 procedure TFormImportGeoLite.FormCreate(Sender: TObject);
 begin
-  FWpcapGeoLite := TWpcapGEOLITE.Create;
+  FWpcapGeoLite       := TWpcapGEOLITE.Create;
+  FWpcapGeoLite.OnLog := DoOnLog;
+  FLogger             := TWpcapLogger.Create(nil);
+  FLogger.PathLog     := AnsiString(Format('%sLog\',[ExtractFilePath(Application.ExeName)]));
+  FLogger.MaxDayLog   := 7;
+  FLogger.Active      := True;
+  FLogger.Debug       := False;    
+end;
+
+procedure TFormImportGeoLite.DoOnLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
+begin 
+  FLogger.LOG__WriteiLog(aFunctionName,aDescription,aLevel);
 end;
 
 procedure TFormImportGeoLite.FormDestroy(Sender: TObject);
 begin
+  FreeAndNil(FLogger);
   FreeAndNil(FWpcapGeoLite);
 end;
 

@@ -71,7 +71,7 @@ type
     /// </summary>
     class function isValidSize(aPacketSize: Integer): Boolean; overload;
     
-    class procedure AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo:PTAdditionalInfo);
+    class procedure AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters:PTAdditionalParameters);
     class function GetIPClassByRawData(aPacketData: PByte;var aOffset:Integer;aLogging: Boolean): Integer; static;
   protected
     class var FIsFilterMode : Boolean;  
@@ -79,11 +79,13 @@ type
      /// <summary>
      /// Log a message with the given function name, description, and log level.
      /// </summary>     
+    class procedure TryAddSeqActList(aFlowInfo: TFlowInfo;aAdditionalParameters: PTAdditionalParameters; aWinSize: Integer;aCurrentSeq, aCurrentAck: Uint32); static;
+
      class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog); 
      class function GetNewFlowID : Integer;   
      class function GetFlowTimeOut : Byte;virtual;
-     class function GetInfoFlow(const aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
-     class procedure UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort,aDstPort: Uint16; aTCPFlags: Uint8; aCurrentSeq, aCurrentAck: Uint32;aAdditionalInfo: PTAdditionalInfo); virtual;
+     class function GetInfoFlow(const SessionId,aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
+     class procedure UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters); virtual;
   public
 
     /// <summary>
@@ -102,7 +104,7 @@ type
     /// This function returns a dictionary of strings representing the fields in the Ethernet header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;virtual;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;virtual;
 
     /// <summary>
     /// This function returns a Boolean value indicating whether the packet is a valid Ethernet packet and fills out an internal Ethernet record. 
@@ -152,48 +154,60 @@ uses
 
 { TEthHeader }
 
-class procedure TWpcapEthHeader.UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aTCPFlags:Uint8;aCurrentSeq, aCurrentAck: Uint32;aAdditionalInfo: PTAdditionalInfo);
+Class procedure TWpcapEthHeader.TryAddSeqActList(aFlowInfo : TFlowInfo;aAdditionalParameters:PTAdditionalParameters;aWinSize:Integer;aCurrentSeq, aCurrentAck: Uint32);
+var LSeqAckInfoAdd : TSeqAckInfo;
+begin
+  LSeqAckInfoAdd.FrameNumber := aAdditionalParameters.FrameNumber;
+  LSeqAckInfoAdd.PayloadSize := aAdditionalParameters.PayLoadSize;
+  LSeqAckInfoAdd.PrevWinSize := aWinSize;          
+  aFlowInfo.SeqAckList.AddOrSetValue(Format('%d-%d',[aCurrentSeq,aCurrentAck]),LSeqAckInfoAdd);
+end;
+
+class procedure TWpcapEthHeader.UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters);
 var LKey         : string; 
-    LInfo        : TFlowInfo;
+    LFlowInfo    : TFlowInfo;
     LFoundFlow   : Boolean;
     LDeltaMin    : Int64;
 begin
   if not Assigned(FlowInfoList) then Exit;  
-  LFoundFlow  := GetInfoFlow(aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LInfo);
+  LFoundFlow  := GetInfoFlow(aSessionId,aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LFlowInfo);
   if LFoundFlow then
   begin
-
-    LDeltaMin := Abs(MinutesBetween(aAdditionalInfo.PacketDate,LInfo.PacketDate));
+    LDeltaMin                            := Abs(MinutesBetween(aAdditionalParameters.PacketDate,LFlowInfo.PacketDate));  
+    aAdditionalParameters.SequenceNumber := aCurrentSeq;
+    LFlowInfo.SrcIP                      := aSrcAddr;
+    LFlowInfo.DstIP                      := aDstAddr;        
+    LFlowInfo.prevSeqNum                 := aCurrentSeq;
+    LFlowInfo.FirstSeqNum                := aCurrentSeq;
+    LFlowInfo.PacketDate                 := aAdditionalParameters.PacketDate;     
+    
     if ( LDeltaMin > GetFlowTimeOut) then   
     begin
-      LInfo.prevSeqNum  := aCurrentSeq;
-      LInfo.prevAckNum  := aCurrentAck;
-      LInfo.FirstSeqNum := aCurrentSeq;
-      LInfo.FirstAckNum := aCurrentAck;      
-      LInfo.SeqAckList.Clear;
-      LInfo.FLowId  := GetNewFlowID; 
+      LFlowInfo.FLowId  := GetNewFlowID;   
+      LFlowInfo.SeqAckList.Clear;
     end;
-    aAdditionalInfo.FlowID := LInfo.FLowId;     
-    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
-    FlowInfoList.AddOrSetValue(LKey, LInfo);    
+    
+    aAdditionalParameters.FlowID  := LFlowInfo.FLowId;             
+    TryAddSeqActList(LFlowInfo,aAdditionalParameters,0,aCurrentSeq, 0);
+    FlowInfoList.AddOrSetValue(LKey, LFlowInfo);    
   end
   else
   begin
-    LInfo.SrcIP            := aSrcAddr;
-    LInfo.DstIP            := aDstAddr;    
-    LInfo.prevSeqNum       := aCurrentSeq;
-    LInfo.prevAckNum       := aCurrentAck;
-    LInfo.FirstSeqNum      := aCurrentSeq;
-    LInfo.FirstAckNum      := aCurrentAck;      
-    LInfo.PacketDate       := aAdditionalInfo.PacketDate;
-    LInfo.FLowId           := GetNewFlowID;
-    LInfo.SeqAckList       := TSeqAckList.Create;
-    aAdditionalInfo.FlowID := LInfo.FLowId;
-    FlowInfoList.Add(LKey, LInfo);  
-  end;
-  
+    LFlowInfo.SrcIP                       := aSrcAddr;
+    LFlowInfo.DstIP                       := aDstAddr;    
+    LFlowInfo.prevSeqNum                  := aCurrentSeq;
+    LFlowInfo.FirstSeqNum                 := aCurrentSeq;
+    LFlowInfo.PacketDate                  := aAdditionalParameters.PacketDate;
+    LFlowInfo.FLowId                      := GetNewFlowID;
+    LFlowInfo.SeqAckList                  := TSeqAckList.Create;
+    {AddInfo}
+    aAdditionalParameters.FlowID          := LFlowInfo.FLowId;
+    aAdditionalParameters.SequenceNumber  := aCurrentSeq;
+    
+    TryAddSeqActList(LFlowInfo,aAdditionalParameters,0,aCurrentSeq, 0);    
+    FlowInfoList.AddOrSetValue(LKey, LFlowInfo);
+  end;  
 end;
-
 
 class function TWpcapEthHeader.GetEthAcronymName(protocol: Word): string;
 begin
@@ -258,16 +272,15 @@ begin
   Result  := SizeOf(TETHHdr);
   LHeader := HeaderEth(aPacketData,aPacketSize);
 
-    case  wpcapntohs(LHeader.EtherType)  of
-      
+    case  wpcapntohs(LHeader.EtherType)  of      
       ETH_P_PPP_SES: Inc(Result,SizeOf(TPPPoE_Session)) 
     end;
 end;
 
-class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
-var LInternalPacket   : PTInternalPacket;
-    LHeader           : PETHHdr;
-    LLikLayersSize    : Integer;  
+class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
+var LInternalPacket : PTInternalPacket;
+    LHeader         : PETHHdr;
+    LLikLayersSize  : Integer;  
 begin
   Result       := False;
   FisMalformed := False;
@@ -276,8 +289,7 @@ begin
   Try
     FIsFilterMode := aIsFilterMode;
     if not InternalPacket(aPacketData,aPacketSize,nil,LInternalPacket,LLikLayersSize,False) then exit;
-    Try    
-      
+    Try          
       LHeader := HeaderEth(aPacketData,aPacketSize);
 
       if not Assigned(AListDetail) then
@@ -297,7 +309,7 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Type','Type:',LInternalPacket.Eth.Acronym,@LHeader.EtherType,SizeOf(LHeader.EtherType),LInternalPacket.Eth.EtherType));   
       end;
     
-      AddEthType(LInternalPacket.Eth.EtherType,LInternalPacket,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);
+      AddEthType(LInternalPacket.Eth.EtherType,LInternalPacket,aStartLevel,AListDetail,aIsFilterMode,aAdditionalParameters);
       Result := True;
     Finally
       if LLikLayersSize > 0 then
@@ -308,7 +320,7 @@ begin
   end;
 end;
 
-class procedure TWpcapEthHeader.AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo:PTAdditionalInfo);
+class procedure TWpcapEthHeader.AddEthType(const EtherType: Uint16;aInternalPacket : PTInternalPacket;aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters:PTAdditionalParameters);
 var LUDPProtoDetected : TWPcapProtocolBaseUDP;	
     LTCPProtoDetected : TWPcapProtocolBaseTCP;	
     LHeaderPPPSes     : PTPPPoE_Session;
@@ -321,13 +333,13 @@ begin
         ETH_P_IPV6:
           begin
             TWpcapIPHeader.FlowInfoList := FFlowInfoList;
-            if TWpcapIPHeader.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,aListDetail,aIsFilterMode,aAdditionalInfo) then
+            if TWpcapIPHeader.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,aListDetail,aIsFilterMode,aAdditionalParameters) then
             begin
               LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(aInternalPacket.IP.DetectedIPProto);
               if Assigned(LUDPProtoDetected) then
               begin
                 LUDPProtoDetected.OnFoundMalformedPacket := DoOnMalformedPacket;
-                LUDPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo)
+                LUDPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalParameters)
               end
               else
               begin
@@ -336,7 +348,7 @@ begin
                 if Assigned(LTCPProtoDetected) then
                 begin
                   LTCPProtoDetected.OnFoundMalformedPacket := DoOnMalformedPacket;
-                  LTCPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);
+                  LTCPProtoDetected.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalParameters);
                 end;
               end;
             end
@@ -368,7 +380,7 @@ begin
                 LUin16Value := wpcapntohs(PUint16(aInternalPacket.PacketData+LCurrentPos)^) ;
                 AListDetail.Add(AddHeaderInfo(aStartLevel,'P2PProtocol','Point-to-Point Protocol',null,@LUin16Value,SizeOf(LUin16Value)));  
                 AListDetail.Add(AddHeaderInfo(aStartLevel+1,'P2PProtocol.Protocol','Protocol',LUin16Value,@LUin16Value,SizeOf(LUin16Value)));  
-                AddEthType(LUin16Value,aInternalPacket,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);                  
+                AddEthType(LUin16Value,aInternalPacket,aStartLevel,AListDetail,aIsFilterMode,aAdditionalParameters);                  
              end;
           end;
         end;
@@ -378,7 +390,7 @@ begin
         ETH_P_PUPAT,             
         ETH_P_X25:;      
       
-        ETH_P_ARP:  TWPcapProtocolARP.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalInfo);     
+        ETH_P_ARP:  TWPcapProtocolARP.HeaderToString(aInternalPacket.PacketData,aInternalPacket.PacketSize,aStartLevel,AListDetail,aIsFilterMode,aAdditionalParameters);     
 
         ETH_P_BPQ,
         ETH_P_DEC,      
@@ -397,8 +409,7 @@ begin
         ETH_P_PAUSE,    
         ETH_P_SLOW,     
         ETH_P_WCCP,     
-        ETH_P_PPP_DISC, 
-          
+        ETH_P_PPP_DISC,           
         ETH_P_MPLS_UC,  
         ETH_P_ATMMPOA,  
         ETH_P_LINK_CTL, 
@@ -428,40 +439,39 @@ var LPETHHdr      : PETHHdr;
     LPETHHdrNEw   : PETHHdr;
     LDataPos      : Integer;
 begin
-  Result                                          := False;
-  aInternalPacket.PacketData                      := aPacketData;
-  aInternalPacket.PacketSize                      := aPacketSize;
-  aInternalPacket.IsMalformed                     := False;
-  aInternalPacket.IP.IpPrototr                    := String.Empty;
-  aInternalPacket.IP.ProtoAcronym                 := String.Empty;
-  aInternalPacket.IP.IpProto                      := 0;
-  aInternalPacket.IP.Src                          := String.Empty;  
-  aInternalPacket.IP.Dst                          := String.Empty;
-  aInternalPacket.IP.PortSrc                      := 0;
-  aInternalPacket.IP.PortDst                      := 0;
-  aInternalPacket.IP.IsIPv6                       := False;
-  aInternalPacket.IP.DetectedIPProto              := 0;  
-  aInternalPacket.IP.IANAProtoStr                 := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.ASNumber            := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.ASOrganization      := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.Location            := String.Empty;  
-  aInternalPacket.IP.SrcGeoIP.Latitude            := 0;
-  aInternalPacket.IP.SrcGeoIP.Longitude           := 0;
-  aInternalPacket.IP.DestGeoIP.ASNumber           := String.Empty;  
-  aInternalPacket.IP.DestGeoIP.ASOrganization     := String.Empty;  
-  aInternalPacket.IP.DestGeoIP.Location           := String.Empty;  
-  aInternalPacket.IP.DestGeoIP.Latitude           := 0;
-  aInternalPacket.IP.DestGeoIP.Longitude          := 0;
-
-  aInternalPacket.AdditionalInfo.isRetrasmission  := False;
-  aInternalPacket.AdditionalInfo.RetrasmissionFn  := -1;    
-  aInternalPacket.AdditionalInfo.SequenceNumber   := 0;
-  aInternalPacket.AdditionalInfo.PayloadSize      := 0;
-  aInternalPacket.AdditionalInfo.Info             := String.Empty;
-  aInternalPacket.AdditionalInfo.EnrichmentPresent:= False;
-  aInternalPacket.AdditionalInfo.ContentExt       := String.Empty;
-  aInternalPacket.AdditionalInfo.CompressType     := -1;  
-  LPETHHdr                                        := HeaderEth(aPacketData,aPacketSize);
+  Result                                              := False;
+  aInternalPacket.PacketData                          := aPacketData;
+  aInternalPacket.PacketSize                          := aPacketSize;
+  aInternalPacket.IsMalformed                         := False;
+  aInternalPacket.IP.IpPrototr                        := String.Empty;
+  aInternalPacket.IP.ProtoAcronym                     := String.Empty;
+  aInternalPacket.IP.IpProto                          := 0;
+  aInternalPacket.IP.Src                              := String.Empty;  
+  aInternalPacket.IP.Dst                              := String.Empty;
+  aInternalPacket.IP.PortSrc                          := 0;
+  aInternalPacket.IP.PortDst                          := 0;
+  aInternalPacket.IP.IsIPv6                           := False;
+  aInternalPacket.IP.DetectedIPProto                  := 0;  
+  aInternalPacket.IP.IANAProtoStr                     := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.ASNumber                := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.ASOrganization          := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.Location                := String.Empty;  
+  aInternalPacket.IP.SrcGeoIP.Latitude                := 0;
+  aInternalPacket.IP.SrcGeoIP.Longitude               := 0;
+  aInternalPacket.IP.DestGeoIP.ASNumber               := String.Empty;  
+  aInternalPacket.IP.DestGeoIP.ASOrganization         := String.Empty;  
+  aInternalPacket.IP.DestGeoIP.Location               := String.Empty;  
+  aInternalPacket.IP.DestGeoIP.Latitude               := 0;
+  aInternalPacket.IP.DestGeoIP.Longitude              := 0;
+  aInternalPacket.AdditionalInfo.TCP.Retrasmission    := False;
+  aInternalPacket.AdditionalInfo.TCP.RetrasmissionFn  := -1;    
+  aInternalPacket.AdditionalInfo.SequenceNumber       := 0;
+  aInternalPacket.AdditionalInfo.Info                 := String.Empty;
+  aInternalPacket.AdditionalInfo.EnrichmentPresent    := False;
+  aInternalPacket.AdditionalInfo.ContentExt           := String.Empty;
+  aInternalPacket.AdditionalInfo.CompressType         := -1;  
+  
+  LPETHHdr                                            := HeaderEth(aPacketData,aPacketSize);
   
   if not Assigned(LPETHHdr) then exit;
 
@@ -472,9 +482,7 @@ begin
   
   if aLogging then  
     DoLog('TWpcapEthHeader.InternalPacket',Format('EtherType [ %d --> %s ]',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLInfo);     
-  case aInternalPacket.Eth.EtherType of
-
-    
+  case aInternalPacket.Eth.EtherType of    
     ETH_P_IP,  
     ETH_P_IPV6  : 
       begin
@@ -485,7 +493,6 @@ begin
  
     ETH_P_PPP_SES :
       begin
-
         LEthType     := 0;      
         LDataPos     := HeaderEthSize(aInternalPacket.PacketData,aInternalPacket.PacketSize);
         LP2PProtocol := wpcapntohs(PUint16(aInternalPacket.PacketData + LDataPos)^); 
@@ -516,13 +523,12 @@ begin
         end;            
       end;
 
-    ETH_P_ARP:; //nothing;
-    
+    ETH_P_ARP:; //nothing;   
+     
     ETH_P_LOOP,
     ETH_P_PUP,      
     ETH_P_PUPAT,             
     ETH_P_X25,      
-
     ETH_P_BPQ,
     ETH_P_DEC,      
     ETH_P_DNA_DL,
@@ -681,22 +687,22 @@ begin
     FOnGetNewFlowID(Result);
 end;
 
-class function TWpcapEthHeader.GetInfoFlow(const aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo): Boolean;
+class function TWpcapEthHeader.GetInfoFlow(const SessionId,aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo): Boolean;
 begin
-  aKey   := Format('%s:%d-%s:%d', [aSrcAddr, aSrcPort, aDstAddr, aDstPort]);
+  aKey   := Format('%s%s:%d-%s:%d', [SessionId,aSrcAddr, aSrcPort, aDstAddr, aDstPort]);
   if FlowInfoList.TryGetValue(aKey, aInfo^) then
     Result := True
   else
   begin
-    aKey   := Format('%s:%d-%s:%d', [aDstAddr, aDstPort,aSrcAddr ,aSrcPort]);
+    aKey   := Format('%s%s:%d-%s:%d', [SessionId,aDstAddr, aDstPort,aSrcAddr ,aSrcPort]);
     Result := FlowInfoList.TryGetValue(aKey, aInfo^);
     if not Result then
     begin
-      aKey   := Format('%s:%d-%s:%d', [aDstAddr, aSrcPort,aSrcAddr ,aDstPort]);
+      aKey   := Format('%s%s:%d-%s:%d', [SessionId,aDstAddr, aSrcPort,aSrcAddr ,aDstPort]);
       Result := FlowInfoList.TryGetValue(aKey, aInfo^);
       if not Result then
       begin
-        aKey   := Format('%s:%d-%s:%d', [aSrcAddr, aDstPort,aDstAddr ,aSrcPort]);  
+        aKey   := Format('%s%s:%d-%s:%d', [SessionId,aSrcAddr, aDstPort,aDstAddr ,aSrcPort]);  
         Result := FlowInfoList.TryGetValue(aKey, aInfo^);
       end;
     end;

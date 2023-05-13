@@ -131,7 +131,7 @@ type
     /// This function returns a TListHeaderString of strings representing the fields in the UDP header. 
     //It takes a pointer to the packet data and an integer representing the size of the packet as parameters, and returns a dictionary of strings.
     /// </summary>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;            
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;override;            
     class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte; override;
   end;
 
@@ -273,7 +273,7 @@ begin
 end;
 
 
-class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LPUDPHdr     : PUDPHdr;
     LSrcPort     : Uint16;
     LDstPort     : Uint16;    
@@ -286,11 +286,13 @@ begin
 
   LSrcPort := SrcPort(LPUDPHdr);
   LDstPort := DstPort(LPUDPHdr);
+  
   if IsFilterMode then  
   begin
     TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
-    UpdateFlowInfo(LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,0,0,0,aAdditionalInfo);
+    UpdateFlowInfo(String.Empty,LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,0,aAdditionalParameters);
   end;
+  
   LSizePayload := UDPPayLoadLength(LPUDPHdr)-8;  
   AListDetail.Add(AddHeaderInfo(aStartLevel, AcronymName ,'User Datagram Protocol', Format('Src Port: %d, Dst Port: %d',[SrcPort(LPUDPHdr),DstPort(LPUDPHdr)]), Pbyte(LPUDPHdr),HeaderLength(0) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.HaderLen',[AcronymName]), 'Header length:',HeaderLength(0),nil,0));
@@ -299,7 +301,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)), @(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length) ));  
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPUDPHdr.CheckSum), @(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum) ));    
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(LSizePayload), nil,0 ));      
-  aAdditionalInfo.PayLoadSize := LSizePayload;
+  aAdditionalParameters.PayLoadSize := LSizePayload;
   Result := True;
 end;
 

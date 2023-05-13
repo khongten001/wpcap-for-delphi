@@ -81,7 +81,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;            
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;
   end;
 
 
@@ -147,7 +147,7 @@ begin
      Result := IsValidByPort(PROTO_MQTT_PORT_S,DstPort(LTCPPtr),SrcPort(LTCPPtr),aAcronymName,aIdProtoDetected)
 end;
 
-class function TWPcapProtocolMQTT.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolMQTT.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LTCPPayLoad    : PByte;
     LDummy         : Integer;
     LtmpByte       : Uint8;
@@ -245,7 +245,7 @@ begin
     
   end;
 
-  aAdditionalInfo.Info := Format('%s %s',[aAdditionalInfo.Info,LMsgTypeStr]).Trim;
+  aAdditionalParameters.Info := Format('%s %s',[aAdditionalParameters.Info,LMsgTypeStr]).Trim;
   Result := True;
 end;
 

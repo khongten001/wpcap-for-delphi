@@ -99,15 +99,15 @@ Type
     /// </summary>
     class function IsValidByPort(aTestPort, aSrcPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; virtual;
 
-     class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint8;  
-     class function ParserUint12Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint16;     
-     class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint16;
-     class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint32;     
-     class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigEndian:Boolean;var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
-     class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint64;     
-     class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigEndian: Boolean; var aCurrentPos: Integer;isIP:Boolean=False):String;
-     class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigEndian: Boolean; var aCurrentPos: Integer):Integer;
-     class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;   
+    class function ParserUint8Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint8ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint8;  
+    class function ParserUint12Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint16;     
+    class function ParserUint16Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint16ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint16;
+    class function ParserUint24Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint32;     
+    class function ParserUint32Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint32ToString; isBigEndian:Boolean;var aCurrentPos:Integer;isIP:Boolean=False):Uint32;
+    class function ParserUint64Value(const aPacketData:PByte; aLevel:byte; aMaxLen:Integer; const aLabel,aCaption : String; AListDetail: TListHeaderString; aToStringFunction:TWpcapUint64ToString; isBigEndian:Boolean;var aCurrentPos:Integer):Uint64;     
+    class function ParserGenericBytesValue(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString; aToStringFunction: TWpcapBytesToString;isBigEndian: Boolean; var aCurrentPos: Integer;isIP:Boolean=False):String;
+    class function ParserBytesToInteger(const aPacketData: PByte;aLevel: byte; aMaxLen, aLen: Integer; const aLabel, aCaption: String;AListDetail: TListHeaderString;isBigEndian: Boolean; var aCurrentPos: Integer):Integer;
+    class function ParserByEndOfLine(aStartLevel,aPayLoadLen:Integer; aPayLoad: PByte; AListDetail: TListHeaderString;var aStartOffSet: Integer;aAdditionalParameters: PTAdditionalParameters): Boolean;   
   public
     /// <summary>
     /// Returns the default port number for the protocol.
@@ -145,7 +145,6 @@ Type
     /// </summary>
     class function HeaderLength(aFlag:Byte): Word; virtual;
 
-
     class function AddHeaderInfo(aLevel:Byte;const aLabel, aDescription:String;aValue:Variant;aPacketInfo:PByte;aPacketInfoSize:Word;aRaWData: Integer=-1 ;aEnrichmentType : TWpcapEnrichmentType=WetNone):THeaderString;static;
 
     /// <summary>
@@ -161,7 +160,6 @@ Type
     class property OnFoundMalformedPacket : TNotifyEvent   read FOnFoundMalformedPacket write FOnFoundMalformedPacket;
    
     Class function GetPayLoad(const aPacketData: PByte;aPacketSize:Integer;var aSize,aSizeTotal:Integer):PByte;virtual;
-
   end;
   
 implementation
@@ -456,7 +454,7 @@ begin
   end;
 end;
                                                 
-class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolBase.ParserByEndOfLine(aStartLevel,aPayLoadLen: Integer; aPayLoad: PByte; AListDetail: TListHeaderString; var aStartOffSet: Integer;aAdditionalParameters: PTAdditionalParameters): Boolean;
 CONST HTTP_COMPRESS_CONTENT_VALUE : array [0..3] of string= ( 'gzip','deflate','identity','br');
 var LCopYStart       : Integer;
     LValue           : String;
@@ -489,14 +487,14 @@ var LCopYStart       : Integer;
           if SameText(LField,'Content-Type') then
           begin
             LInfoProtocol                     := Format('%s %s',[LInfoProtocol,LValue.Trim]).Trim;
-            aAdditionalInfo.EnrichmentPresent := True;
+            aAdditionalParameters.EnrichmentPresent := True;
             LEnrichmentType                   := WetContent;
             LExt                              :=LValueField.Trim;
             if LExt.Contains(';') then
               LExt := LExt.Split([';'])[0];
             if LExt.Contains('/') then
               LExt := LExt.Split(['/'])[1].Trim;
-            aAdditionalInfo.ContentExt := LExt;              
+            aAdditionalParameters.ContentExt := LExt;              
           end;
 
           if SameText(LField,'User-Agent') then
@@ -512,7 +510,7 @@ var LCopYStart       : Integer;
                begin
                  if LValueField.ToLower.Contains(HTTP_COMPRESS_CONTENT_VALUE[I]) then
                  begin
-                   aAdditionalInfo.CompressType := I; 
+                   aAdditionalParameters.CompressType := I; 
                    LCompressType                := I;
                    DoLog('TWPcapProtocolBase.ParserByEndOfLine',Format('Found zip content [%s]',[HTTP_COMPRESS_CONTENT_VALUE[I]]),TWLLWarning);
                    break;
@@ -562,7 +560,7 @@ begin
     Inc(aStartOffSet);
   end;
 
-  aAdditionalInfo.Info := Format('%s %s',[LInfoProtocol,aAdditionalInfo.Info]).Trim;
+  aAdditionalParameters.Info := Format('%s %s',[LInfoProtocol,aAdditionalParameters.Info]).Trim;
   Result := True;
 end;
 

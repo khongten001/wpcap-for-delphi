@@ -35,6 +35,7 @@ object FormOpenDialog: TFormOpenDialog
       Width = 75
       Height = 24
       Align = alRight
+      Cancel = True
       Caption = 'Cancel'
       LookAndFeel.NativeStyle = False
       LookAndFeel.SkinName = 'Basic'
@@ -51,6 +52,7 @@ object FormOpenDialog: TFormOpenDialog
       Height = 24
       Align = alRight
       Caption = 'Import'
+      Default = True
       LookAndFeel.NativeStyle = False
       LookAndFeel.SkinName = 'Basic'
       OptionsImage.ImageIndex = 0
@@ -123,7 +125,6 @@ object FormOpenDialog: TFormOpenDialog
       Style.ButtonTransparency = ebtAlways
       TabOrder = 2
       OnKeyPress = ESearchKeyPress
-      ExplicitHeight = 21
       Width = 232
     end
     object cxSplitter2: TcxSplitter
@@ -185,7 +186,6 @@ object FormOpenDialog: TFormOpenDialog
       ShellListView = cxShellListView1
       TabOrder = 1
       OnMouseUp = cxShellTreeView1MouseUp
-      ExplicitHeight = 85
     end
     object cxSplitter1: TcxSplitter
       Left = 270
@@ -223,7 +223,6 @@ object FormOpenDialog: TFormOpenDialog
       Properties.OnValidate = EFilterPropertiesValidate
       ShowHint = True
       TabOrder = 1
-      ExplicitHeight = 21
       Width = 945
     end
   end

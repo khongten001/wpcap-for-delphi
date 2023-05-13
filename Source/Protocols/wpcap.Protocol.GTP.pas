@@ -321,7 +321,7 @@ type
     class function ProtoTypeToString(const aProtoType: Uint8): String;
     class function MessageTypeToString(const  aMsgType: Uint8): String;
     class function IETypeToString(const  aIEType: Uint8): string;
-    class procedure ParserIEType(var aCurrentPos: Integer; aMaxLen,aStartLevel: Integer; const aPayload: PByte;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo); static;
+    class procedure ParserIEType(var aCurrentPos: Integer; aMaxLen,aStartLevel: Integer; const aPayload: PByte;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters); static;
     class function IETypeToLabel(const aIEType: Uint8): string;
     class function CauseToString(const aCause: Uint8): String;
     class function CauseToString_vals(const aCause: Uint8): String;
@@ -350,7 +350,7 @@ type
     /// Returns the acronym name of the GTP protocol.
     /// </summary>
     class function AcronymName: String; override;
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; override;        
   end;
 
@@ -409,7 +409,7 @@ begin
   Result := 'GTP';
 end;
 
-class function TWPcapProtocolGTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolGTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LUDPPayLoad        : PByte;
     LDummy             : Integer;
     LVersion           : UInt8;
@@ -471,7 +471,7 @@ begin
             Next extension header
             an 8-bit field. It states the type of the next extension, or 0 if no next extension exists. This permits chaining several next extension headers.
           }
-          ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail,aAdditionalInfo);   
+          ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail,aAdditionalParameters);   
         end;
        { Contents extension header contents.}
       end;
@@ -500,17 +500,17 @@ begin
           ParserUint64Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.SequenceNumber',[AcronymName]), 'Sequence number:',AListDetail,nil,True,LCurrentPos);
         
         ParserUint8Value(LUDPPayLoad,aStartLevel+1,LPayLoadLen,Format('%s.Spare',[AcronymName]), 'Spare:',AListDetail,nil,True,LCurrentPos);
-        ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail,aAdditionalInfo);        
+        ParserIEType(LCurrentPos,LPayLoadLen,aStartLevel,LUDPPayLoad,AListDetail,aAdditionalParameters);        
       end;
       
   else Exit;
   end;
 
-  aAdditionalInfo.Info := Format('%s %s',[LMessageTypeStr,aAdditionalInfo.Info]).Trim;
+  aAdditionalParameters.Info := Format('%s %s',[LMessageTypeStr,aAdditionalParameters.Info]).Trim;
   Result               := True;
 end;
 
-Class Procedure TWPcapProtocolGTP.ParserIEType(var aCurrentPos:Integer;aMaxLen,aStartLevel : Integer;const aPayload:PByte;AListDetail: TListHeaderString;aAdditionalInfo: PTAdditionalInfo);
+Class Procedure TWPcapProtocolGTP.ParserIEType(var aCurrentPos:Integer;aMaxLen,aStartLevel : Integer;const aPayload:PByte;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters);
 var LBytes         : TidBytes;
     LIEType        : Uint8;
     LLenIE         : Uint16; 
@@ -542,7 +542,7 @@ var LBytes         : TidBytes;
       LMCC        :=  (100 * LMCC1) + (10 * LMCC2 )+ LMCC3;  
       AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.MCC', [aLabelIEType]), 'Mobile Country Code (MCC):', LMCC, @LWordValue, SizeOf(LWordValue), LMCC));
       AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCC), nil, 0, LMCC, wetMcc ));
-      aAdditionalInfo.EnrichmentPresent := True;
+      aAdditionalParameters.EnrichmentPresent := True;
     end;
 
     Procedure AddMNC(const aLabelIEType:String;aLevel:Integer);
@@ -588,7 +588,7 @@ var LBytes         : TidBytes;
         AListDetail.Add(AddHeaderInfo(aLevel, Format('%s.IMSI', [aLabelIEType]), 'IMSI:',LIMSIString,@LIMSI,sizeOf(LIMSI)));
         AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MCC.Country', [aLabelIEType]), 'Country:', MCCToCountry(LMCCImsi.ToInteger()), nil, 0, LMCCImsi.Tointeger, wetMcc ));      
         AListDetail.Add(AddHeaderInfo(aLevel + 1, Format('%s.MNC.Provider', [aLabelIEType]), 'Provider:', MNCDescription(LMCCImsi.ToInteger,LMNCImsi.ToInteger), nil, 0, LMCCImsi.Tointeger, WetMNC ));
-        aAdditionalInfo.EnrichmentPresent := True;        
+        aAdditionalParameters.EnrichmentPresent := True;        
         Inc(aCurrentPos,LLenIE);
       end;
     end;
@@ -1007,7 +1007,7 @@ begin
         if ( aCurrentPos - LStartPos) < LLenIE -3 then
         begin
           LTmpLen := aCurrentPos+ LLenIE - (aCurrentPos-LStartPos);
-          ParserIEType(aCurrentPos,LTmpLen,aStartLevel+1,aPayload,AListDetail,aAdditionalInfo);
+          ParserIEType(aCurrentPos,LTmpLen,aStartLevel+1,aPayload,AListDetail,aAdditionalParameters);
         end;  
       end;
       

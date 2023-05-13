@@ -127,7 +127,7 @@ type
     class function AcronymName: String; override;
     class Function TypeToString(const aType:Byte):String;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;      
   end;
 
 
@@ -186,7 +186,7 @@ begin
 end;
 
   
-class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolICMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LHeader         : PTICMPHeader;
     LNewPacketData  : Pbyte;
     LNewPacketLen   : Integer;
@@ -218,7 +218,7 @@ begin
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
 
   if IsFilterMode then  
-    UpdateFlowInfo(aAdditionalInfo.FrameNumber.ToString,aAdditionalInfo.FrameNumber.ToString,0,0,0,0,0,aAdditionalInfo);
+    UpdateFlowInfo(String.Empty,aAdditionalParameters.FrameNumber.ToString,aAdditionalParameters.FrameNumber.ToString,0,0,0,aAdditionalParameters);
 
   LType := TypeToString(LHeader.TypeICMP);
   LCode := CodeToString(LHeader.TypeICMP,LHeader.Code);
@@ -273,7 +273,7 @@ begin
         if Assigned(LNewPacketData) then
         begin
           Try
-            TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail,IsFilterMode,aAdditionalInfo);
+            TWpcapIPHeader.HeaderToString( LNewPacketData, LNewPacketLen,aStartLevel+1,AListDetail,IsFilterMode,aAdditionalParameters);
           Finally
             FreeMem(LNewPacketData);
           End; 
@@ -323,7 +323,7 @@ begin
       
     ICMP_ROUTER_SOLICITATION: AddOptionsAndIp;
   end;
-  aAdditionalInfo.Info := FOrmat('%s %s %s',[aAdditionalInfo.Info,LType,LCode]).Trim;
+  aAdditionalParameters.Info := FOrmat('%s %s %s',[aAdditionalParameters.Info,LType,LCode]).Trim;
   Result := True;
 end;
 

@@ -109,7 +109,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;      
   end;
 
 
@@ -154,7 +154,7 @@ begin
   end;
 end;
   
-class function TWPcapProtocolIGMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolIGMP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LHeader        : PTIGMPHeader;
     LGroupRec      : PTIGMPGroupRecord;
     LSizeEthIP     : Integer;
@@ -179,7 +179,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NGroupRecords',[AcronymName]), 'Num Group Records:',LNGr,@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec) )); 
 
   if IsFilterMode then  
-    UpdateFlowInfo(aAdditionalInfo.FrameNumber.ToString,aAdditionalInfo.FrameNumber.ToString,0,0,0,0,0,aAdditionalInfo);
+    UpdateFlowInfo(String.Empty,aAdditionalParameters.FrameNumber.ToString,aAdditionalParameters.FrameNumber.ToString,0,0,0,aAdditionalParameters);
   
   LSizeEthIP  := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LCurrentPos := LSizeEthIP+SizeOf(TIGMPHeader);
@@ -199,7 +199,7 @@ begin
 
     if IsValidPublicIP(LIPStr) then
     begin
-      aAdditionalInfo.EnrichmentPresent := true;
+      aAdditionalParameters.EnrichmentPresent := true;
       AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.GroupRecord.MulticastAddr',[AcronymName]), 'Multicast addess:',LIpStr,@LGroupRec.Ipaddr,sizeOf(LGroupRec.Ipaddr),-1,WetIP ))
     end
     else
@@ -219,7 +219,7 @@ begin
     {Padding ??}  
   end;  
 
-  aAdditionalInfo.Info := FOrmat('%s %s Group record: %d',[aAdditionalInfo.Info,LType,LNGr]).Trim;
+  aAdditionalParameters.Info := FOrmat('%s %s Group record: %d',[aAdditionalParameters.Info,LType,LNGr]).Trim;
   
   Result := True;       
 end;

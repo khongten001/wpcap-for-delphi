@@ -31,7 +31,7 @@ interface
 
 uses
   wpcap.Protocol.UDP, wpcap.Protocol.Base, wpcap.Conts, wpcap.Types, wpcap.packet,
-  System.SysUtils, wpcap.BufferUtils, system.Variants,wpcap.StrUtils;
+  System.SysUtils, wpcap.BufferUtils, system.Variants,wpcap.StrUtils,System.DateUtils;
 
 type
 
@@ -113,9 +113,9 @@ type
       PT_H263        = 34;      //* from Chunrong Zhu of Intel; see the Web page */    
       PT_iLBC        = 99;
     class function GetInternalStructure(const aPacketData: PByte;aPacketSize:Integer): PTRTPHeaderInternal; static;
-    class function GetRTPPayloadTypeString(APayloadType: Byte): string; static;
-    
+    class function GetRTPPayloadTypeString(APayloadType: Byte): string; static;    
   protected
+
   public
     /// <summary>
     /// Returns the default RTP port (5355).
@@ -156,7 +156,7 @@ type
     /// <returns>
     ///   True if the header was successfully added to the list, False otherwise.
     /// </returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;
     class function GetPayLoad(const aPacketData: PByte;aPacketSize: Integer;var aSize,aSizeTotal:Integer): PByte; override;
     class function GetSoxCommandDecode(const aPacketData:PByte;aPacketSize:Integer): String; static;      
     class function IsValid(const aPacket:PByte;aPacketSize:Integer; var aAcronymName: String;var aIdProtoDetected: Byte): Boolean; override;    
@@ -198,9 +198,10 @@ begin
   Result := PTRTPHeader(aUDPPayLoad);
 end;
 
-class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolRTP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LInternalHeader : PTRTPHeaderInternal;
     LHeaderRTP      : PTRTPHeader;
+    LInternalIP     : TInternalIP;    
     LUDPPayLoad     : PByte;
     LPUDPHdr        : PUDPHdr;
     LPayLoad        : PByte;
@@ -242,13 +243,19 @@ begin
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SSRC',[AcronymName]), 'SSRC:', LInternalHeader.ssrc, @LHeaderRTP.ssrc, SizeOf(LHeaderRTP.ssrc)));
       AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.payload',[AcronymName]), 'payload',SizeToStr( LSizePayLoad),LPayLoad,  LSizePayLoad, LSizePayLoad));
 
+      if IsFilterMode then  
+      begin
+        TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
+        UpdateFlowInfo(String.Empty,LInternalIP.Src,LInternalIP.Dst,LInternalIP.PortSrc,LInternalIP.PortDst,LInternalHeader.SequenceNumber,aAdditionalParameters);
+      end;
+      
       for I := Low(LInternalHeader.CSRC) to High(LInternalHeader.CSRC) do
       begin
         LInfoStr := Format('%s CSRC[%d]: %d',[LInfoStr,I,LInternalHeader.CSRC[I]]);
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.CSRC',[AcronymName]), 'CSRC:', LInternalHeader.CSRC[I], @LInternalHeader.CSRC[I], SizeOf(Uint32)));
       end;
       
-      aAdditionalInfo.Info := FOrmat('%s %s',[aAdditionalInfo.Info,LInfoStr]).Trim;
+      aAdditionalParameters.Info := FOrmat('%s %s',[aAdditionalParameters.Info,LInfoStr]).Trim;
       Result := True;
     Finally
       FreeMem(LPayLoad);

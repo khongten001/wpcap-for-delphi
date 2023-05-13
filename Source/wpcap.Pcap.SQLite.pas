@@ -46,6 +46,10 @@ type
     procedure DoPCAPCallBackError(const aFileName, aError: String);
     procedure SetAbort(const Value: Boolean);
 
+   public
+    constructor Create;reintroduce;
+    destructor Destroy; override;
+
     /// <summary>
     /// Logs the given message with the specified log level.
     /// </summary>
@@ -53,9 +57,7 @@ type
     /// <param name="aDescription">The description of the log message.</param>
     /// <param name="aLevel">The log level of the message.</param>
     procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);        
-   public
-    constructor Create;reintroduce;
-    destructor Destroy; override;
+        
     ///<summary>
     /// Converts an offline packet capture file to an SQLite database using a specified set of callbacks.
     ///</summary>
@@ -158,9 +160,7 @@ begin
     FWPcapDBSqLite.ResetCounterIntsert;
     Try
       FWPcapDBSqLite.Connection.StartTransaction;
-      
-      if Not Assigned(FPcapUtils) then      
-        FPcapUtils := TPCAPUtils.Create;
+
       Try
         FPcapUtils.OnPCAPCallBackError      := DoPCAPCallBackError;
         FPcapUtils.OnPCAPCallBackProgress   := aPCAPCallBackProgress;
@@ -204,6 +204,7 @@ begin
   FLogger.MaxDayLog := 7;
   FLogger.Active    := True;
   FLogger.Debug     := False;  
+  FPcapUtils        := TPCAPUtils.Create;  
 end;
 
 procedure TPCAP2SQLite.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);

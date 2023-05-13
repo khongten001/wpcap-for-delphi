@@ -282,7 +282,7 @@ type
     ///   Returns a dictionary containing the string representation of each field in the IP header, as well as its value in the provided packet data.
     /// </summary>
     /// <returns>A dictionary containing the string representation of each field in the IP header, as well as its value in the provided packet data.</returns>
-    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;override;
+    class function HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;override;
 
     ///  <summary>
     ///  Analyzes the IP header of the packet data and stores the result in the given InternalIP record.
@@ -490,7 +490,7 @@ begin
   Result := (aVerLen and $0F) * 4;
 end;
 
-class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;  
+class function TWpcapIPHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;  
 var LHederInfo         : THeaderString;
     LInternalIP        : PTInternalIP;
     LHeaderV4          : PTIPHeader;
@@ -598,14 +598,14 @@ begin
       case LInternalIP.IpProto of
  
         IPPROTO_ICMP,
-        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+        IPPROTO_ICMPV6  : TWPcapProtocolICMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalParameters);
         IPPROTO_TCP     : 
         begin
           TWPcapProtocolBaseTCP.FlowInfoList := FlowInfoList;
-          TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+          TWPcapProtocolBaseTCP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalParameters);
         end;
-        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
-        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+        IPPROTO_UDP     : TWPcapProtocolBaseUDP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalParameters);
+        IPPROTO_IGMP    : TWPcapProtocolIGMP.HeaderToString(aPacketData,aPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalParameters);
         IPPROTO_GGP     :;  
         IPPROTO_IP      :
           begin  
@@ -613,7 +613,7 @@ begin
             if Assigned(LNewPacket) then
               begin
               Try
-                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+                Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalParameters);
               Finally
                 FreeMem(LNewPacket);
               End;           
@@ -626,7 +626,7 @@ begin
           if Assigned(LNewPacket) then
           begin
             Try
-              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalInfo);
+              Result := HeaderToString(LNewPacket, LNewPacketSize,aStartLevel,AListDetail,aisFilterMode,aAdditionalParameters);
             Finally
               FreeMem(LNewPacket);
             End;        

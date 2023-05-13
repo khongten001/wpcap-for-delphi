@@ -109,7 +109,7 @@ type
     /// </summary>
     class function AcronymName: String; override;
     class function IsValid(const aPacket: PByte; aPacketSize: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean; static;
-    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean; override;      
+    class function HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean; override;      
   end;
 
 
@@ -144,7 +144,7 @@ begin
   result := True;
 end;
   
-class function TWPcapProtocolARP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalInfo: PTAdditionalInfo): Boolean;
+class function TWPcapProtocolARP.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LHeaderARP     : PTARPHeader;
     LSenderIP      : string;
     LTargetIP      : string;
@@ -188,7 +188,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetMAC',[AcronymName]), 'Target MAC:',LMacDst , PByte(LTmpBytesTarget), LHeaderARP.HardwareSize ));
 
   if IsFilterMode then  
-    UpdateFlowInfo(LMacSrc,LMacDst,0,0,0,0,0,aAdditionalInfo);
+    UpdateFlowInfo(String.Empty,LMacSrc,LMacDst,0,0,0,aAdditionalParameters);
   
   SetLength(LTmpBytesSender,LHeaderARP.ProtocolSize);
   SetLength(LTmpBytesTarget,LHeaderARP.ProtocolSize);  
@@ -211,7 +211,7 @@ begin
         if IsValidPublicIP(LSenderIP) then
         begin
           LEnrichment                       := WetIP;
-          aAdditionalInfo.EnrichmentPresent := true;
+          aAdditionalParameters.EnrichmentPresent := true;
         end;
       
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIP',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender), -1,LEnrichment ));
@@ -222,7 +222,7 @@ begin
         if IsValidPublicIP(LTargetIP) then
         begin
           LEnrichment                       := WetIP;
-          aAdditionalInfo.EnrichmentPresent := true;
+          aAdditionalParameters.EnrichmentPresent := true;
         end;
         
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIP',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget), -1,LEnrichment  ));           
@@ -234,7 +234,7 @@ begin
         if IsValidPublicIP(LSenderIP) then
         begin
           LEnrichment                       := WetIP;
-          aAdditionalInfo.EnrichmentPresent := true;
+          aAdditionalParameters.EnrichmentPresent := true;
         end;
 
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.SenderIPv6',[AcronymName]), 'Sender IP:', LSenderIP, PByte(LTmpBytesSender), SizeOf(LTmpBytesSender), -1,LEnrichment ));
@@ -246,7 +246,7 @@ begin
         if IsValidPublicIP(LTargetIP) then
         begin
           LEnrichment                       := WetIP;
-          aAdditionalInfo.EnrichmentPresent := true;
+          aAdditionalParameters.EnrichmentPresent := true;
         end;
                 
         AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetIPv6',[AcronymName]), 'Target IP:', LTargetIP, PByte(LTmpBytesTarget), SizeOf(LTmpBytesTarget), -1,LEnrichment ));      
@@ -256,8 +256,8 @@ begin
   if not LSenderIP.IsEmpty then
   begin
     case LArpType of
-      ARP_REQUEST : aAdditionalInfo.Info := Format('Who has %s ? tell %s',[LTargetIP,LSenderIP]);
-      ARP_REPLAY  : aAdditionalInfo.Info := Format('%s is at %s',[LSenderIP,LMacSrc]);          
+      ARP_REQUEST : aAdditionalParameters.Info := Format('Who has %s ? tell %s',[LTargetIP,LSenderIP]);
+      ARP_REPLAY  : aAdditionalParameters.Info := Format('%s is at %s',[LSenderIP,LMacSrc]);          
     end;
   end;
   

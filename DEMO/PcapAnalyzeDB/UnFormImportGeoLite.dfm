@@ -57,8 +57,6 @@ object FormImportGeoLite: TFormImportGeoLite
           Properties.Images = cxImageList1
           Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
           TabOrder = 0
-          ExplicitLeft = 151
-          ExplicitWidth = 562
           Width = 602
         end
         object cxLabel3: TcxLabel
@@ -152,8 +150,6 @@ object FormImportGeoLite: TFormImportGeoLite
           Properties.Images = cxImageList1
           Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
           TabOrder = 0
-          ExplicitLeft = 82
-          ExplicitWidth = 631
           Width = 599
         end
         object cxLabel2: TcxLabel
@@ -192,8 +188,6 @@ object FormImportGeoLite: TFormImportGeoLite
           Properties.Images = cxImageList1
           Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
           TabOrder = 0
-          ExplicitLeft = 122
-          ExplicitWidth = 591
           Width = 604
         end
         object cxLabel4: TcxLabel
@@ -215,7 +209,6 @@ object FormImportGeoLite: TFormImportGeoLite
         Align = alTop
         PanelStyle.Active = True
         TabOrder = 2
-        ExplicitTop = 310
         Height = 43
         Width = 720
         object cxButtonEdit1: TcxButtonEdit
@@ -233,8 +226,6 @@ object FormImportGeoLite: TFormImportGeoLite
           Properties.Images = cxImageList1
           Properties.OnButtonClick = EASNIpv4PropertiesButtonClick
           TabOrder = 0
-          ExplicitLeft = 134
-          ExplicitWidth = 579
           Width = 631
         end
         object cxLabel5: TcxLabel

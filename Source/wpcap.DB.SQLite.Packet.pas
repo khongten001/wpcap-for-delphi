@@ -53,7 +53,7 @@ uses
     FIngnorePacket      : TList<Integer>;
     FInsertToArchive    : SmallInt;
     FMaxInsertCache     : SmallInt;    
-    FOnLog              : TWpcapLog;     //Event for logging
+
     
     /// <summary>
     /// Sets the maximum insert cache size.
@@ -70,10 +70,7 @@ uses
     /// <returns>A boolean value indicating if the operation was successful.</returns>
     Function GetVarArrayByQuery(aQuery:TFdQuery;out aArray : Variant;out aDescription:String):Boolean;
 
-    /// <summary>
-    /// Log a message with the given function name, description, and log level.
-    /// </summary>         
-    procedure DoLog(const aFunctionName, aDescription: String;aLevel: TWpcapLvlLog);
+
   protected
 
     /// <summary>
@@ -129,7 +126,7 @@ uses
     /// <param name="aNPacket">The packet number to retrieve the data for.</param>
     /// <param name="aPacketSize">The size of the packet data.</param>
     /// <returns>A pointer to the packet data in memory.</returns>    
-    function GetPacketDataFromDatabase(aNPacket: Integer;var aPacketSize: Integer;aAdditionInfo: PTAdditionalInfo): PByte;
+    function GetPacketDataFromDatabase(aNPacket: Integer;var aPacketSize: Integer;aAdditionalParameters: PTAdditionalParameters): PByte;
     
     /// <summary>
     /// Returns a list of string containing the hexadecimal dump of a packet data with
@@ -223,10 +220,7 @@ uses
     /// </summary>    
     property FDQueryLabelList  : TFDQuery     read FFDQueryLabelList    write FFDQueryLabelList; 
 
-    /// <summary>
-    /// Gets or sets the TWpcapLog event for logging.
-    /// </summary>        
-    property OnLog                  : TWpcapLog      read FOnLog                  write FOnLog;    
+  
       
   End;
 implementation
@@ -426,12 +420,12 @@ begin
   FFDQueryFlow                                              := TFDQuery.Create(nil);
   FFDQueryFlow.Connection                                   := FConnection;
   FFDQueryFlow.SQL.Text                                     := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA,COMPRESSION_TYE FROM PACKETS          '+sLineBreak+ 
-                                                               'WHERE FLOW_ID = :pFlowID AND IGNORE = 0 ORDER BY PACKET_DATE ASC';
+                                                               'WHERE FLOW_ID = :pFlowID AND IGNORE = 0 ORDER BY SEQ_NUMBER,PACKET_DATE ASC';
 
   FFDQuerySession                                            := TFDQuery.Create(nil);
   FFDQuerySession.Connection                                 := FConnection;
   FFDQuerySession.SQL.Text                                   := 'SELECT IP_SRC,IP_DST,PORT_SRC,PORT_DST,PACKET_DATA,PROTO_DETECT,COMPRESSION_TYE,CONTENT_EXT,NPACKET FROM PACKETS   '+sLineBreak+ 
-                                                                'WHERE  FLOW_ID = :pFlowID AND IGNORE = 0 ORDER BY PACKET_DATE ASC';     
+                                                                'WHERE  FLOW_ID = :pFlowID AND IGNORE = 0 ORDER BY SEQ_NUMBER, PACKET_DATE ASC';     
 
   FFDQueryInsertLabel                                        := TFDQuery.Create(nil);
   FFDQueryInsertLabel.Connection                             := FConnection;
@@ -643,7 +637,7 @@ begin
     FFDQueryInsert.ParamByName('pPortDst').Clear(FInsertToArchive);
 
   {Additional}      
-  FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive]   := ifthen(aInternalPacket.AdditionalInfo.isRetrasmission,1,0);  
+  FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive]   := ifthen(aInternalPacket.AdditionalInfo.TCP.Retrasmission,1,0);  
   FFDQueryInsert.ParamByName('pEnrichmentPresent').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.EnrichmentPresent,1,0);  
   FFDQueryInsert.ParamByName('pContentExt').AsStrings[FInsertToArchive]         := aInternalPacket.AdditionalInfo.ContentExt;
   FFDQueryInsert.ParamByName('pIgnore').AsIntegers[FInsertToArchive]            := 0; 
@@ -663,8 +657,8 @@ begin
   else
     FFDQueryInsert.ParamByName('pFlowId').Clear(FInsertToArchive);
 
-   if aInternalPacket.AdditionalInfo.RetrasmissionFn > 0 then
-    FIngnorePacket.Add(aInternalPacket.AdditionalInfo.RetrasmissionFn); 
+   if aInternalPacket.AdditionalInfo.TCP.RetrasmissionFn > 0 then
+    FIngnorePacket.Add(aInternalPacket.AdditionalInfo.TCP.RetrasmissionFn); 
   
   {IANA} 
   FFDQueryInsert.ParamByName('pProtoIANA').AsStrings[FInsertToArchive]     := aInternalPacket.IP.IANAProtoStr;   
@@ -695,7 +689,7 @@ begin
   End;  
 end;
 
-Function TWPcapDBSqLitePacket.GetPacketDataFromDatabase(aNPacket:Integer;var aPacketSize:Integer;aAdditionInfo: PTAdditionalInfo):PByte;
+Function TWPcapDBSqLitePacket.GetPacketDataFromDatabase(aNPacket:Integer;var aPacketSize:Integer;aAdditionalParameters: PTAdditionalParameters):PByte;
 var LStream    : TMemoryStream;
 begin
   Result      := nil;
@@ -713,10 +707,10 @@ begin
       GetMem(Result, aPacketSize);
       LStream.Seek(0, soBeginning);
       LStream.ReadBuffer(Result^, aPacketSize); 
-      aAdditionInfo.isRetrasmission := FFDGetDataByID.FieldByName('IS_RETRASMISSION').AsInteger = 1;     
-      aAdditionInfo.SequenceNumber  := FFDGetDataByID.FieldByName('SEQ_NUMBER').AsInteger;
-      aAdditionInfo.PacketDate      := StrToDateTime(FFDGetDataByID.FieldByName('PACKET_DATE').AsString);
-      aAdditionInfo.Info            := FFDGetDataByID.FieldByName('PACKET_INFO').AsString;
+      aAdditionalParameters.TCP.Retrasmission := FFDGetDataByID.FieldByName('IS_RETRASMISSION').AsInteger = 1;     
+      aAdditionalParameters.SequenceNumber    := FFDGetDataByID.FieldByName('SEQ_NUMBER').AsInteger;
+      aAdditionalParameters.PacketDate        := StrToDateTime(FFDGetDataByID.FieldByName('PACKET_DATE').AsString);
+      aAdditionalParameters.Info              := FFDGetDataByID.FieldByName('PACKET_INFO').AsString;
     finally
       LStream.Free;
     end;    
@@ -725,22 +719,21 @@ begin
 end;
 
 Function TWPcapDBSqLitePacket.GetListHexPacket(aNPacket,aStartLevel:Integer;var aListDetail:TListHeaderString):TArray<String>;
-var LPacket           : PByte;
-    LPacketSize       : Integer;
-    LAdditionInfo     : TAdditionalInfo;
+var LPacket       : PByte;
+    LPacketSize   : Integer;
+    LAdditionInfo : TAdditionalParameters;
 begin
   SetLength(Result,0);
-
   LPacket := GetPacketDataFromDatabase(aNPacket,LPacketSize,@LAdditionInfo);
-  Try
-    if Assigned(LPacket) then
-    begin
+  if Assigned(LPacket) then
+  begin
+    Try
       Result := DisplayHexData(LPacket,LPacketSize);
       TWpcapEthHeader.HeaderToString(LPacket,LPacketSize,aStartLevel,aListDetail,False,@LAdditionInfo);
-    end;
-  Finally
-     FreeMem(LPacket);
-  End;
+    Finally
+      FreeMem(LPacket);
+    End;
+  end;
 end;
 
 function TWPcapDBSqLitePacket.GetFlowString(const aFlowId,aIPProto: Integer; aColorSrc, aColorDst: TColor): TStringList;
@@ -754,13 +747,13 @@ var LPacketSize : Integer;
     LPayloadSize: Integer;
     LDummy      : Integer;
 begin
-  Result      := TStringList.Create;
+  Result := TStringList.Create;
   FFDQueryFlow.Close;
   FFDQueryFlow.ParamByName('pFlowID').AsInteger := aFlowId;   
   FFDQueryFlow.Open;
   
-  LCurrentIP   := String.Empty;
-  LIsClient    := False;
+  LCurrentIP := String.Empty;
+  LIsClient  := False;
   
   if not FFDQueryFlow.IsEmpty then
   begin
@@ -777,8 +770,8 @@ begin
           LStream.Seek(0, soBeginning);
           LStream.ReadBuffer(LPacketData^, LPacketSize);
           case aIPProto of
-           IPPROTO_TCP :  LPayLoad := TWPcapProtocolBaseTCP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LDummy);
-           IPPROTO_UDP :  LPayLoad := TWPcapProtocolBaseUDP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LDummy);           
+           IPPROTO_TCP : LPayLoad := TWPcapProtocolBaseTCP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LDummy);
+           IPPROTO_UDP : LPayLoad := TWPcapProtocolBaseUDP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LDummy);           
           else
             begin
               DoLog('TWPcapDBSqLitePacket.GetFlowString',Format('Error invalid protocol [%d] only TCP and UP protocol are supported',[aIPProto]),TWLLException);
@@ -855,6 +848,7 @@ begin
       end;
       
       aFilename := Format('%sFile_%d.%s',[aPathFile,aPacketNumber,LExt]);   
+      DeleteFile(aFilename);
       LFileRaw  := TFileStream.Create(aFilename, fmCreate);
 
       Try
@@ -865,34 +859,40 @@ begin
           if not Assigned(LTCPProtoDetected) then  
             LUDPProtoDetected := FListProtolsUDPDetected.GetListByIDProtoDetected(FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger);
 
+          LStream.Clear;
           LStream.Seek(0, soBeginning);
           TBlobField(FFDQuerySession.FieldByName('PACKET_DATA')).SaveToStream(LStream);
           LPacketSize := LStream.Size;
-          GetMem(LPacketData, LPacketSize);
-          Try
-            LStream.Seek(0, soBeginning);
-            LStream.ReadBuffer(LPacketData^, LPacketSize);
-            LPayLoad     := nil;
-            LPayloadSize := 0;
-            if FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger = DETECT_PROTO_TCP then
-               LPayLoad := TWPcapProtocolBaseTCP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeDummy)
+          if LPacketSize > 1 then
+          begin
+            GetMem(LPacketData, LPacketSize);
+            Try
 
-            else if FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger = DETECT_PROTO_UDP then
-               LPayLoad := TWPcapProtocolBaseUDP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeDummy)
-            else if Assigned(LTCPProtoDetected) then            
-              LPayLoad    := LTCPProtoDetected.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal)
-            else if Assigned(LUDPProtoDetected) then
-              LPayLoad    := LUDPProtoDetected.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal); 
-            if (LPayLoad <> nil) and (LPayloadSize > 0) then
-              LFileRaw.WriteBuffer(LPayLoad^, LPayloadSize);
-        
-           if LSizeTotal > LFileRaw.Size then
-              FFDQuerySession.Next
-           else break;
+              LStream.Seek(0, soBeginning);
+              LStream.ReadBuffer(LPacketData^, LPacketSize);
+              LPayLoad     := nil;
+              LPayloadSize := 0;
+              if FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger = DETECT_PROTO_TCP then
+                 LPayLoad := TWPcapProtocolBaseTCP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeDummy)
+
+              else if FFDQuerySession.FieldByName('PROTO_DETECT').AsInteger = DETECT_PROTO_UDP then
+                 LPayLoad := TWPcapProtocolBaseUDP.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeDummy)
+              else if Assigned(LTCPProtoDetected) then            
+                LPayLoad    := LTCPProtoDetected.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal)
+              else if Assigned(LUDPProtoDetected) then
+                LPayLoad    := LUDPProtoDetected.GetPayLoad(LPacketData,LPacketSize,LPayloadSize,LSizeTotal); 
+              if (LPayLoad <> nil) and (LPayloadSize > 0) then
+                LFileRaw.WriteBuffer(LPayLoad^, LPayloadSize);
+
            
-          Finally
-            FreeMem(LPacketData)
-          End;
+            Finally
+              FreeMem(LPacketData)
+            End;
+          end;
+        
+          if LSizeTotal > LFileRaw.Size then
+            FFDQuerySession.Next
+          else break;          
         end;
         Result := True;
       Finally
@@ -990,11 +990,7 @@ begin
   FFDQueryInsert.Params.ArraySize := FMaxInsertCache;  
 end;
 
-procedure TWPcapDBSqLitePacket.DoLog(const aFunctionName,aDescription: String; aLevel: TWpcapLvlLog);
-begin
-  if Assigned(FOnLog) then
-    FOnLog(aFunctionName,aDescription,aLevel)
-end;
+
 
 procedure TWPcapDBSqLitePacket.ResetCounterIntsert;
 begin
