@@ -112,10 +112,10 @@ begin
   try
     while Assigned(LAdapterList) do
     begin
-      LCard.GUID        := LAdapterList^.GUID;
-      LCard.description := LAdapterList^.description;
+      LCard.GUID        := String(LAdapterList^.GUID);
+      LCard.description := String(LAdapterList^.description);
       LCard.flags       := LAdapterList^.flags;
-      LCard.name        := GetAdapterNameFromGUID(LAdapterList^.GUID);
+      LCard.name        := GetAdapterNameFromGUID(LCard.GUID);
       
       // get ip and mask
       if pcap_lookupnet(LAdapterList^.GUID, Lnetp, Lmaskp, LErrBuffer) = -1 then

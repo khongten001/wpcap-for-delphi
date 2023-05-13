@@ -4,7 +4,7 @@ object FormRecording: TFormRecording
   BorderStyle = bsDialog
   Caption = 'Recording module'
   ClientHeight = 691
-  ClientWidth = 1091
+  ClientWidth = 1151
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -19,20 +19,19 @@ object FormRecording: TFormRecording
   PixelsPerInch = 96
   TextHeight = 13
   object dxNavBar1: TdxNavBar
-    Left = 1051
+    Left = 892
     Top = 0
-    Width = 40
+    Width = 259
     Height = 691
     Align = alRight
     ActiveGroupIndex = 0
     TabOrder = 0
     ViewReal = 15
     OptionsBehavior.NavigationPane.Collapsible = True
-    OptionsBehavior.NavigationPane.Collapsed = True
     OptionsView.Common.ShowGroupCaptions = False
     OptionsView.NavigationPane.ShowActiveGroupCaptionWhenCollapsed = True
     OptionsView.NavigationPane.ShowOverflowPanel = False
-    OriginalWidth = 259
+    ExplicitLeft = 1051
     object dxNavBar1Group1: TdxNavBarGroup
       Caption = 'Options'
       SelectedLinkIndex = -1
@@ -43,10 +42,10 @@ object FormRecording: TFormRecording
       Links = <>
     end
     object dxNavBar1Group1Control: TdxNavBarGroupControl
-      Left = 0
-      Top = 0
-      Width = 40
-      Height = 691
+      Left = 1
+      Top = 30
+      Width = 257
+      Height = 660
       Caption = 'dxNavBar1Group1Control'
       TabOrder = 0
       UseStyle = True
@@ -60,6 +59,7 @@ object FormRecording: TFormRecording
         Caption = 'Time out(ms)'
         Properties.Alignment.Vert = taVCenter
         Transparent = True
+        ExplicitWidth = 34
         AnchorY = 12
       end
       object sTimeOutMs: TcxSpinEdit
@@ -75,22 +75,25 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 1
         Value = 1000
-        Width = 34
+        ExplicitWidth = 34
+        Width = 251
       end
       object cxLabel5: TcxLabel
         AlignWithMargins = True
         Left = 3
-        Top = 53
+        Top = 153
         Align = alTop
         Caption = 'Max size packet(bytes)'
         Properties.Alignment.Vert = taVCenter
         Transparent = True
-        AnchorY = 62
+        ExplicitTop = 53
+        ExplicitWidth = 34
+        AnchorY = 162
       end
       object sMaxSizePacket: TcxSpinEdit
         AlignWithMargins = True
         Left = 3
-        Top = 76
+        Top = 176
         Align = alTop
         Properties.Alignment.Horz = taRightJustify
         Properties.Increment = 500.000000000000000000
@@ -101,23 +104,26 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 3
         Value = 65535
-        Width = 34
+        ExplicitTop = 76
+        ExplicitWidth = 34
+        Width = 251
       end
       object ChkEnabledStopRecording: TcxCheckBox
         Left = 0
-        Top = 100
+        Top = 200
         Align = alTop
         Caption = 'Stop recordin at:'
         Properties.OnEditValueChanged = ChkEnabledStopRecordingPropertiesEditValueChanged
         Style.TransparentBorder = False
         TabOrder = 4
         Transparent = True
-        ExplicitWidth = 121
+        ExplicitTop = 100
+        ExplicitWidth = 40
       end
       object tStopRecordingTime: TcxTimeEdit
         AlignWithMargins = True
         Left = 3
-        Top = 124
+        Top = 223
         Align = alTop
         Properties.Alignment.Horz = taRightJustify
         Properties.Circular = True
@@ -127,7 +133,63 @@ object FormRecording: TFormRecording
         Properties.SpinButtons.ShowFastButtons = True
         TabOrder = 5
         ExplicitTop = 123
-        Width = 34
+        ExplicitWidth = 34
+        Width = 251
+      end
+      object cxLabel6: TcxLabel
+        AlignWithMargins = True
+        Left = 3
+        Top = 53
+        Align = alTop
+        Caption = 'Max size PCAP file (MB)'
+        Properties.Alignment.Vert = taVCenter
+        Transparent = True
+        AnchorY = 62
+      end
+      object sMaxMBPcapFile: TcxSpinEdit
+        AlignWithMargins = True
+        Left = 3
+        Top = 76
+        Align = alTop
+        Properties.Alignment.Horz = taRightJustify
+        Properties.LargeIncrement = 5.000000000000000000
+        Properties.MaxValue = 1024.000000000000000000
+        Properties.MinValue = 2.000000000000000000
+        Properties.SpinButtons.Position = sbpHorzLeftRight
+        Properties.SpinButtons.ShowFastButtons = True
+        TabOrder = 7
+        Value = 50
+        ExplicitLeft = -6
+        ExplicitTop = 57
+        Width = 251
+      end
+      object cxLabel7: TcxLabel
+        AlignWithMargins = True
+        Left = 3
+        Top = 103
+        Align = alTop
+        Caption = 'Max minute in PCAP file'
+        Properties.Alignment.Vert = taVCenter
+        Transparent = True
+        ExplicitLeft = 5
+        ExplicitTop = 126
+        AnchorY = 112
+      end
+      object sMaxMinPcapFile: TcxSpinEdit
+        AlignWithMargins = True
+        Left = 3
+        Top = 126
+        Align = alTop
+        Properties.Alignment.Horz = taRightJustify
+        Properties.MaxValue = 1440.000000000000000000
+        Properties.MinValue = 2.000000000000000000
+        Properties.SpinButtons.Position = sbpHorzLeftRight
+        Properties.SpinButtons.ShowFastButtons = True
+        TabOrder = 9
+        Value = 5
+        ExplicitLeft = 5
+        ExplicitTop = 149
+        Width = 251
       end
     end
   end
@@ -137,18 +199,20 @@ object FormRecording: TFormRecording
     Align = alClient
     Caption = 'cxGroupBox4'
     TabOrder = 1
+    ExplicitWidth = 1051
     Height = 691
-    Width = 1051
+    Width = 892
     object cxGroupBox1: TcxGroupBox
       Left = 4
       Top = 632
       Align = alBottom
       PanelStyle.Active = True
       TabOrder = 0
+      ExplicitWidth = 1043
       Height = 43
-      Width = 1043
+      Width = 884
       object BCancel: TcxButton
-        Left = 928
+        Left = 769
         Top = 4
         Width = 111
         Height = 35
@@ -159,9 +223,10 @@ object FormRecording: TFormRecording
         OptionsImage.ImageIndex = 2
         OptionsImage.Images = cxImageList1
         TabOrder = 0
+        ExplicitLeft = 928
       end
       object BEndRecording: TcxButton
-        Left = 817
+        Left = 658
         Top = 4
         Width = 111
         Height = 35
@@ -173,9 +238,10 @@ object FormRecording: TFormRecording
         OptionsImage.Images = cxImageList1
         TabOrder = 1
         OnClick = BEndRecordingClick
+        ExplicitLeft = 817
       end
       object BStartRecording: TcxButton
-        Left = 706
+        Left = 547
         Top = 4
         Width = 111
         Height = 35
@@ -185,6 +251,7 @@ object FormRecording: TFormRecording
         OptionsImage.Images = cxImageList1
         TabOrder = 2
         OnClick = BStartRecordingClick
+        ExplicitLeft = 706
       end
       object cxLabel1: TcxLabel
         Left = 4
@@ -192,18 +259,19 @@ object FormRecording: TFormRecording
         Align = alClient
         Properties.Alignment.Vert = taVCenter
         Transparent = True
+        ExplicitWidth = 702
         AnchorY = 22
       end
     end
-    object cxGroupBox2: TcxGroupBox
+    object PFileConfig: TcxGroupBox
       Left = 4
       Top = 16
       Align = alTop
       PanelStyle.Active = True
       TabOrder = 1
-      ExplicitTop = -9
+      ExplicitWidth = 1043
       Height = 43
-      Width = 1043
+      Width = 884
       object EPathDB: TcxButtonEdit
         AlignWithMargins = True
         Left = 86
@@ -219,8 +287,8 @@ object FormRecording: TFormRecording
         Properties.Images = cxImageList1
         Properties.OnButtonClick = EPathDBPropertiesButtonClick
         TabOrder = 0
-        ExplicitHeight = 21
-        Width = 783
+        ExplicitWidth = 783
+        Width = 634
       end
       object cxLabel3: TcxLabel
         AlignWithMargins = True
@@ -234,7 +302,7 @@ object FormRecording: TFormRecording
       end
       object TSfileDumb: TdxToggleSwitch
         AlignWithMargins = True
-        Left = 875
+        Left = 726
         Top = 7
         Align = alRight
         Caption = 'Save dump file'
@@ -242,18 +310,18 @@ object FormRecording: TFormRecording
         Style.TransparentBorder = False
         TabOrder = 2
         Transparent = True
-        ExplicitHeight = 21
+        ExplicitLeft = 875
       end
     end
-    object cxGroupBox3: TcxGroupBox
+    object PWinPcapFilter: TcxGroupBox
       Left = 4
       Top = 59
       Align = alTop
       PanelStyle.Active = True
       TabOrder = 2
-      ExplicitTop = 34
+      ExplicitWidth = 1043
       Height = 43
-      Width = 1043
+      Width = 884
       object cxLabel2: TcxLabel
         AlignWithMargins = True
         Left = 7
@@ -274,14 +342,14 @@ object FormRecording: TFormRecording
         Properties.OnValidate = EFilterPropertiesValidate
         ShowHint = True
         TabOrder = 1
-        ExplicitHeight = 21
-        Width = 909
+        ExplicitWidth = 909
+        Width = 750
       end
     end
     object ListInterface: TcxTreeList
       Left = 4
       Top = 102
-      Width = 1043
+      Width = 884
       Height = 530
       Align = alClient
       Bands = <
@@ -301,6 +369,7 @@ object FormRecording: TFormRecording
       OptionsView.ShowRoot = False
       ScrollbarAnnotations.CustomAnnotations = <>
       TabOrder = 3
+      ExplicitWidth = 1043
       Data = {
         00000500DF0000000F00000044617461436F6E74726F6C6C6572310500000012
         000000546378537472696E6756616C7565547970651200000054637853747269
@@ -311,7 +380,7 @@ object FormRecording: TFormRecording
         000008000000000000000000FFFFFFFFFFFFFFFFFFFFFFFF1A0C1002000000}
       object ListInterfaceColumnNAME: TcxTreeListColumn
         Caption.Text = 'Simple name'
-        Width = 233
+        Width = 218
         Position.ColIndex = 0
         Position.RowIndex = 0
         Position.BandIndex = 0
@@ -320,7 +389,7 @@ object FormRecording: TFormRecording
       end
       object ListInterfaceColumGUID: TcxTreeListColumn
         Caption.Text = 'GUID'
-        Width = 283
+        Width = 313
         Position.ColIndex = 1
         Position.RowIndex = 0
         Position.BandIndex = 0
@@ -329,7 +398,7 @@ object FormRecording: TFormRecording
       end
       object ListInterfaceCOMMENT: TcxTreeListColumn
         Caption.Text = 'Comment'
-        Width = 197
+        Width = 178
         Position.ColIndex = 2
         Position.RowIndex = 0
         Position.BandIndex = 0
@@ -340,7 +409,7 @@ object FormRecording: TFormRecording
         BestFitMaxWidth = 40
         Caption.Text = 'Promisc'
         DataBinding.ValueType = 'Boolean'
-        Width = 43
+        Width = 49
         Position.ColIndex = 4
         Position.RowIndex = 0
         Position.BandIndex = 0
@@ -349,7 +418,7 @@ object FormRecording: TFormRecording
       end
       object ListInterfaceColumPROMISC: TcxTreeListColumn
         Caption.Text = 'IP'
-        Width = 110
+        Width = 124
         Position.ColIndex = 3
         Position.RowIndex = 0
         Position.BandIndex = 0

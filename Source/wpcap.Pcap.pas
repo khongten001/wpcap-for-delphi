@@ -85,6 +85,7 @@ type
   protected
     FFilename               : string;
     FFilter                 : string;  
+    FByteAnalyzed           : Int64;    
     FOwner                  : TObject;
     Procedure DoCreate;
     ///<summary>
@@ -144,7 +145,7 @@ type
     /// Flag that determines if the thread should be aborted
     ///</summary>
     ///<returns>True if should be aborted; otherwise, False</returns>
-    Property Abort                    : Boolean                 read FAbort;
+    Property Aborted                  : Boolean                 read FAbort;
 
     ///<summary>
     /// Event triggered when there is a callback error
@@ -201,11 +202,17 @@ type
     FTimeoutMs              : Integer;
     FMaxSizePacket          : Integer;
     FFrameNumber            : Integer;
+    FCountFile              : Integer;
+    FMaxMBPcapFile          : Integer;
+    FStartPcapFile          : TDateTime;
+    FMaxMinPcapFile         : Integer;    
     FTimeRecoStop           : TTime;  
     FTimeRecCheck           : TDatetime;
+    FPcapDumper             : ppcap_dumper_t;
     FPCapRT                 : Ppcap_t;    
     FDataLink               : Integer;   
-    FListLabelByLevel       : TListLabelByLevel;   
+    FListLabelByLevel       : TListLabelByLevel;
+
   protected
     ///<summary>
     /// Overrides the Execute method from the parent class to start capturing real-time packets
@@ -225,8 +232,17 @@ type
     ///<param name="aSavePcapDump">Save PCAP dump flag</param>
     ///<param name="aTimeoutMs">Capture timeout in milliseconds</param>
     ///<param name="aMaxSizePacket">Maximum size of packets to capture</param>
+    ///<param name="aMaxMBPcapFile">Maximum size of PCAP file </param>
+    ///<param name="aMaxMinPcapFile">Maximum time interval in PCAP file</param>   
+    ///<param name="aMaxMBPcapFile">Maximum size of PCAP file </param>
+    ///<param name="aMaxMinPcapFile">Maximum time interval in PCAP file</param>   
     ///<param name="aTimeRecoStop">Time to stop capturing packets</param>  
-    constructor Create(const aOwner: TObject; const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean; aTimeoutMs: Integer = 1000; aMaxSizePacket: Integer = MAX_PACKET_SIZE; aTimeRecoStop: TTime = 0);  
+    constructor Create(const aOwner: TObject; const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean; 
+                      aTimeoutMs: Integer = 1000; 
+                      aMaxSizePacket: Integer = MAX_PACKET_SIZE; 
+                      aMaxMBPcapFile: Integer = 50;
+                      aMaxMinPcapFile: Integer = 5;                      
+                      aTimeRecoStop: TTime = 0);  
     
     ///<summary>
     /// Destroys the instance of the TPCAPCaptureRT class and cleans up resources
@@ -234,12 +250,14 @@ type
     destructor Destroy; override;
 
     procedure IncFrameNumber;
-
+    procedure CheckNewDumpFile;
     {Property}
     Property PCapRT           : Ppcap_t           read FPCapRT; 
     property DataLink         : Integer           read FDataLink;
     property ListLabelByLevel : TListLabelByLevel read FListLabelByLevel;
     property FrameNumber      : Integer           read FFrameNumber       write FFrameNumber;
+    Property SavePcapDump     : Boolean           read FSavePcapDump;
+    property PcapDumper       : ppcap_dumper_t    read FPcapDumper;
   end;
 
   ///<summary>
@@ -372,6 +390,8 @@ type
                                           aPromisc,aSevePcapDump:Boolean;
                                           aTimeOutMs:Integer=1000;
                                           aMaxSizePakcet:Integer = MAX_PACKET_SIZE;
+                                          aMaxMBPcapFile: Integer = 50;
+                                          aMaxMinPcapFile: Integer = 5;
                                           aTimeRecoStop : TTime = 0); 
     
     ///  <summary>
@@ -385,7 +405,7 @@ type
     ///  </param>
     procedure SavePacketListToPcapFile(aPacketList: TList<PTPacketToDump>; aFilename: String);
     
-    property Abort                    : Boolean                    read FAbort                     write SetAbort;
+    property Aborted                  : Boolean                    read FAbort                     write SetAbort;
     property ThreadCaptureRT          : TPCAPCaptureRT             read FThreadCaptureRT;
     
     {Event}
@@ -441,12 +461,14 @@ var PacketBuffer     : TBytes;
     LSkypPacket      : Boolean;
     LAnonymize       : Boolean;
     LNewMacSrc       : TWpcapMacAddress;
-    LNewMacDst       : TWpcapMacAddress;        
+    LNewMacDst       : TWpcapMacAddress;  
+    RTThread         : TPCAPCaptureRT;
 begin
   if Assigned(aPacketData) then
   begin
-    LPacketLen  := wpcapntohs(aHeader^.len);
-    TPCAPCaptureRT(aUser).DoProgress(-1,LPacketLen); 
+    RTThread   := TPCAPCaptureRT(aUser);
+    LPacketLen := aHeader^.caplen;
+
     new(aNewHeader);
     Try
       aNewHeader.ts     := aHeader.ts;
@@ -457,32 +479,44 @@ begin
       
       if RemovePendingBytesFromPacketData(PacketBuffer,LPacketLen) then
         SetLength(PacketBuffer,LPacketLen);
-      TPCAPCaptureRT(aUser).IncFrameNumber;
+        
+      RTThread.DoProgress(-1,LPacketLen);
+               
+      aNewHeader.len := aHeader.len;
+      RTThread.IncFrameNumber;
       LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],
-                              TPCAPCaptureRT(aUser).FrameNumber,
+                              RTThread.FrameNumber,
                               aNewHeader,nil,
-                              TPCAPCaptureRT(aUser).ListLabelByLevel,
-                              TPCAPCaptureRT(aUser).OnLog,
-                              TPCAPCaptureRT(aUser).FlowInfoList,
-                              TPCAPCaptureRT(aUser).GetNewFlowID);
+                              RTThread.ListLabelByLevel,
+                              RTThread.OnLog,
+                              RTThread.FlowInfoList,
+                              RTThread.GetNewFlowID);
       
       if Assigned(LTInternalPacket) then
       begin
         Try
           LSkypPacket := false;
           LAnonymize  := True;
-          TPCAPCaptureRT(aUser).DoEthMacFound(LTInternalPacket,LSkypPacket,LAnonymize,LNewMacSrc,LNewMacDst);
+          RTThread.DoEthMacFound(LTInternalPacket,LSkypPacket,LAnonymize,LNewMacSrc,LNewMacDst);
 
           if not LSkypPacket then
           begin
-            TPCAPCaptureRT(aUser).DoIpFound(LTInternalPacket,LSkypPacket);
+            RTThread.DoIpFound(LTInternalPacket,LSkypPacket);
 
             if not LSkypPacket then
-              TPCAPCaptureRT(aUser).DoProtocolFound(LTInternalPacket,LSkypPacket);
+              RTThread.DoProtocolFound(LTInternalPacket,LSkypPacket);
              
-            if not LSkypPacket then             
-              TPCAPCaptureRT(aUser).DoPacket(LTInternalPacket);
-          end;
+            if not LSkypPacket then       
+            begin      
+              RTThread.DoPacket(LTInternalPacket);
+              if RTThread.SavePcapDump then              
+              begin
+                if LTInternalPacket.PacketSize > 0 then               
+                  pcap_dump(RTThread.PcapDumper, aNewHeader, LTInternalPacket.PacketData);              
+                RTThread.CheckNewDumpFile                
+              end;
+            end;
+          end;          
         finally
           Dispose(LTInternalPacket)
         end; 
@@ -492,7 +526,7 @@ begin
     End;
   end;
   
-  if ( TPCAPCaptureRT(aUser).Abort) or 
+  if ( TPCAPCaptureRT(aUser).Aborted) or 
       ( ( TPCAPCaptureRT(aUser).FTimeRecCheck>0 ) and (Now> TPCAPCaptureRT(aUser).FTimeRecCheck) ) 
   then
     pcap_breakloop(TPCAPCaptureRT(aUser).PCapRT);                             
@@ -523,17 +557,10 @@ begin
     LLikLayersSize               := 0;
 
     LEthParser.InternalPacket(aPacketData,LLen,FIANADictionary,Result,LLikLayersSize); 
-
-    if LLikLayersSize > 0 then
-    begin
-      {Free Memory}
-      FreeMem(Result.PacketData,LLikLayersSize);
-      Result.PacketData  := aPacketData;
-      Result.PacketSize  := LLen;
-    end;
   
     Result.RAW_Text := BufferToASCII(aPacketData,LLen);
     LListDetail     := TListHeaderString.Create;
+
     Try
 
       LAdditionalParameters.TCP.Retrasmission         := False;
@@ -550,7 +577,7 @@ begin
       LAdditionalParameters.FrameNumber               := aFrameNumber;
       LAdditionalParameters.PacketDate                := Result.PacketDate;
      
-      if LEthParser.HeaderToString(aPacketData,LLen,0,LListDetail,True,@LAdditionalParameters) then 
+      if LEthParser.HeaderToString(Result.PacketData,Result.PacketSize,0,LListDetail,True,@LAdditionalParameters) then 
       begin         
         Result.AdditionalInfo.SequenceNumber    := LAdditionalParameters.SequenceNumber;
         Result.AdditionalInfo.TCP               := LAdditionalParameters.TCP;
@@ -566,6 +593,14 @@ begin
     Finally
       FreeAndNil(LListDetail);
     End;
+
+    if LLikLayersSize > 0 then
+    begin
+      {Free Memory}
+      FreeMem(Result.PacketData,LLikLayersSize);
+      Result.PacketData  := aPacketData;
+      Result.PacketSize  := LLen;
+    end;    
 
     Result.IsMalformed                 := LEthParser.IsMalformed;
     Result.IP.SrcGeoIP.ASNumber        := String.Empty;
@@ -617,6 +652,8 @@ procedure TPCAPUtils.AnalyzePCAPRealtime( const aFilename, aFilter,aInterfaceNam
                                                 aPromisc,aSevePcapDump:Boolean;
                                                 aTimeOutMs:Integer=1000;
                                                 aMaxSizePakcet:Integer = MAX_PACKET_SIZE;
+                                                aMaxMBPcapFile: Integer = 50;
+                                                aMaxMinPcapFile: Integer = 5;
                                                 aTimeRecoStop : TTime = 0 
                                              );
 begin
@@ -657,7 +694,8 @@ begin
     Exit;
   end;  
 
-  FThreadCaptureRT                          := TPCAPCaptureRT.Create(self,aFilename, aFilter,aInterfaceName,aIP,aPromisc,aSevePcapDump,aTimeOutMs,aMaxSizePakcet,aTimeRecoStop);
+  FThreadCaptureRT                          := TPCAPCaptureRT.Create(self,aFilename,aFilter,aInterfaceName,aIP,aPromisc,aSevePcapDump,
+                                                  aTimeOutMs,aMaxSizePakcet,aMaxMBPcapFile,aMaxMinPcapFile,aTimeRecoStop);
   FThreadCaptureRT.OnPCAPCallBackError      := FOnPCAPCallBackError; 
   FThreadCaptureRT.OnPCAPCallBackProgress   := FOnPCAPCallBackProgress;
   FThreadCaptureRT.OnPCAPCallBackPacket     := FOnPCAPCallBackPacket; 
@@ -794,6 +832,7 @@ end;
 
 procedure TThreadPcap.DoProgress(aTotalSize,aCurrentSize:Int64);
 begin
+  Inc(FByteAnalyzed,aCurrentSize);
   TThread.Synchronize(nil,
     procedure
     begin    
@@ -883,6 +922,7 @@ end;
 procedure TThreadPcap.DoCreate;
 begin
   FFlowInfoList  := TFlowInfoList.Create;
+  FByteAnalyzed  := 0;
 end;
 
 destructor TThreadPcap.Destroy;
@@ -895,7 +935,12 @@ begin
 end;
 
 {TPCAPCaptureRT}
-constructor TPCAPCaptureRT.Create(const aOwner: Tobject;const aFilename, aFilter, aInterfaceName,aIP: string; aPromisc, aSavePcapDump: Boolean; aTimeoutMs,aMaxSizePacket: Integer; aTimeRecoStop: TTime);
+constructor TPCAPCaptureRT.Create(const aOwner: TObject; const aFilename, aFilter, aInterfaceName, aIP: string; aPromisc, aSavePcapDump: Boolean; 
+                                  aTimeoutMs: Integer = 1000; 
+                                  aMaxSizePacket: Integer = MAX_PACKET_SIZE; 
+                                  aMaxMBPcapFile: Integer = 50;
+                                  aMaxMinPcapFile: Integer = 5;                      
+                                  aTimeRecoStop: TTime = 0);  
 begin
   inherited Create(True);
   FFilename         := aFilename;
@@ -907,6 +952,8 @@ begin
   FSavePcapDump     := aSavePcapDump;
   FTimeoutMs        := aTimeoutMs;
   FMaxSizePacket    := aMaxSizePacket;
+  FMaxMBPcapFile    := aMaxMBPcapFile;
+  FMaxMinPcapFile   := aMaxMinPcapFile;
   FTimeRecoStop     := aTimeRecoStop;
   FAbort            := False;
   FListLabelByLevel := TListLabelByLevel.Create;
@@ -919,13 +966,44 @@ begin
   inherited;
 end;
 
+Procedure TPCAPCaptureRT.CheckNewDumpFile;
+begin
+  // Open the PCAP file for writing
+  if FSavePcapDump then    
+  begin
+
+    if Assigned(FPcapDumper) then
+    begin
+      if ( FByteAnalyzed >= ( FMaxMBPcapFile * 1024 * 1024)) or
+         ( MinutesBetween(Now,FStartPcapFile) >= FMaxMinPcapFile) then
+      begin
+        FByteAnalyzed  := 0;
+        FStartPcapFile := Now;
+        pcap_dump_close(FPcapDumper);
+        FPcapDumper := nil;
+      end;
+    end;
+    
+    if FPcapDumper = nil then
+    begin
+      FPcapDumper := pcap_dump_open(FPcapRT, PAnsiChar( AnsiString( ChangeFileExt( FFilename, Format('_%d.pcap',[FCountFile]) ) ) ) );
+      Inc(FCountFile);
+      if FPcapDumper = nil then
+      begin
+        DoError(FFilename,Format('Failed to open PCAP dump %s',[string(pcap_geterr(FPcapRT))]));
+        Exit;
+      end;      
+    end;
+  end;
+end;
+
 procedure TPCAPCaptureRT.Execute;
 var Lerrbuf      : array[0..PCAP_ERRBUF_SIZE-1] of AnsiChar;
-    LPcapDumper  : ppcap_dumper_t;
+
     LLoopResult  : Integer;
 begin
   inherited;
-  LPcapDumper   := nil;
+  FPcapDumper   := nil;
   FTimeRecCheck := 0;
   FFrameNumber  := 0;
   if FTimeRecoStop > 0 then
@@ -937,6 +1015,8 @@ begin
   end;
 
   FlowInfoList.Clear;
+  FCountFile     := 1;
+  FStartPcapFile := Now;
   
   // Open the network adapter for capturing
   FPcapRT := pcap_open_live(PAnsiChar(AnsiString(FInterfaceName)), FMaxSizePacket, ifthen(FPromisc,1,0), FTimeOutMs, Lerrbuf);
@@ -947,17 +1027,7 @@ begin
   end;
   
   Try          
-    // Open the PCAP file for writing
-    if FSavePcapDump then    
-    begin
-      LPcapDumper := pcap_dump_open(FPcapRT, PAnsiChar(AnsiString(ChangeFileExt(FFilename,'.pcap'))));
-
-      if LPcapDumper = nil then
-      begin
-        DoError(FFilename,Format('Failed to open PCAP dump %s',[string(pcap_geterr(FPcapRT))]));
-        Exit;
-      end;      
-    end;
+    CheckNewDumpFile;
 
     Try        
       //5mb todo by parameter???
@@ -970,16 +1040,22 @@ begin
       // Set the packet filter if one was provided
       if not CheckWPcapFilter(FPcapRT,FFilename,FFilter,FIP,DoError) then exit;
 
-      FDataLink  := pcap_datalink(FPCapRT);
-      
-      if pcap_set_datalink(FPCapRT,FDataLink) = -1 then
+      if pcap_set_datalink(FPCapRT,DLT_EN10MB) = -1 then
       begin
-        DoError(FFilename,Format('Failed to set datalink %s',[string(pcap_geterr(FPcapRT))]));
+        DoError(FFilename,Format('Failed to set datalink [%d] error [%s]',[FDataLink,string(pcap_geterr(FPcapRT))]));
         exit;      
       end;
 
+      FDataLink  := pcap_datalink(FPCapRT);
+
+      if FDataLink <> DLT_EN10MB then
+      begin
+        DoError(FFilename,Format('Device doesn''t provide Ethernet headers - not supported , DataLink [%d]',[FDataLink]));
+        exit;      
+      end;   
+      
       // Start capturing packets and writing them to the output file
-      LLoopResult := pcap_loop(FPcapRT, -1, @PacketHandlerRealtime, PAnsiChar(Self));
+      LLoopResult := pcap_loop(FPcapRT, -1, @PacketHandlerRealtime, Pbyte(Self));
       case LLoopResult  of
         0 :; //Cnt end
        -1 : DoError(FFilename,Format('pcap_loop ended because of an error %s',[string(pcap_geterr(FPcapRT))])); 
@@ -989,8 +1065,8 @@ begin
       end;
     Finally
       // Close the output file and the network adapter
-      if FSavePcapDump then     
-        pcap_dump_close(LPcapDumper);
+      if FSavePcapDump and Assigned(FPcapDumper) then     
+        pcap_dump_close(FPcapDumper);
     End;        
   Finally
     pcap_close(FPcapRT);

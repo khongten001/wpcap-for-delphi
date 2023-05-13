@@ -35,8 +35,6 @@ uses
   Variants, wpcap.IANA.Dbport, winsock2, system.Classes;
 
 type  
-
-
   // This structure contains three fields:
   //
   // DestAddr : 6 byte array containing destination MAC address
@@ -112,7 +110,7 @@ type
     /// This function returns a Boolean value indicating whether the packet is a valid Ethernet packet and fills out an internal Ethernet record. 
     //It takes a pointer to the packet data, an integer representing the size of the packet, and a pointer to an internal Ethernet record as parameters, and returns a Boolean value indicating whether the packet is a valid Ethernet packet.
     /// </summary>
-    class function InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const  aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=true): Boolean; static;
+    class function InternalPacket(const aPacketData: PByte; const aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const  aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=true): Boolean; static;
 
     /// <summary>
     /// This function returns the IP class type for the packet (IPv4 or IPv6). 
@@ -272,11 +270,12 @@ end;
 class function TWpcapEthHeader.HeaderEthSize(const aPacketData: PByte;aPacketSize: Integer): Word;
 var LHeader  : PETHHdr;
 begin
-  Result  := SizeOf(TETHHdr);
+  // ethernet headers are always exactly 14 bytes
+  Result  := SIZE_ETHERNET;
   LHeader := HeaderEth(aPacketData,aPacketSize);
 
   case  wpcapntohs(LHeader.EtherType)  of      
-      ETH_P_PPP_SES: Inc(Result,SizeOf(TPPPoE_Session)) 
+    ETH_P_PPP_SES: Inc(Result,SizeOf(TPPPoE_Session)) 
   end;
 end;
 
@@ -305,8 +304,8 @@ begin
         AListDetail.Add(AddHeaderInfo(aStartLevel,String.Empty,'Raw data',NUlL,nil,0))                
       else
       begin       
-        AListDetail.Add(AddHeaderInfo(aStartLevel,'ETH','Ethernet II',Format('Src: %s, Dst %s',[LInternalPacket.Eth.SrcAddr,LInternalPacket.Eth.DestAddr]),PByte(LHeader),SizeOf(TETHHdr)));      
-        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Length','Header length:',SizeOf(TETHHdr),nil,0));   
+        AListDetail.Add(AddHeaderInfo(aStartLevel,'ETH','Ethernet II',Format('Src: %s, Dst %s',[LInternalPacket.Eth.SrcAddr,LInternalPacket.Eth.DestAddr]),PByte(LHeader),SIZE_ETHERNET));      
+        AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Length','Header length:',SIZE_ETHERNET,nil,0));   
         AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Destination','Destination:',LInternalPacket.Eth.DestAddr,@LHeader.DestAddr,SizeOf(LHeader.DestAddr)));      
         AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Source','Source:',LInternalPacket.Eth.SrcAddr,@LHeader.SrcAddr,SizeOf(LHeader.SrcAddr)));      
         AListDetail.Add(AddHeaderInfo(aStartLevel+1,'ETH.Type','Type:',LInternalPacket.Eth.Acronym,@LHeader.EtherType,SizeOf(LHeader.EtherType),LInternalPacket.Eth.EtherType));   
@@ -365,7 +364,7 @@ begin
             exit;
           end;
           
-          LHeaderPPPSes := PTPPPoE_Session(aInternalPacket.PacketData+ SizeOf(TETHHdr));
+          LHeaderPPPSes := PTPPPoE_Session(aInternalPacket.PacketData+ SIZE_ETHERNET);
           
           AListDetail.Add(AddHeaderInfo(aStartLevel,'PPP_SES','PPP-over-Ethernet',null,PByte(LHeaderPPPSes),SizeOf(TPPPoE_Session)));      
 
@@ -431,7 +430,7 @@ begin
       end;    
 end;
 
-class function TWpcapEthHeader.InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=True): Boolean;
+class function TWpcapEthHeader.InternalPacket(const aPacketData: PByte; const aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=True): Boolean;
 var LPETHHdr      : PETHHdr;  
     LNewData      : PByte;
     LNewSize      : Integer;
@@ -466,15 +465,12 @@ begin
   aInternalPacket.AdditionalInfo.Info                 := String.Empty;
   aInternalPacket.AdditionalInfo.EnrichmentPresent    := False;
   aInternalPacket.AdditionalInfo.ContentExt           := String.Empty;
-  aInternalPacket.AdditionalInfo.CompressType         := -1;  
-  
+  aInternalPacket.AdditionalInfo.CompressType         := -1;    
   LPETHHdr                                            := HeaderEth(aPacketData,aPacketSize);
   
   if not Assigned(LPETHHdr) then exit;
 
   aInternalPacket.Eth.EtherType := wpcapntohs(LPETHHdr.EtherType);
-  aInternalPacket.Eth.SrcAddr   := MACAddrToStr(LPETHHdr.SrcAddr);
-  aInternalPacket.Eth.DestAddr  := MACAddrToStr(LPETHHdr.DestAddr);  
   aInternalPacket.Eth.Acronym   := GetEthAcronymName(aInternalPacket.Eth.EtherType);
   
   if aLogging then  
@@ -485,6 +481,9 @@ begin
     InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
     exit;
   end;
+
+  aInternalPacket.Eth.SrcAddr   := MACAddrToStr(LPETHHdr.SrcAddr);
+  aInternalPacket.Eth.DestAddr  := MACAddrToStr(LPETHHdr.DestAddr);    
 
   case aInternalPacket.Eth.EtherType of    
     ETH_P_IP,  
@@ -618,18 +617,18 @@ begin
 
         if LEthType <> 0 then
         begin
-          LPETHHdr := HeaderEth(aPacketData,aPacketSize);
-          aLikLayersSize := SizeOf(TETHHdr);
+          LPETHHdr       := HeaderEth(aPacketData,aPacketSize);
+          aLikLayersSize := SIZE_ETHERNET;
           New(LPETHHdrNEw);
-          Move(LPETHHdr^,LPETHHdrNEw^,SizeOf(TETHHdr));
+          Move(LPETHHdr^,LPETHHdrNEw^,SIZE_ETHERNET);
           LPETHHdrNEw.EtherType :=  LEthType;
 
           aNewSize := aPacketSize - SizeOf(TPPPoE_Session)+ SizeOf(LP2PProtocol);
           inc(LDataPos,SizeOf(LP2PProtocol));
         
           GetMem(aNewData,aNewSize); 
-          Move( (aPacketData+LDataPos)^, (aNewData + SizeOf(TETHHdr))^, aNewSize-SizeOf(TETHHdr));
-          Move(LPETHHdrNEw^, aNewData^, SizeOf(TETHHdr));
+          Move( (aPacketData+LDataPos)^, (aNewData + SIZE_ETHERNET)^, aNewSize-SIZE_ETHERNET);
+          Move(LPETHHdrNEw^, aNewData^, SIZE_ETHERNET);
           Result := true;
         end;            
       end;    
@@ -640,7 +639,7 @@ begin
 
       if LEthType <> 0 then
       begin
-        aLikLayersSize := SizeOf(TETHHdr)-LOffSet;
+        aLikLayersSize := SIZE_ETHERNET-LOffSet;
         New(LPETHHdr);
         for i := 0 to 5 do
           LPETHHdr.SrcAddr[i] := ord('A');   
@@ -652,8 +651,8 @@ begin
         LPETHHdr.EtherType  := ntohs(LEthType);
         
         GetMem(aNewData,aNewSize); 
-        Move( (aPacketData+LOffSet)^, (aNewData + SizeOf(TETHHdr))^, aPacketSize-LOffSet);
-        Move(LPETHHdr^, aNewData^, SizeOf(TETHHdr));
+        Move( (aPacketData+LOffSet)^, (aNewData + SIZE_ETHERNET)^, aPacketSize-LOffSet);
+        Move(LPETHHdr^, aNewData^, SIZE_ETHERNET);
         Result := True;
       end
      end 
@@ -695,7 +694,7 @@ end;
 
 class function TWpcapEthHeader.isValidSize(aPacketSize: Integer): Boolean;
 begin
-  result := aPacketSize > SizeOf(TETHHdr);
+  result := aPacketSize > SIZE_ETHERNET;
 end;
 
 class function TWpcapEthHeader.IpClassType(const aPacketData: PByte;aPacketSize: Integer): TIpClaseType;

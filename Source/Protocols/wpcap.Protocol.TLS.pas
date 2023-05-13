@@ -1172,7 +1172,7 @@ begin
     Dec(LOffset,LContectLen);
         
     Inc(LOffset, SizeOf(TTLSRecordHeader));
-    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentType',[AcronymName]), 'Content type', LContentStr, @LRecord.ContentType, SizeOf(LRecord.ContentType), LRecord.ContentType ));
+    AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentType',[AcronymName]), 'Content type', LContentStr, @LRecord.ContentType, SizeOf(LRecord.ContentType), LRecord.ContentType ));  
     LindexVersion := AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.Version',[AcronymName]), 'Version', TLSVersionToString(LRecord.ProtocolVersion), @LRecord.ProtocolVersion, SizeOf(LRecord.ProtocolVersion), LRecord.ProtocolVersion ));    
     AListDetail.Add(AddHeaderInfo(aStartLevel+2, Format('%s.ContentLen',[AcronymName]), 'Content length',SizeToStr(LContectLen), @LRecord.Length, SizeOf(LRecord.Length),LContectLen ));  
 

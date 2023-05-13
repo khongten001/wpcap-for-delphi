@@ -193,7 +193,7 @@ end;
 procedure TPCAP2SQLite.SetAbort(const Value: Boolean);
 begin
   if Assigned(FPcapUtils) then
-    FPcapUtils.Abort := True;  
+    FPcapUtils.Aborted := True;  
 end;
 
 constructor TPCAP2SQLite.Create;

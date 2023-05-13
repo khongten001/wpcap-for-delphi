@@ -278,7 +278,18 @@ function pcap_open_live(const device: PAnsiChar; snaplen: Integer;promisc: Integ
 /// <returns>
 /// The number of packets that were captured, or -1 if an error occurred.
 /// </returns>
-function pcap_loop(pcap: Ppcap_t; cnt: Integer;aCallback: pcap_handler; user: PansiChar): Integer; cdecl; external 'wpcap.dll';
+function pcap_loop(pcap: Ppcap_t; cnt: Integer;aCallback: pcap_handler; user: PByte): Integer; cdecl; external 'wpcap.dll';
+
+/// <summary>
+/// Captures and processes a certain number of network packets from the internal buffer of a pcap_t object, using a callback function to handle each packet.
+/// </summary>
+/// <param name="p">A pointer to a pcap_t object, which represents the network interface or offline file to capture from.</param>
+/// <param name="cnt">The maximum number of packets to process. If cnt is negative, all packets in the buffer will be processed.</param>
+/// <param name="callback">A pointer to a function that will be called for each captured packet.</param>
+/// <param name="user">A pointer to user-defined data that will be passed to the callback function.</param>
+/// <returns>The number of packets processed, or -1 on error.</returns>
+function pcap_dispatch(pcap: Ppcap_t; cnt: Integer; aCallback: pcap_handler; user: PByte): Integer; cdecl; external 'wpcap.dll';
+
 
 /// <summary>
 /// Break a packet capture loop.
@@ -390,7 +401,9 @@ function pcap_set_rfmon(p: Ppcap_t; rfmon: Integer): Integer; cdecl; external 'w
 /// Returns 0 on success or -1 on failure.
 ///</returns>
 /// <remarks>
-/// The buffer size specified by this function is used by the driver to store packets received from the network before they are read by the application. If the buffer is too small, packets may be lost. To determine the optimal buffer size for a given network adapter, use the <c>pcap_findalldevs</c> function to enumerate the available adapters and query their capabilities using <c>pcap_snapshot</c> and <c>pcap_list_datalinks</c>.
+/// The buffer size specified by this function is used by the driver to store packets received from the network before they are read by the application. 
+/// If the buffer is too small, packets may be lost. 
+/// To determine the optimal buffer size for a given network adapter, use the <c>pcap_findalldevs</c> function to enumerate the available adapters and query their capabilities using <c>pcap_snapshot</c> and <c>pcap_list_datalinks</c>.
 ///</remarks>
 function pcap_set_buffer_size(p: Ppcap_t; size: Integer): Integer; external 'wpcap.dll';
 

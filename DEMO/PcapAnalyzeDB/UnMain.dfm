@@ -826,7 +826,6 @@ object FormMain: TFormMain
       Hint = 'Copy'
       Visible = ivAlways
       ImageIndex = 4
-      ShortCut = 16451
       OnClick = BCopyTreeListClick
     end
     object BFilterByLabel: TdxBarButton

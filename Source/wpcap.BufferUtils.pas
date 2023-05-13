@@ -103,8 +103,8 @@ implementation
 function RemovePendingBytesFromPacketData(aPacketData: TBytes; var aPacketLen: Word): Boolean;
 var LIdx : Integer;
 begin
-  Result := False;
-                                        
+  Result     := False;
+  aPacketLen := High(aPacketData)+1;                                     
   for LIdx := Low(aPacketData) to High(aPacketData) do
   begin
     if aPacketData[LIdx] = $0D then
@@ -115,7 +115,7 @@ begin
         Break;
       end;
     end;
-  end;
+  end;  
 end;
 
 
@@ -190,7 +190,8 @@ begin
    if aBinStr[length(aBinStr)] = 'B' then Delete(aBinStr,length(aBinStr),1);
    LRetVar := 0;
    for i := 1 to length(aBinStr) do begin
-     if not (aBinStr[i] in ['0','1']) then begin
+     if not CharInSet(aBinStr[i],['0','1']) then 
+     begin
         LRetVar := 0;
         Break;
      end;

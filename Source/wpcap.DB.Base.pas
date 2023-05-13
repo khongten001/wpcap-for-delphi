@@ -296,6 +296,12 @@ end;
 procedure TWPcapDBBase.CreateDatabase(const aFilename, aUserName,aPassword,aTNS: String);
 var LTable   : TFdScript;
 begin
+  if FileExists(aFilename) and not DeleteFile(aFilename) then
+  begin
+    DoLog('TWPcapDBBase.CreateDatabase',Format('Unable delete file [%s] error [%s]',[aFilename,SysErrorMessage(GetLastError)]),TWLLError);
+    raise Exception.CreateFmt('Unable delete file [%s] error [%s]',[aFilename,SysErrorMessage(GetLastError)]);
+  end;
+
   if not OpenDatabase(aFilename,aUserName,aPassword,aTNS) then 
     raise Exception.CreateFmt('Unable connect to database %s',[aFilename]);
 

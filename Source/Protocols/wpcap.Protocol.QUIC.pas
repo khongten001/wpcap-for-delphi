@@ -80,20 +80,20 @@ type
       QUIC_LPT_0RTT      = 1;
       QUIC_LPT_HANDSHAKE = 2;
       QUIC_LPT_RETRY     = 3; 
-      QUIC_SHORT_PACKET  = 4;    
+      QUIC_SHORT_PACKET  = 4;  
+    {$HINTS OFF}
     class function IsValidVersion(aVersion: UInt32): Boolean; static;
+    class function IsQuicValidByMax(aVersion: UInt32;aMaxVersion: Uint8): Boolean; static;
+    class function AjustPacketNUmber(aMaxPktNum, aPktNum: UInt64; n: UInt64 ): UInt64; static;
+    class function GetMaxPacketNumber(aLongType: Byte;aFirstByte: Uint8): Uint64; static;  
+    {$HINTS ON}    
     class function IsValidVersionGQUIC(aVersion: UInt32): Boolean; static;
     class function IsValidVersionQUIC(aVersion: UInt32): Boolean; static;
     class function GetDecimalQUICVersion(version: UInt32): Byte; static;
-    class function IsQuicValidByMax(aVersion: UInt32;
-      aMaxVersion: Uint8): Boolean; static;
     class function GetLogPacketType(aFirst_byte: Uint8; aVersion: UInt32): Byte; static;
     class function LogPacketTypeToString(const aLogPacketType: Byte): String; static;
     class function VersionToString(const aVersion: Uint32): String; static;
-    class function AjustPacketNUmber(aMaxPktNum, aPktNum: UInt64;
-      n: UInt64 ): UInt64; static;
-    class function GetMaxPacketNumber(aLongType: Byte;
-      aFirstByte: Uint8): Uint64; static;  // big endian representation of 0xfaceb00e
+
   public
     /// <summary>
     /// Returns the default QUIC port (110).
@@ -227,8 +227,8 @@ begin
       V_T050      : Result := 'Google T050';     
       V_T051      : Result := 'Google T051';     
       V_MVFST_22  : Result := 'Facebook MVFST_22'; 
-      V_MVFST_27  : Result := 'Facebook MVFST_27'; 
-      V_MVFST_EXP : Result := 'Facebook MVFST_EXP'; 
+    //  V_MVFST_27  : Result := 'Facebook MVFST_27'; 
+    //  V_MVFST_EXP : Result := 'Facebook MVFST_EXP'; 
   else
     Result := Format('Unknown %d',[aVersion])  
   end;
@@ -303,15 +303,15 @@ var LUDPPayLoad      : PByte;
     LIsLogHeader     : Boolean;
     LFixedBit        : Boolean;
     LSpinBit         : Boolean;
-    LFirst_byte_bit4 : Boolean;
+  //  LFirst_byte_bit4 : Boolean;
     LFirst_byte_bit5 : Boolean;
     LFirst_byte_bit6 : Boolean;
-    LFirst_byte_bit7 : Boolean;
+//    LFirst_byte_bit7 : Boolean;
     LFirst_byte_bit8 : Boolean;    
     LVersion         : Uint32;
-    LDestConnectionID: TIdBytes;
+//    LDestConnectionID: TIdBytes;
     LUint8           : Uint8;
-    Linitial_salt    : TBytes;    
+ //   Linitial_salt    : TBytes;    
     LCurrentPos      : Integer;
     LLongType        : Byte;
     LFirstByte       : Uint8;
@@ -371,10 +371,10 @@ begin
   LIsLogHeader       := GetBitValue(LFirstByte,1)=1;
   LFixedBit          := GetBitValue(LFirstByte,2)=1;
   LSpinBit           := GetBitValue(LFirstByte,3)=1;
-  LFirst_byte_bit4   := GetBitValue(LFirstByte,4)=1;
+  //LFirst_byte_bit4   := GetBitValue(LFirstByte,4)=1;  //FOR Payload decryp
   LFirst_byte_bit5   := GetBitValue(LFirstByte,5)=1;
   LFirst_byte_bit6   := GetBitValue(LFirstByte,6)=1;
-  LFirst_byte_bit7   := GetBitValue(LFirstByte,7)=1;
+ // LFirst_byte_bit7   := GetBitValue(LFirstByte,7)=1;  //FOR Payload decryp
   LFirst_byte_bit8   := GetBitValue(LFirstByte,8)=1;
   LVersion           := 0; 
 

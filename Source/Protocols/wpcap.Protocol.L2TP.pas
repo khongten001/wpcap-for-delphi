@@ -1357,7 +1357,7 @@ begin
     AVTYPE_PROXY_AUTHEN_TYPE   :
       begin
         LMessageType := ParserUint16Value(aPayloadData,aStartLevel,aPayloadSize,LLabel,LAvpTypeCaption,AListDetail,AuthenTypeToString,true,aCurrentPos);      
-        //TODO use for next AVP
+        //TODO use for next AVP   
       end;
 
     AVTYPE_CALL_STATUS_AVPS    :

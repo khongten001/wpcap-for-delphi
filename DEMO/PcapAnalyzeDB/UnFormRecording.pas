@@ -24,11 +24,11 @@ type
     BEndRecording: TcxButton;
     BStartRecording: TcxButton;
     cxLabel1: TcxLabel;
-    cxGroupBox2: TcxGroupBox;
+    PFileConfig: TcxGroupBox;
     EPathDB: TcxButtonEdit;
     cxLabel3: TcxLabel;
     TSfileDumb: TdxToggleSwitch;
-    cxGroupBox3: TcxGroupBox;
+    PWinPcapFilter: TcxGroupBox;
     cxLabel2: TcxLabel;
     EFilter: TcxTextEdit;
     dxNavBar1Group1: TdxNavBarGroup;
@@ -45,6 +45,10 @@ type
     ListInterfaceCOMMENT: TcxTreeListColumn;
     ListInterfaceColumIP: TcxTreeListColumn;
     ListInterfaceColumPROMISC: TcxTreeListColumn;
+    cxLabel6: TcxLabel;
+    sMaxMBPcapFile: TcxSpinEdit;
+    cxLabel7: TcxLabel;
+    sMaxMinPcapFile: TcxSpinEdit;
     procedure FormCreate(Sender: TObject);
     procedure BStartRecordingClick(Sender: TObject);
     procedure EFilterPropertiesValidate(Sender: TObject;
@@ -199,13 +203,23 @@ begin
         FPCAPUtils.OnPCAPCallBackError      := DoPCAPCallBackError;
         FPCAPUtils.OnPCAPCallBackProgress   := DoPCAPCallBackProgress;
         FPCAPUtils.OnPCAPCallBeforeBackEnd  := DoPCAPCallBeforeBackEnd;
-        FPCAPUtils.OnPCAPCallBackPacket     := DoPCAPCallBackPacket;
-        FPCAPUtils.OnPCAPCallBeforeBackEnd  := nil;                
+        FPCAPUtils.OnPCAPCallBackPacket     := DoPCAPCallBackPacket;             
         FPCAPUtils.AnalyzePCAPRealtime(FCurrentDBName,EFilter.Text,
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumGUID.Position.ColIndex],
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumIP.Position.ColIndex],                                     
                                        ListInterface.AbsoluteItems[LIndex].Values[ListInterfaceColumPROMISC.Position.ColIndex],TSfileDumb.Checked,
-                                       sTimeOutMs.Value,sMaxSizePacket.Value,LStopRecTime);          
+                                       sTimeOutMs.Value,sMaxSizePacket.Value,sMaxMBPcapFile.Value,sMaxMinPcapFile.Value,LStopRecTime);  
+                                       
+        EPathDB.Enabled                 := False;
+        TSfileDumb.Enabled              := False;
+        EFilter.Enabled                 := False; 
+        sTimeOutMs.Enabled              := False; 
+        sMaxSizePacket.Enabled          := False; 
+        sMaxMBPcapFile.Enabled          := False; 
+        sMaxMinPcapFile.Enabled         := False; 
+        tStopRecordingTime.Enabled      := False;                                         
+        ChkEnabledStopRecording.Enabled := False;                                                 
+        ListInterface.Enabled           := False;      
     except on E: Exception do
       DoPCAPCallBackError(CurrentDBName,Format('Exception analyze PCAP %s',[E.Message]));
     end;    
@@ -271,7 +285,7 @@ begin
   if Assigned(FPCAPUtils) then
   begin
     FWPcapDBSqLite.FlushArrayInsert;
-    FPCAPUtils.Abort := True;
+    FPCAPUtils.Aborted := True;
     while Assigned(FPCAPUtils.ThreadCaptureRT) do
       Application.ProcessMessages;
   end;

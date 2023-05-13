@@ -318,13 +318,15 @@ type
                                                                                 /* 220 to 254    Spare. For future use.    */
     *)
     
+    {$HINTS OFF}    
+    class function CauseToString_vals(const aCause: Uint8): String;
+    {$HINTS ON}    
     class function ProtoTypeToString(const aProtoType: Uint8): String;
     class function MessageTypeToString(const  aMsgType: Uint8): String;
     class function IETypeToString(const  aIEType: Uint8): string;
     class procedure ParserIEType(var aCurrentPos: Integer; aMaxLen,aStartLevel: Integer; const aPayload: PByte;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters); static;
     class function IETypeToLabel(const aIEType: Uint8): string;
     class function CauseToString(const aCause: Uint8): String;
-    class function CauseToString_vals(const aCause: Uint8): String;
     class function RatToString(const aRat: Uint8): String;
     class function InterfaceTypeToString(const aType: Uint8): String;
     class function PdnTypeToString(const aType: Uint8): String;

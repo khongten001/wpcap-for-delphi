@@ -47,8 +47,8 @@ const
   PCAP_ERRBUF_SIZE = 256;
 
 
-
-  DLT_EN10MB = 1; // Ethernet (10Mb) link type identifier
+  SIZE_ETHERNET = 14; //ethernet headers are always exactly 14 bytes 
+  DLT_EN10MB    = 1;  // Ethernet (10Mb) link type identifier
   
   MAX_PACKET_SIZE = 65535; // Maximum size of the packets to be captured
 

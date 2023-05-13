@@ -57,7 +57,9 @@ type
       FTP_OP_NAK    = 5;     // Negative acknowledgment
       FTP_OP_RESEND = 6;     // Resend packet
       FTP_OP_ABORT  = 7;
+    {$HINTS OFF}      
     class function ResponseToString(const aResponse: Uint16): String; static;     // Abort transfer  
+    {$HINTS ON}
   protected
   public
 

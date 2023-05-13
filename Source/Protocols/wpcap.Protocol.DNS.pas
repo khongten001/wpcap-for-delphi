@@ -548,6 +548,7 @@ begin
   LCompressPos     := aOffset;
   LStartOffset     := aOffset;
   LastOffset       := -1;
+  LLabelLen        := 0;
   LIsExtendedLabel := False;
   aTotalNameLen    := -1;
   while True do 
@@ -641,7 +642,7 @@ begin
       begin
         SetLength(Result,LNewLen+1);  
         Move(aPacket[aOffset], Result[Length(Result) - LLen + 1], LLen);
-        Result := StringReplace(Result,#0,'',[rfReplaceAll]) ;
+        Result := System.AnsiStrings.StringReplace(Result,#0,'',[rfReplaceAll]) ;
       end;
     end
     else
@@ -651,7 +652,7 @@ begin
       begin
         SetLength(Result, Length(Result) + LLabelLen + 1);
         Move(aPacket[aOffset], Result[Length(Result) - LLabelLen - 1], LLabelLen + 1);
-        Result := StringReplace(Result, #0, '', [rfReplaceAll]);
+        Result := System.AnsiStrings.StringReplace(Result, #0, '', [rfReplaceAll]);
       end;
     end;    
 
@@ -948,7 +949,7 @@ begin
           LIPAddr  := wpcapntohl(PUint32(@LDataRss[LInternalOffset])^);
           LCaption := 'A address';
           LRssName := AnsiString(MakeUint32IntoIPv4AddressInternal(LIPAddr));
-          if IsValidPublicIP(LRssName) then
+          if IsValidPublicIP(String(LRssName)) then
           begin
             LEnrichment                       := wetIP;          
             aAdditionalParameters.EnrichmentPresent := True;
@@ -973,7 +974,7 @@ begin
           LIPv6Addr  := PTIPv6AddrBytes(@LDataRss[LInternalOffset])^;
           LCaption   := 'AAAA address';
           LRssName   := AnsiString(IPv6AddressToString(LIPv6Addr));
-          if IsValidPublicIP(LRssName) then
+          if IsValidPublicIP(String(LRssName)) then
           begin
             LEnrichment                       := wetIP;          
             aAdditionalParameters.EnrichmentPresent := True;

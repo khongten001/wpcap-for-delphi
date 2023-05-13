@@ -300,7 +300,7 @@ begin
     if LFirstChar <> '.' then
     begin
       LSecondChar := aName[i+1];
-      Result      := Result + Chr(((Ord(LFirstChar)-Ord('A')) shl 4) + ((Ord(LSecondChar)-Ord('A')) and $F));
+      Result      := Result + AnsiChar(((Ord(LFirstChar)-Ord('A')) shl 4) + ((Ord(LSecondChar)-Ord('A')) and $F));
       i           := i + 2;
     end
     else
