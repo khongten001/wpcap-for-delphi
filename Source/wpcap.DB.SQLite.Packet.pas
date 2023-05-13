@@ -229,7 +229,7 @@ implementation
 function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
 {$REGION 'SQL Scrit'}
     CONST SQL_TABLE = 'CREATE TABLE PACKETS (                          '+sLineBreak+
-                      '  NPACKET INTEGER PRIMARY KEY AUTOINCREMENT,    '+sLineBreak+ {Packet}
+                      '  NPACKET INTEGER PRIMARY KEY ,                 '+sLineBreak+ {Packet}
                       '  PACKET_LEN INTEGER,                           '+sLineBreak+
                       '  PACKET_DATE TEXT,                             '+sLineBreak+
                       '  IS_MALFORMED INTEGER,                         '+sLineBreak+                        
@@ -320,7 +320,7 @@ end;
 procedure TWPcapDBSqLitePacket.InitConnection;
 {$REGION 'SQL insert}
 CONST SQL_INSERT = 'INSERT INTO PACKETS(                                                                     ' +slineBreak+
-                   '  PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL, IS_MALFORMED,  ' +sLineBreak+   {Packet}
+                   '  NPACKET,PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL, IS_MALFORMED,  ' +sLineBreak+   {Packet}
                    '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
                    '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
                    '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
@@ -333,7 +333,7 @@ CONST SQL_INSERT = 'INSERT INTO PACKETS(                                        
                    '  PACKET_INFO                                                                            ' +sLineBreak+
                    ' )                                                                                       ' +sLineBreak+   
                    'VALUES                                                                                   ' +slineBreak+
-                   ' (:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,:pIsMalformed ,                            ' +sLineBreak+   {Packet}
+                   ' (:pID,:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,:pIsMalformed ,                            ' +sLineBreak+   {Packet}
                    '  :pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIsIPV6,                                         ' +sLineBreak+   {EThernet}
                    '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
                    '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
@@ -362,7 +362,8 @@ begin
   FFDQueryInsert                                            := TFDQuery.Create(nil);
   FFDQueryInsert.Connection                                 := FConnection;    
   FFDQueryInsert.SQL.Text                                   := SQL_INSERT; 
-  FFDQueryInsert.ParamByName('pLen').DataType               := ftInteger; {Packet}
+  FFDQueryInsert.ParamByName('pID').DataType                := ftInteger; {Packet}
+  FFDQueryInsert.ParamByName('pLen').DataType               := ftInteger; 
   FFDQueryInsert.ParamByName('pDate').DataType              := ftString; 
   FFDQueryInsert.ParamByName('pIsMalformed').DataType       := ftInteger; 
   FFDQueryInsert.ParamByName('pEthType').DataType           := ftInteger; {EThernet} 
@@ -592,6 +593,8 @@ begin
     Inc(FInsertToArchive);
   end;
   {Packet}
+  FFDQueryInsert.ParamByName('pLen').AsIntegers[FInsertToArchive]         := aInternalPacket.AdditionalInfo.Index;
+
   FFDQueryInsert.ParamByName('pLen').AsIntegers[FInsertToArchive]         := aInternalPacket.PacketSize;
   FFDQueryInsert.ParamByName('pDate').AsStrings[FInsertToArchive]         := DateTimeToStr(aInternalPacket.PacketDate);  
   FFDQueryInsert.ParamByName('pIsMalformed').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.IsMalformed,1,0); 

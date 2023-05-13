@@ -272,7 +272,6 @@ begin
   end;
 end;
 
-
 class function TWPcapProtocolBaseUDP.HeaderToString(const aPacketData: PByte;aPacketSize,aStartLevel: Integer; AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
 var LPUDPHdr     : PUDPHdr;
     LSrcPort     : Uint16;
@@ -300,23 +299,39 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.DstPort',[AcronymName]), 'Destination port:',LDstPort, @(LPUDPHdr.DstPort),SizeOf(LPUDPHdr.DstPort) ));
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Len',[AcronymName]), 'Length:',SizeToStr(UDPPayLoadLength(LPUDPHdr)), @(LPUDPHdr.Length),SizeOf(LPUDPHdr.Length) ));  
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.Checksum',[AcronymName]), 'Checksum:',wpcapntohs(LPUDPHdr.CheckSum), @(LPUDPHdr.CheckSum),SizeOf(LPUDPHdr.CheckSum) ));    
-  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(LSizePayload), nil,0 ));      
+  AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.PayloadLen',[AcronymName]), 'Payload length:',SizeToStr(LSizePayload), nil,0 ));
   aAdditionalParameters.PayLoadSize := LSizePayload;
   Result := True;
 end;
 
 class function TWPcapProtocolBaseUDP.GetPayLoad(const aPacketData: PByte;
   aPacketSize: Integer; var aSize, aSizeTotal: Integer): PByte;
-var LUDPHdr     : PUDPHdr;
+var LUDPHdr        : PUDPHdr;
+    LLikLayersSize : Integer;
+    LCurentPacket  : PByte;
+    LcurrentSize   : Integer;    
 begin
-  Result := nil;
-  aSize  := 0;
-  if not HeaderUDP(aPacketData,aPacketSize,LUDPHdr) then exit;
+  Result        := nil;
+  aSize         := 0;
+  LCurentPacket := nil;
+  
+  if not CheckLinkLayers(GetEthType(aPacketData,aPacketSize),aPacketData,aPacketSize,LCurentPacket,LcurrentSize,LLikLayersSize) then
+  begin
+    LCurentPacket := aPacketData;
+    LcurrentSize  := aPacketSize;    
+  end;
+  
+  try
+    if not HeaderUDP(LCurentPacket,LcurrentSize,LUDPHdr) then exit;
 
-  Result  := GetUDPPayLoad(aPacketData,aPacketSize);
-  aSize   := UDPPayLoadLength(LUDPHdr) - 8;
-  if aSizeTotal = 0 then
-    aSizeTotal := aSize;
+    Result  := GetUDPPayLoad(LCurentPacket,LcurrentSize);
+    aSize   := UDPPayLoadLength(LUDPHdr) - 8;
+    if aSizeTotal = 0 then
+      aSizeTotal := aSize;    
+  Finally
+    if LLikLayersSize > 0 then
+      FreeMem(LCurentPacket,LLikLayersSize);
+  End;
 end;
 
 class function TWPcapProtocolBaseUDP.GetFlowTimeOut: Byte;

@@ -81,11 +81,13 @@ type
      /// </summary>     
     class procedure TryAddSeqActList(aFlowInfo: TFlowInfo;aAdditionalParameters: PTAdditionalParameters; aWinSize: Integer;aCurrentSeq, aCurrentAck: Uint32); static;
 
-     class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog); 
-     class function GetNewFlowID : Integer;   
-     class function GetFlowTimeOut : Byte;virtual;
-     class function GetInfoFlow(const SessionId,aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
-     class procedure UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters); virtual;
+    class procedure DoLog(const aFunctionName,aDescription:String;aLevel: TWpcapLvlLog); 
+    class function GetNewFlowID : Integer;   
+    class function GetFlowTimeOut : Byte;virtual;
+    class function GetInfoFlow(const SessionId,aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
+    class procedure UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters); virtual;
+    class function CheckLinkLayers(const aEthType: Uint16; const aPacketData: Pbyte;const aPacketSize: Integer;out aNewData: Pbyte; out aNewSize,aLikLayersSize: Integer): Boolean;
+    class function GetEthType(const aPacketData: PByte;aPacketSize: Integer):Uint16;
   public
 
     /// <summary>
@@ -131,7 +133,6 @@ type
     {property}
     class property isMalformed            : Boolean         read FisMalformed;
     class property IsFilterMode           : Boolean         read FIsFilterMode    write FIsFilterMode default false;
-
     {event}
     
     /// <summary>
@@ -173,21 +174,22 @@ begin
   LFoundFlow  := GetInfoFlow(aSessionId,aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LFlowInfo);
   if LFoundFlow then
   begin
-    LDeltaMin                            := Abs(MinutesBetween(aAdditionalParameters.PacketDate,LFlowInfo.PacketDate));  
+    LDeltaMin                            := Abs(MinutesBetween(aAdditionalParameters.PacketDate,LFlowInfo.PacketDate)); 
+     
     aAdditionalParameters.SequenceNumber := aCurrentSeq;
-    LFlowInfo.SrcIP                      := aSrcAddr;
-    LFlowInfo.DstIP                      := aDstAddr;        
     LFlowInfo.prevSeqNum                 := aCurrentSeq;
-    LFlowInfo.FirstSeqNum                := aCurrentSeq;
-    LFlowInfo.PacketDate                 := aAdditionalParameters.PacketDate;     
-    
+    LFlowInfo.PacketDate                 := aAdditionalParameters.PacketDate;         
     if ( LDeltaMin > GetFlowTimeOut) then   
     begin
-      LFlowInfo.FLowId  := GetNewFlowID;   
-      LFlowInfo.SeqAckList.Clear;
+      LFlowInfo.Id                  := GetNewFlowID;  
+      LFlowInfo.Compleate           := True; 
+      aAdditionalParameters.FlowID  := LFlowInfo.id;
+      FreeAndNil(LFlowInfo.SeqAckList);
+      FlowInfoList.Remove(LKey);
+      Exit;
     end;
     
-    aAdditionalParameters.FlowID  := LFlowInfo.FLowId;             
+    aAdditionalParameters.FlowID  := LFlowInfo.id;             
     TryAddSeqActList(LFlowInfo,aAdditionalParameters,0,aCurrentSeq, 0);
     FlowInfoList.AddOrSetValue(LKey, LFlowInfo);    
   end
@@ -197,11 +199,12 @@ begin
     LFlowInfo.DstIP                       := aDstAddr;    
     LFlowInfo.prevSeqNum                  := aCurrentSeq;
     LFlowInfo.FirstSeqNum                 := aCurrentSeq;
+    LFlowInfo.FirstIndex                  := aAdditionalParameters.FrameNumber;
     LFlowInfo.PacketDate                  := aAdditionalParameters.PacketDate;
-    LFlowInfo.FLowId                      := GetNewFlowID;
+    LFlowInfo.Id                          := GetNewFlowID;
     LFlowInfo.SeqAckList                  := TSeqAckList.Create;
     {AddInfo}
-    aAdditionalParameters.FlowID          := LFlowInfo.FLowId;
+    aAdditionalParameters.FlowID          := LFlowInfo.Id;
     aAdditionalParameters.SequenceNumber  := aCurrentSeq;
     
     TryAddSeqActList(LFlowInfo,aAdditionalParameters,0,aCurrentSeq, 0);    
@@ -272,9 +275,9 @@ begin
   Result  := SizeOf(TETHHdr);
   LHeader := HeaderEth(aPacketData,aPacketSize);
 
-    case  wpcapntohs(LHeader.EtherType)  of      
+  case  wpcapntohs(LHeader.EtherType)  of      
       ETH_P_PPP_SES: Inc(Result,SizeOf(TPPPoE_Session)) 
-    end;
+  end;
 end;
 
 class function TWpcapEthHeader.HeaderToString(const aPacketData: PByte; aPacketSize,aStartLevel: Integer;AListDetail: TListHeaderString;aIsFilterMode:Boolean;aAdditionalParameters: PTAdditionalParameters): Boolean;
@@ -396,7 +399,7 @@ begin
         ETH_P_DEC,      
         ETH_P_DNA_DL,   
         ETH_P_DNA_RC,   
-        ETH_P_DNA_RT,   
+        ETH_P_DNA_RT,
         ETH_P_LAT,      
         ETH_P_DIAG,     
         ETH_P_CUST,     
@@ -429,15 +432,9 @@ begin
 end;
 
 class function TWpcapEthHeader.InternalPacket(const aPacketData: PByte; aPacketSize: Integer;aIANADictionary:TDictionary<String, TIANARow>;const aInternalPacket: PTInternalPacket;Out aLikLayersSize:Integer;aLogging:Boolean=True): Boolean;
-var LPETHHdr      : PETHHdr;
-    I             : Integer;    
+var LPETHHdr      : PETHHdr;  
+    LNewData      : PByte;
     LNewSize      : Integer;
-    LNewData      : Pbyte;
-    LEthType      : Uint16;
-    LOffSet       : Integer;
-    LP2PProtocol  : Uint16;
-    LPETHHdrNEw   : PETHHdr;
-    LDataPos      : Integer;
 begin
   Result                                              := False;
   aInternalPacket.PacketData                          := aPacketData;
@@ -481,7 +478,14 @@ begin
   aInternalPacket.Eth.Acronym   := GetEthAcronymName(aInternalPacket.Eth.EtherType);
   
   if aLogging then  
-    DoLog('TWpcapEthHeader.InternalPacket',Format('EtherType [ %d --> %s ]',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLInfo);     
+    DoLog('TWpcapEthHeader.InternalPacket',Format('EtherType [ %d --> %s ]',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLInfo);  
+
+  if CheckLinkLayers(aInternalPacket.Eth.EtherType,aPacketData,aPacketSize,LNewData,LNewSize,aLikLayersSize) then
+  begin
+    InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
+    exit;
+  end;
+
   case aInternalPacket.Eth.EtherType of    
     ETH_P_IP,  
     ETH_P_IPV6  : 
@@ -493,34 +497,8 @@ begin
  
     ETH_P_PPP_SES :
       begin
-        LEthType     := 0;      
-        LDataPos     := HeaderEthSize(aInternalPacket.PacketData,aInternalPacket.PacketSize);
-        LP2PProtocol := wpcapntohs(PUint16(aInternalPacket.PacketData + LDataPos)^); 
-        case LP2PProtocol of
-          33  : 
-                begin
-                  if aLogging then  
-                    DoLog('TWpcapEthHeader.InternalPacket','Found link PPP-over-Ethernet new eth header is IPv4',TWLLInfo);    
-                  LEthType  := ntohs(ETH_P_IP);
-                end;
-          6   : LEthType  := ntohs(ETH_P_IPV6);
-        end;
-
-        if LEthType <> 0 then
-        begin
-          aLikLayersSize := SizeOf(TETHHdr);
-          New(LPETHHdrNEw);
-          Move(LPETHHdr^,LPETHHdrNEw^,SizeOf(TETHHdr));
-          LPETHHdrNEw.EtherType :=  LEthType;
-
-          LNewSize := aPacketSize - SizeOf(TPPPoE_Session)+ SizeOf(LP2PProtocol);
-          inc(LDataPos,SizeOf(LP2PProtocol));
-        
-          GetMem(LNewData,LNewSize); 
-          Move( (aPacketData+LDataPos)^, (LNewData + SizeOf(TETHHdr))^, LNewSize-SizeOf(TETHHdr));
-          Move(LPETHHdrNEw^, LNewData^, SizeOf(TETHHdr));
-          InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
-        end;            
+        if aLogging then               
+          DoLog('TWpcapEthHeader',Format('Ethernet type or link layer [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);                             
       end;
 
     ETH_P_ARP:; //nothing;   
@@ -567,8 +545,98 @@ begin
     
   else           
     begin
+        if aLogging then               
+          DoLog('TWpcapEthHeader',Format('Ethernet type or link layer [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);                 
+    end;
+  end;  
+  Result := True;
+end;
+
+class function TWpcapEthHeader.CheckLinkLayers(const aEthType:Uint16;const aPacketData: Pbyte; const aPacketSize:Integer;out aNewData : Pbyte; out aNewSize : Integer;Out aLikLayersSize:Integer):Boolean;
+var LOffSet       : Integer;
+    LP2PProtocol  : Uint16;
+    LPETHHdrNEw   : PETHHdr;
+    LEthType      : Uint16;
+    LDataPos      : Integer;  
+    LPETHHdr      : PETHHdr; 
+    I             : Integer;      
+begin
+  aLikLayersSize := 0;
+  aNewSize       := 0;
+  aNewData       := nil;
+  Result         := False;
+  case aEthType of
+    ETH_P_ARP,
+    ETH_P_IP,  
+    ETH_P_IPV6,      
+    ETH_P_LOOP,
+    ETH_P_PUP,      
+    ETH_P_PUPAT,             
+    ETH_P_X25,      
+    ETH_P_BPQ,
+    ETH_P_DEC,      
+    ETH_P_DNA_DL,
+    ETH_P_DNA_RC,   
+    ETH_P_DNA_RT,   
+    ETH_P_LAT,      
+    ETH_P_DIAG,     
+    ETH_P_CUST,     
+    ETH_P_SCA,      
+    ETH_P_RARP,     
+    ETH_P_ATALK,    
+    ETH_P_AARP,     
+    ETH_P_8021Q,    
+    ETH_P_IPX,             
+    ETH_P_PAUSE,    
+    ETH_P_SLOW,     
+    ETH_P_WCCP,     
+    ETH_P_PPP_DISC, 
+    ETH_P_MPLS_UC,  
+    ETH_P_ATMMPOA,  
+    ETH_P_LINK_CTL, 
+    ETH_P_ATMFATE,  
+    ETH_P_PAE,      
+    ETH_P_AOE,      
+    ETH_P_8021AD,  
+    ETH_P_TIPC,        
+    ETH_P_IEEE1588, 
+    ETH_P_FCOE,     
+    ETH_P_FIP,      
+    ETH_P_EDSA,     
+    ETH_P_802_3,    
+    ETH_P_AX25,     
+    ETH_P_ALL:;   
+    ETH_P_PPP_SES :
+      begin
+        LEthType     := 0;      
+        LDataPos     := HeaderEthSize(aPacketData,aPacketSize);
+        LP2PProtocol := wpcapntohs(PUint16(aPacketData + LDataPos)^); 
+        case LP2PProtocol of
+          33  : LEthType  := ntohs(ETH_P_IP);
+          6   : LEthType  := ntohs(ETH_P_IPV6);
+        end;
+
+        if LEthType <> 0 then
+        begin
+          LPETHHdr := HeaderEth(aPacketData,aPacketSize);
+          aLikLayersSize := SizeOf(TETHHdr);
+          New(LPETHHdrNEw);
+          Move(LPETHHdr^,LPETHHdrNEw^,SizeOf(TETHHdr));
+          LPETHHdrNEw.EtherType :=  LEthType;
+
+          aNewSize := aPacketSize - SizeOf(TPPPoE_Session)+ SizeOf(LP2PProtocol);
+          inc(LDataPos,SizeOf(LP2PProtocol));
+        
+          GetMem(aNewData,aNewSize); 
+          Move( (aPacketData+LDataPos)^, (aNewData + SizeOf(TETHHdr))^, aNewSize-SizeOf(TETHHdr));
+          Move(LPETHHdrNEw^, aNewData^, SizeOf(TETHHdr));
+          Result := true;
+        end;            
+      end;    
+  else           
+    begin
       {Lik layers type}
-      LEthType := GetIPClassByRawData(aPacketData,LOffSet,aLogging);
+      LEthType := GetIPClassByRawData(aPacketData,LOffSet,False);
 
       if LEthType <> 0 then
       begin
@@ -579,21 +647,17 @@ begin
         for i := 0 to 5 do
           LPETHHdr.DestAddr[i] := ord('M');
 
-        LNewSize := aPacketSize + aLikLayersSize;
+        aNewSize := aPacketSize + aLikLayersSize;
           
         LPETHHdr.EtherType  := ntohs(LEthType);
         
-        GetMem(LNewData,LNewSize); 
-        Move( (aPacketData+LOffSet)^, (LNewData + SizeOf(TETHHdr))^, aPacketSize-LOffSet);
-        Move(LPETHHdr^, LNewData^, SizeOf(TETHHdr));
-        InternalPacket(LNewData,LNewSize,aIANADictionary,aInternalPacket,aLikLayersSize);
+        GetMem(aNewData,aNewSize); 
+        Move( (aPacketData+LOffSet)^, (aNewData + SizeOf(TETHHdr))^, aPacketSize-LOffSet);
+        Move(LPETHHdr^, aNewData^, SizeOf(TETHHdr));
+        Result := True;
       end
-      else
-        if aLogging then               
-          DoLog('TWpcapEthHeader',Format('Ethernet type or link layer [ %d --> %s ] not implemented',[aInternalPacket.Eth.EtherType,aInternalPacket.Eth.Acronym]),TWLLWarning);                 
-    end;
-  end;  
-  Result := True;
+     end 
+  end;
 end;
 
 Class function TWpcapEthHeader.GetIPClassByRawData(aPacketData:PByte;var aoffset:Integer;aLogging:Boolean): Integer;
@@ -707,12 +771,17 @@ begin
       end;
     end;
   end;
-
 end;
 
 class function TWpcapEthHeader.GetFlowTimeOut: Byte;
 begin
   Result := 5;
+end;
+
+class function TWpcapEthHeader.GetEthType(const aPacketData: PByte;
+  aPacketSize: Integer): Uint16;
+begin
+  Result := wpcapntohs(HeaderEth(aPacketData,aPacketSize).EtherType)
 end;
 
 end.

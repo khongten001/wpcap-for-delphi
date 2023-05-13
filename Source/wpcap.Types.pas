@@ -518,24 +518,34 @@ type
   end;
   
   TSeqAckList = Class(TDictionary<string, TSeqAckInfo>) ;
+
+  TFlowTCPInfo = record
+    prevAckNum   : Uint32;
+    NextActNum   : Uint32;
+    FirstAckNum  : Uint32;        
+    TimeStamp    : Integer;
+    prevWinSize  : Uint16;    
+    SYNIndex     : Integer;
+    FINIndex     : Integer;
+
+  end;
   
   TFlowInfo = record
+    Id           : Integer;
     SrcIP        : String;
-    DstIP        : String;
+    DstIP        : String;    
+    TCP          : TFlowTCPInfo;
     prevSeqNum   : Uint32;
-    prevAckNum   : Uint32;
-    prevWinSize  : Uint16;
+    NexSeqNum    : Uint32;
     FirstSeqNum  : Uint32;
-    FirstAckNum  : Uint32;    
-    TCPTimeStamp : Integer;
     SeqAckList   : TSeqAckList;
-    PacketDate   : TDateTime;
-    FLowId       : Integer;
+    PacketDate   : TDateTime; 
+    Compleate    : Boolean;   
+    FirstIndex   : Integer;        
   end;
   PTFlowInfo = ^TFlowInfo;
     
   TFlowInfoList = Class(TDictionary<string, TFlowInfo>);
-
 
   
   TAdditionalParameters = record

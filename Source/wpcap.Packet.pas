@@ -79,6 +79,7 @@ Type
   end;
   
   TAdditionalInfo = record
+    Index             : Integer;
     SequenceNumber    : Uint32;
     TCP               : TTCPParameter;        
     Info              : String;

@@ -136,8 +136,6 @@ type
     /// <param name="aKind">The TCP kind value.</param>
     /// <returns>The representation of the TCP kind value as a string.</returns>
     class function TCPKindToString(const aKind: Uint8): string;
-
-
   protected
     ///<summary>
     /// Updates TCP information.
@@ -257,15 +255,31 @@ uses wpcap.Level.Ip,wpcap.protocol;
 { TWPcapProtocolBaseTCP }
 
 class function TWPcapProtocolBaseTCP.GetPayLoad(const aPacketData: PByte;aPacketSize: Integer; var aSize,aSizeTotal: Integer): PByte;
-var LPTCPHdr : PTCPHdr;
+var LPTCPHdr       : PTCPHdr;
+    LLikLayersSize : Integer;
+    LCurentPacket  : PByte;
+    LcurrentSize   : Integer;    
 begin
-  Result := nil;
-  aSize  := 0;
-  if not HeaderTCP(aPacketData,aPacketSize,LPTCPHdr) then exit;
-  Result := GetTCPPayLoad(aPacketData,aPacketSize);
-  aSize  := TCPPayLoadLength(LPTCPHdr,aPacketData,aPacketSize);
-  if aSizeTotal <= 0 then
-    aSizeTotal := aSize;
+  Result        := nil;
+  aSize         := 0;
+  LCurentPacket := nil;
+  if not CheckLinkLayers(GetEthType(aPacketData,aPacketSize),aPacketData,aPacketSize,LCurentPacket,LcurrentSize,LLikLayersSize) then
+  begin
+    LCurentPacket := aPacketData;
+    LcurrentSize  := aPacketSize;    
+  end;
+  
+  try
+    if not HeaderTCP(LCurentPacket,LcurrentSize,LPTCPHdr) then exit;
+
+    Result := GetTCPPayLoad(LCurentPacket,LcurrentSize);
+    aSize  := TCPPayLoadLength(LPTCPHdr,LCurentPacket,LcurrentSize);
+    if aSizeTotal <= 0 then
+      aSizeTotal := aSize;
+  Finally
+    if LLikLayersSize > 0 then
+      FreeMem(LCurentPacket,LLikLayersSize);
+  End;
 end;
 
 class procedure TWPcapProtocolBaseTCP.UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort,aWinSize: Uint16;aTCPFlags:Uint8; aSeqNum, aAckNum: Uint32;aAdditionalParameters: PTAdditionalParameters);
@@ -308,10 +322,10 @@ var LKey           : string;
         else if aAdditionalParameters.TCP.TimeStamp > -1 then
         begin 
           if (aAdditionalParameters.PayloadSize <= 0 ) then  Exit;     
-          if LFlowInfo.TCPTimeStamp = -1 then Exit;
+          if LFlowInfo.TCP.TimeStamp = -1 then Exit;
          
           // Check TCP Timestamps to identify retransmissions
-          if (aAdditionalParameters.TCP.TimeStamp <= LFlowInfo.TCPTimeStamp ) and ( aSeqNum < LFlowInfo.prevSeqNum) and ( LDeltaMin < GetFlowTimeOut) then  
+          if (aAdditionalParameters.TCP.TimeStamp <= LFlowInfo.TCP.TimeStamp ) and ( aSeqNum < LFlowInfo.prevSeqNum) and ( LDeltaMin < GetFlowTimeOut) then  
           begin 
             aAdditionalParameters.Info              := Format('%s [Retrasmission by Seq and TCP options]',[aAdditionalParameters.Info]);
             aAdditionalParameters.TCP.Retrasmission := True;       {Some false retrasmission}
@@ -331,7 +345,7 @@ var LKey           : string;
     
     end;
 
-    Procedure NewFlowInfo;
+    Procedure NewFlowInfo(IsSYN:Boolean);
     var LFlowId : Integer;
     begin
       LFlowId                                        := GetNewFlowID;
@@ -340,26 +354,37 @@ var LKey           : string;
       aAdditionalParameters.SequenceNumber           := 1;         
       aAdditionalParameters.FlowID                   := LFlowId;
 
-      if FlagRSTorFINPresent then Exit;
-
-      LFlowInfo.SrcIP                      := aSrcAddr;
-      LFlowInfo.DstIP                      := aDstAddr;
-      LFlowInfo.FirstSeqNum                := aSeqNum;
-      LFlowInfo.FirstAckNum                := aAckNum;
-      LFlowInfo.prevSeqNum                 := aSeqNum;
-      LFlowInfo.prevAckNum                 := aAckNum;
-      LFlowInfo.prevWinSize                := aWinSize;
-      LFlowInfo.FLowId                     := LFlowId;
-      LFlowInfo.PacketDate                 := aAdditionalParameters.PacketDate;
+      LFlowInfo.Id               := LFlowId;
+      LFlowInfo.FirstIndex       := aAdditionalParameters.FrameNumber;
+      LFlowInfo.PacketDate       := aAdditionalParameters.PacketDate;
+      LFlowInfo.SrcIP            := aSrcAddr;
+      LFlowInfo.DstIP            := aDstAddr;
+      LFlowInfo.Compleate        := FlagRSTorFINPresent;
+      LFlowInfo.FirstSeqNum      := aSeqNum;
+      LFlowInfo.prevSeqNum       := aSeqNum;            
+      {TODO NextSEQ}
+      LFlowInfo.TCP.FirstAckNum  := aAckNum;      
+      LFlowInfo.TCP.prevAckNum   := aAckNum;
+      LFlowInfo.TCP.prevWinSize  := aWinSize;    
+      if IsSYN then
+        LFlowInfo.TCP.SYNIndex := aAdditionalParameters.FrameNumber;
+        
+      if LFlowInfo.Compleate then
+        LFlowInfo.TCP.FINIndex := aAdditionalParameters.FrameNumber;
+              
+      {TODO next act number}
       if aAdditionalParameters.TCP.TimeStamp > -1 then          
-        LFlowInfo.TCPTimeStamp  := aAdditionalParameters.TCP.TimeStamp;
+        LFlowInfo.TCP.TimeStamp  := aAdditionalParameters.TCP.TimeStamp;
 
       if not Assigned(LFlowInfo.SeqAckList) then      
         LFlowInfo.SeqAckList := TSeqAckList.Create;  
 
       LFlowInfo.SeqAckList.Clear;      
-      TryAddSeqActList(LFlowInfo,aAdditionalParameters,aWinSize, aSeqNum, aAckNum);         
-      FlowInfoList.AddOrSetValue(LKey, LFlowInfo);            
+      TryAddSeqActList(LFlowInfo,aAdditionalParameters,aWinSize, aSeqNum, aAckNum);  
+
+      if Not LFlowInfo.Compleate then 
+        FlowInfoList.AddOrSetValue(LKey, LFlowInfo);
+      {TODO add to compleate list}
     end;
 
 begin
@@ -379,12 +404,15 @@ begin
         begin
           // This is the first packet of a new session, reset previous sequence and acknowledgement numbers
           FlowInfoList.Remove(LKey);
-          NewFlowInfo; 
+          NewFlowInfo(true); 
           Exit;
         end;
-        LFlowInfo.prevSeqNum                 := aSeqNum;
-        LFlowInfo.prevAckNum                 := aAckNum;
-        LFlowInfo.prevWinSize                := aWinSize;     
+        LFlowInfo.prevSeqNum      := aSeqNum;    
+        LFlowInfo.SrcIP           := aSrcAddr;
+        LFlowInfo.DstIP           := aDstAddr;
+        LFlowInfo.TCP.prevAckNum  := aAckNum;
+        LFlowInfo.TCP.prevWinSize := aWinSize;  
+        LFlowInfo.TCP.SYNIndex    := aAdditionalParameters.FrameNumber;
       end
       else // Normal packet with ACK flag set
       begin   
@@ -395,12 +423,12 @@ begin
           begin
             if aSrcAddr = LFlowInfo.SrcIP then
             begin
-              aAdditionalParameters.SequenceNumber       := Max(0,aSeqNum - LFlowInfo.FirstSeqNum)+1;
-              aAdditionalParameters.TCP.AcknowledgmentNumber := Max(0,aAckNum - LFlowInfo.FirstAckNum)+1;            
+              aAdditionalParameters.SequenceNumber           := Max(0,aSeqNum - LFlowInfo.FirstSeqNum)+1;
+              aAdditionalParameters.TCP.AcknowledgmentNumber := Max(0,aAckNum - LFlowInfo.TCP.FirstAckNum)+1;            
             end
             else
             begin
-              aAdditionalParameters.SequenceNumber       := Max(0,aSeqNum - LFlowInfo.FirstAckNum)+1;
+              aAdditionalParameters.SequenceNumber           := Max(0,aSeqNum - LFlowInfo.TCP.FirstAckNum)+1;
               aAdditionalParameters.TCP.AcknowledgmentNumber := Max(0,aAckNum - LFlowInfo.FirstSeqNum)+1;
             end;
           end
@@ -408,13 +436,13 @@ begin
           begin  // New Flow for timeout
             aAdditionalParameters.SequenceNumber           := 1;
             aAdditionalParameters.TCP.AcknowledgmentNumber := 1;
-            LFlowInfo.FLowId                               := GetNewFlowID;
+            LFlowInfo.Id                                   := GetNewFlowID;
           end;
         end;
         
-        LFlowInfo.prevSeqNum  := aSeqNum;
-        LFlowInfo.prevAckNum  := aAckNum;
-        LFlowInfo.prevWinSize := aWinSize;
+        LFlowInfo.prevSeqNum      := aSeqNum;
+        LFlowInfo.TCP.prevAckNum  := aAckNum;
+        LFlowInfo.TCP.prevWinSize := aWinSize;
       end;
     end
     else
@@ -424,10 +452,14 @@ begin
       aAdditionalParameters.TCP.Retrasmission        := False;           
     end;    
     
-    aAdditionalParameters.FlowID := LFlowInfo.FLowId;      
+    aAdditionalParameters.FlowID := LFlowInfo.Id;      
                                                                           
     if FlagRSTorFINPresent or ( LDeltaMin >= GetFlowTimeOut) then
     begin
+      LFlowInfo.Compleate := True;
+      if FlagRSTorFINPresent then
+        LFlowInfo.TCP.FINIndex := aAdditionalParameters.FrameNumber;
+      {Todo add to compleate list}  
       FreeAndNil(LFlowInfo.SeqAckList);    
       FlowInfoList.Remove(LKey);
       exit;
@@ -437,7 +469,7 @@ begin
     FlowInfoList.AddOrSetValue(LKey, LFlowInfo);    
   end
   else
-    NewFlowInfo;
+    NewFlowInfo(( aTCPFlags and TCP_FLAG_ACK > 0 ));
 end;
 
 class function TWPcapProtocolBaseTCP.DefaultPort: Word;
@@ -558,6 +590,7 @@ var LSizeEthAndIP : Word;
     LHeaderV6     : PIpv6Header;      
 begin
   Result        := False;
+
   LSizeEthAndIP := TWpcapIPHeader.EthAndIPHeaderSize(AData,aSize,False);
   // Check if the data size is sufficient for the Ethernet, IP, and TCP headers
   if (aSize < LSizeEthAndIP + SizeOf(TCPHdr)) then Exit;

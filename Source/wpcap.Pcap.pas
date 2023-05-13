@@ -514,10 +514,14 @@ begin
     LEthParser.FlowInfoList   := aFlowInfoList; 
     LEthParser.OnLog          := aLogFunctoin;
     LEthParser.OnGetNewFlowID := aGetNewFlowIDFnc;
+    
     New(Result); 
-    Result.PacketDate                 := UnixToDateTime(aHeader.ts.tv_sec,false);    
-    LLen                              := aHeader.len;
-    LLikLayersSize                    := 0;
+    Result.PacketDate            := UnixToDateTime(aHeader.ts.tv_sec,false);    
+    Result.AdditionalInfo.Index  := aFrameNumber;
+    
+    LLen                         := aHeader.len;
+    LLikLayersSize               := 0;
+
     LEthParser.InternalPacket(aPacketData,LLen,FIANADictionary,Result,LLikLayersSize); 
 
     if LLikLayersSize > 0 then
