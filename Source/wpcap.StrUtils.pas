@@ -68,12 +68,12 @@ function DisplayHexData(aPByteData: PByte; aDataSize: Integer;addInfo:Boolean=Tr
 
 function BufferToASCII(aPByteData: PByte; aDataSize: Integer):AnsiString;
 function LongWordToString(const aValue: LongWord): string;
-function HeaderStringListToXML(const aHeaderStrings: TListHeaderString;out aListLabel:TListLabelByLevel): string;
+function HeaderStringListToXML(const aHeaderStrings: TListHeaderString;out aListLabel:PTListLabelByLevel): string;
 
 implementation
 
 
-function HeaderStringListToXML(const aHeaderStrings: TListHeaderString; out aListLabel: TListLabelByLevel): string;
+function HeaderStringListToXML(const aHeaderStrings: TListHeaderString; out aListLabel: PTListLabelByLevel): string;
 var
   I               : Integer;
   LStringBuilder  : TStringBuilder;

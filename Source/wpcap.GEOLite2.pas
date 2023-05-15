@@ -141,7 +141,7 @@ type
     property OnLog            : TWpcapLog           read FOnLog             write FOnLog;
   end;
 
-
+  PTWpcapGEOLITE = ^TWpcapGEOLITE;
 implementation
 
 function TWpcapGEOLITE.GetSQLScriptDatabaseSchema: String;

@@ -246,7 +246,7 @@ begin
       if IsFilterMode then  
       begin
         TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
-        UpdateFlowInfo(String.Empty,LInternalIP.Src,LInternalIP.Dst,LInternalIP.PortSrc,LInternalIP.PortDst,LInternalHeader.SequenceNumber,aAdditionalParameters);
+        UpdateFlowInfo(String.Empty,LInternalIP.Src,LInternalIP.Dst,LInternalIP.PortSrc,LInternalIP.PortDst,LInternalHeader.SequenceNumber,aAdditionalParameters,False);
       end;
       
       for I := Low(LInternalHeader.CSRC) to High(LInternalHeader.CSRC) do

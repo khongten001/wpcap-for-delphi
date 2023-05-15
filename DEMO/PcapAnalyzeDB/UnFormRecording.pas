@@ -69,7 +69,7 @@ type
     procedure DoPCAPCallBackProgress(aTotalSize, aCurrentSize: Int64);
     procedure DoPCAPCallBackPacket(const aInternalPacket: PTInternalPacket);
     procedure DestroyDatabase;
-    procedure DoPCAPCallBeforeBackEnd(const aFileName: String;aListLabelByLevel: TListLabelByLevel);
+    procedure DoPCAPCallBeforeBackEnd(const aFileName: String;aListLabelByLevel: PTListLabelByLevel;aDNSList: PTDNSRecordDictionary);
     { Private declarations }
   public
     { Public declarations }
@@ -228,9 +228,10 @@ begin
   end;    
 end;
 
-procedure TFormRecording.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
+procedure TFormRecording.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:PTListLabelByLevel;aDNSList: PTDNSRecordDictionary);
 begin
   FWPcapDBSqLite.InsertLabelByLevel(aListLabelByLevel);
+  FWPcapDBSqLite.InsertDNSRecords(aDNSList);
 end;
 
 procedure TFormRecording.DestroyDatabase;

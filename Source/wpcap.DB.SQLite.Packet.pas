@@ -47,14 +47,14 @@ uses
     FFDQueryInsert      : TFDQuery;
     FFDQuerySession     : TFDQuery;
     FFDQueryInsertLabel : TFDQuery;
+    FFDQueryInsertDNS   : TFDQuery;
+    FFDQueryDNSGrid     : TFDQuery;
     FFDQueryLabelList   : TFDQuery;
     FFDUpdateIngnore    : TFDQuery;
     FFDViewUpdate       : TFDUpdateSQL;
     FIngnorePacket      : TList<Integer>;
     FInsertToArchive    : SmallInt;
-    FMaxInsertCache     : SmallInt;    
-
-    
+    FMaxInsertCache     : SmallInt;        
     /// <summary>
     /// Sets the maximum insert cache size.
     /// </summary>
@@ -69,8 +69,10 @@ uses
     /// <param name="aDescription">Returns the description of the retrieved data.</param>
     /// <returns>A boolean value indicating if the operation was successful.</returns>
     Function GetVarArrayByQuery(aQuery:TFdQuery;out aArray : Variant;out aDescription:String):Boolean;
-
-
+    procedure CreateFDQueryPacketGrid;
+    procedure CreateFDQueryDNS;
+    procedure CreateFDQueryRapidFilter;
+    procedure CreateFDQueryInsertPacket;
   protected
 
     /// <summary>
@@ -140,8 +142,12 @@ uses
     /// Inserts distinct labels into database for filter feature
     /// </summary>
     /// <param name="aListLabelByLevel">The list containing the labels to be inserted.</param>      
-    procedure InsertLabelByLevel(const aListLabelByLevel: TListLabelByLevel);
-
+    procedure InsertLabelByLevel(const aListLabelByLevel: PTListLabelByLevel);
+    /// <summary>
+    /// Inserts DNS Resolution into database
+    /// </summary>
+    /// <param name="aDNSList">The list containing the DNS resolution to be inserted.</param>  
+    procedure InsertDNSRecords(const aDNSList: PTDNSRecordDictionary);
     /// <summary>
     /// Retrieves the frame number from the database based on the label passed in.
     /// </summary>
@@ -220,8 +226,10 @@ uses
     /// </summary>    
     property FDQueryLabelList  : TFDQuery     read FFDQueryLabelList    write FFDQueryLabelList; 
 
-  
-      
+    /// <summary>
+    /// The TFDQuery object used for return list of DNS resolution.
+    /// </summary>    
+    property FDQueryDNSGrid  : TFDQuery       read FFDQueryDNSGrid      write FFDQueryDNSGrid; 
   End;
 implementation
 
@@ -232,6 +240,8 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  NPACKET INTEGER PRIMARY KEY ,                 '+sLineBreak+ {Packet}
                       '  PACKET_LEN INTEGER,                           '+sLineBreak+
                       '  PACKET_DATE TEXT,                             '+sLineBreak+
+                      '  DIRECTION INTEGER,                            '+sLineBreak+     
+                      '  FLOW_ID INTEGER,                              '+sLineBreak+                                        
                       '  IS_MALFORMED INTEGER,                         '+sLineBreak+                        
                       '  ETH_TYPE INTEGER,                             '+sLineBreak+ {EThernet}
                       '  ETH_ACRONYM TEXT,                             '+sLineBreak+
@@ -247,8 +257,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  PORT_SRC INTEGER,                             '+sLineBreak+ {TCP/UDP}  
                       '  PORT_DST INTEGER,                             '+sLineBreak+
                       '  IS_RETRASMISSION INTEGER,                     '+sLineBreak+ {TCP Additional}                     
-                      '  SEQ_NUMBER INTEGER,                           '+sLineBreak+ 
-                      '  FLOW_ID INTEGER,                              '+sLineBreak+                                             
+                      '  SEQ_NUMBER INTEGER,                           '+sLineBreak+                                          
                       '  IANA_PROTO TEXT,                              '+sLineBreak+ {IANA}                         
                       '  SRC_ASN TEXT,                                 '+sLineBreak+ {GEOIP SRC}      
                       '  SRC_ORGANIZZATION TEXT,                       '+sLineBreak+       
@@ -271,6 +280,8 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                       '  PACKET_DATA BLOB                              '+sLineBreak+ {Data}
                       ');                                              ';
 
+           SQL_INDEX     = 'CREATE UNIQUE INDEX PACKETS_NPACKET_IDX ON PACKETS (NPACKET);  ';
+           SQL_INDEX_PKT = 'CREATE INDEX PACKETS_FLOW_ID_IDX ON PACKETS (FLOW_ID);  ';
            SQL_DB_METADATA =  'CREATE TABLE %S(                        '+sLineBreak+
                               '  %S TEXT,                              '+sLineBreak+
                               '  %s TEXT                               '+sLineBreak+
@@ -287,7 +298,7 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
            SQL_INDEX_LF_1 = 'CREATE UNIQUE INDEX LABEL_FILTER_IDX ON LABEL_FILTER (ID_LABEL_NAME);  ';
            SQL_INDEX_LF_2 = 'CREATE UNIQUE INDEX LABEL_FILTER_UQ ON LABEL_FILTER (LABEL_NAME,LEVEL);  ';
            
-           SQL_INDEX = 'CREATE UNIQUE INDEX PACKETS_NPACKET_IDX ON PACKETS (NPACKET);  ';
+
 
            SQL_VIEW  = 'CREATE VIEW VST_PACKETS AS                                                               ' +sLineBreak+ 
                        'SELECT                                                                                   ' +sLineBreak+ 
@@ -301,51 +312,37 @@ function TWPcapDBSqLitePacket.GetSQLScriptDatabaseSchema: String;
                        '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
                        '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST} 
                        '  ENRICHMENT_PRESENT,COMPRESSION_TYE,CONTENT_EXT,                                        ' +sLineBreak+   {Others} 
-                       '  NOTE_PACKET,PACKET_INFO                                                                ' +sLineBreak+      
+                       '  NOTE_PACKET,PACKET_INFO,DIRECTION                                                      ' +sLineBreak+      
                        '  FROM PACKETS;';
+
+            SQL_DNS_TABLE = 'CREATE TABLE DNS_RECORDS (        ' +sLineBreak+ 
+                            '  RECORD_ID INTEGER PRIMARY KEY,  ' +sLineBreak+ 
+                            '  IP_ADDRESS TEXT NOT NULL,       ' +sLineBreak+ 
+                            '  HOSTNAME TEXT NOT NULL,         ' +sLineBreak+ 
+                            '  TIMESTAMP TEXT NOT NULL, ' +sLineBreak+ 
+                            '  TTL_SECONDS INTEGER NOT NULL    ' +sLineBreak+ 
+                            ');                                ';
+
+           SQL_INDX_DNS = 'CREATE INDEX IDX_IP_DNS_RECORD ON DNS_RECORDS (IP_ADDRESS); ';
+           
 
 {$ENDREGION}
 begin
   Result := SQL_TABLE            +sLineBreak+
             SQL_INDEX            +sLineBreak+
+            SQL_INDEX_PKT         +sLineBreak+
             SQL_VIEW             +sLineBreak+            
             SQL_DB_LABEL_FILTER  +sLineBreak+
             SQL_INDEX_LF_1       +sLineBreak+
             SQL_INDEX_LF_2       +sLineBreak+
+            SQL_DNS_TABLE        +sLineBreak+
+            SQL_INDX_DNS         +sLineBreak+
             Format(SQL_DB_METADATA,[GetMetadataTableName,GetMetadataCOLUMN_NAME_NAME,GetMetadataCOLUMN_NAME_VALUE]);
 end;
 
     
-
+{TODO split in sub procedure}
 procedure TWPcapDBSqLitePacket.InitConnection;
-{$REGION 'SQL insert}
-CONST SQL_INSERT = 'INSERT INTO PACKETS(                                                                     ' +slineBreak+
-                   '  NPACKET,PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL, IS_MALFORMED,  ' +sLineBreak+   {Packet}
-                   '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
-                   '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
-                   '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
-                   '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
-                   '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID ,                                                ' +sLineBreak+   {TCP additional}                     
-                   '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
-                   '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                   '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST}   
-                   '  ENRICHMENT_PRESENT,COMPRESSION_TYE,IGNORE, CONTENT_EXT,                                ' +sLineBreak+   {Others}                    
-                   '  PACKET_INFO                                                                            ' +sLineBreak+
-                   ' )                                                                                       ' +sLineBreak+   
-                   'VALUES                                                                                   ' +slineBreak+
-                   ' (:pID,:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,:pIsMalformed ,                            ' +sLineBreak+   {Packet}
-                   '  :pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIsIPV6,                                         ' +sLineBreak+   {EThernet}
-                   '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
-                   '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
-                   '  :pPortSrc,:pPortDst,                                                                   ' +sLineBreak+   {TCP/UDP}   
-                   '  :pIsRetrasmission, :pSeqNumber ,:pFlowID,                                              ' +sLineBreak+   {TCP additional}                     
-                   '  :pProtoIANA,                                                                           ' +sLineBreak+   {IANA} 
-                   '  :pSrcAsn,:pSrcOrg,:pSrcLoc,:pSrcLat,:pSrcLong,                                         ' +sLineBreak+   {GEOIP SRC}
-                   '  :pDstAsn,:pDstOrg,:pDstLoc,:pDstLat,:pDstLong,                                         ' +sLineBreak+   {GEOIP DST} 
-                   '  :pEnrichmentPresent,:pCopressionType,:pIgnore,:pContentExt,                            ' +sLineBreak+
-                   '  :pPacketInfo                                                                           ' +sLineBreak+
-                   ')';
-{$ENDREGION}
 begin
   inherited;
   { The default journal mode is WRITE-AHEAD LOGGING (WAL), which can improve 
@@ -358,7 +355,44 @@ begin
   Connection.Params.Values['JournalMode']                   := 'MEMORY';
   Connection.Params.Values['PageSize']                      := '20480';
   Connection.FormatOptions.StrsEmpty2Null                   := True;
+  FMaxInsertCache                                           := 2000; 
 
+  CreateFDQueryInsertPacket;
+  CreateFDQueryRapidFilter;
+  CreateFDQueryDNS;
+  CreateFDQueryPacketGrid;
+end; 
+
+Procedure TWPcapDBSqLitePacket.CreateFDQueryInsertPacket;
+{$REGION 'SQL insert}
+CONST SQL_INSERT = 'INSERT INTO PACKETS(                                                                     ' +slineBreak+
+                   '  NPACKET,PACKET_LEN, PACKET_DATE, PACKET_DATA,PACKET_RAW_TEXT,XML_PACKET_DETAIL, IS_MALFORMED,  ' +sLineBreak+   {Packet}
+                   '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
+                   '  PROTO_DETECT, IPPROTO, IPPROTO_STR, PROTOCOL,                                          ' +sLineBreak+   {IP Protocol}                      
+                   '  IP_SRC,  IP_DST,                                                                       ' +sLineBreak+   {IP IpAddress}   
+                   '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
+                   '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID ,                                                ' +sLineBreak+   {TCP additional}                     
+                   '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
+                   '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
+                   '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,                 ' +sLineBreak+   {GEOIP DST}   
+                   '  ENRICHMENT_PRESENT,COMPRESSION_TYE,IGNORE, CONTENT_EXT,                                ' +sLineBreak+   {Others}                    
+                   '  PACKET_INFO,DIRECTION                                                                  ' +sLineBreak+
+                   ' )                                                                                       ' +sLineBreak+   
+                   'VALUES                                                                                   ' +slineBreak+
+                   ' (:pID,:pLen,:pDate,:pPacket,:pPacketRaw,:pXMLInfo,:pIsMalformed ,                            ' +sLineBreak+   {Packet}
+                   '  :pEthType,:pEthAcr,:pMacSrc,:pMacDst,:pIsIPV6,                                         ' +sLineBreak+   {EThernet}
+                   '  :pProtoDetect,:pIpProto,:pIpProtoStr,:pProto,                                          ' +sLineBreak+   {IP Protocol} 
+                   '  :pIpSrc,:pIpDst,                                                                       ' +sLineBreak+   {IP IpAddress}
+                   '  :pPortSrc,:pPortDst,                                                                   ' +sLineBreak+   {TCP/UDP}   
+                   '  :pIsRetrasmission, :pSeqNumber ,:pFlowID,                                              ' +sLineBreak+   {TCP additional}                     
+                   '  :pProtoIANA,                                                                           ' +sLineBreak+   {IANA} 
+                   '  :pSrcAsn,:pSrcOrg,:pSrcLoc,:pSrcLat,:pSrcLong,                                         ' +sLineBreak+   {GEOIP SRC}
+                   '  :pDstAsn,:pDstOrg,:pDstLoc,:pDstLat,:pDstLong,                                         ' +sLineBreak+   {GEOIP DST} 
+                   '  :pEnrichmentPresent,:pCopressionType,:pIgnore,:pContentExt,                            ' +sLineBreak+
+                   '  :pPacketInfo,:pDirection                                                               ' +sLineBreak+
+                   ')';
+{$ENDREGION}
+begin
   FFDQueryInsert                                            := TFDQuery.Create(nil);
   FFDQueryInsert.Connection                                 := FConnection;    
   FFDQueryInsert.SQL.Text                                   := SQL_INSERT; 
@@ -400,22 +434,15 @@ begin
   FFDQueryInsert.ParamByName('pEnrichmentPresent').DataType := ftInteger;
   FFDQueryInsert.ParamByName('pCopressionType').DataType    := ftInteger;
   FFDQueryInsert.ParamByName('pContentExt').DataType        := ftString;    
-  FFDQueryInsert.ParamByName('pIgnore').DataType            := ftInteger;      
+  FFDQueryInsert.ParamByName('pIgnore').DataType            := ftInteger;     
+  FFDQueryInsert.ParamByName('pDirection').DataType         := ftInteger;      
   FFDQueryInsert.ParamByName('pPacket').DataType            := ftblob;   
   FFDQueryInsert.CachedUpdates                              := True;   
-  FFDQueryGrid.SQL.Text                                     := 
-                                                                 'SELECT                                                                                 ' +sLineBreak+ 
-                                                               '  NPACKET, PACKET_LEN, PACKET_DATE,IS_MALFORMED,PACKET_INFO,                              ' +sLineBreak+ 
-                                                               '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
-                                                               '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
-                                                               '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
-                                                               '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
-                                                               '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID,                                                 ' +sLineBreak+   {TCP additional}                                                                
-                                                               '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
-                                                               '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
-                                                               '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET,     ' +sLineBreak+   {GEOIP DST} 
-                                                               '  ENRICHMENT_PRESENT,COMPRESSION_TYE ,CONTENT_EXT                                        ' +sLineBreak+ 
-                                                               '  FROM VST_PACKETS ORDER BY NPACKET ';            
+
+end;
+
+Procedure TWPcapDBSqLitePacket.CreateFDQueryRapidFilter;
+begin
   FFDGetDataByID.SQL.Text                                   := 'SELECT PACKET_DATA,IS_RETRASMISSION,SEQ_NUMBER,PACKET_INFO,PACKET_DATE FROM PACKETS WHERE NPACKET = :pNPACKET '; 
 
   FFDQueryFlow                                              := TFDQuery.Create(nil);
@@ -436,11 +463,43 @@ begin
   FFDQueryInsertLabel.ParamByName('pDescription').DataType   := ftString;
   FFDQueryInsertLabel.ParamByName('pLevel').DataType         := ftInteger; 
   FFDQueryInsertLabel.ParamByName('pIdParent').DataType      := ftInteger;    
-  FMaxInsertCache                                            := 2000; 
-
+  
   FFDQueryLabelList                                          := TFDQuery.Create(nil);
   FFDQueryLabelList.Connection                               := FConnection;
-  FFDQueryLabelList.SQL.Text                                 := 'SELECT * FROM LABEL_FILTER';
+  FFDQueryLabelList.SQL.Text                                 := 'SELECT * FROM LABEL_FILTER';  
+end;
+
+Procedure TWPcapDBSqLitePacket.CreateFDQueryDNS;
+begin  
+  FFDQueryDNSGrid                                            := TFDQuery.Create(nil);
+  FFDQueryDNSGrid.Connection                                 := FConnection;
+  FFDQueryDNSGrid.SQL.Text                                   := 'SELECT * FROM DNS_RECORDS ORDER BY RECORD_ID';
+    
+  FFDQueryInsertDNS                                          := TFDQuery.Create(nil);
+  FFDQueryInsertDNS.Connection                               := FConnection;
+  FFDQueryInsertDNS.SQL.Text                                 := 'INSERT INTO DNS_RECORDS (IP_ADDRESS,HOSTNAME,TIMESTAMP,TTL_SECONDS) VALUES (:pIP,:pHostname,:pTimeStamp,:pTTL)';
+  FFDQueryInsertDNS.ParamByName('pIP').DataType              := ftString;
+  FFDQueryInsertDNS.ParamByName('pHostname').DataType        := ftString;
+  FFDQueryInsertDNS.ParamByName('pTimeStamp').DataType       := ftString; 
+  FFDQueryInsertDNS.ParamByName('pTTL').DataType             := ftInteger;          
+end;
+
+Procedure TWPcapDBSqLitePacket.CreateFDQueryPacketGrid;
+begin
+  FFDQueryGrid.SQL.Text                                     := 
+                                                                 'SELECT                                                                                 ' +sLineBreak+ 
+                                                               '  NPACKET, PACKET_LEN, PACKET_DATE,IS_MALFORMED,PACKET_INFO,                              ' +sLineBreak+ 
+                                                               '  ETH_TYPE, ETH_ACRONYM, MAC_SRC, MAC_DST, IS_IPV6,                                      ' +sLineBreak+   {EThernet}
+                                                               '  PROTO_DETECT, IPPROTO, IPPROTO_STR, IFNULL(PROTOCOL,ETH_ACRONYM) AS PROTOCOL,          ' +sLineBreak+   {IP Protocol}                      
+                                                               '  IFNULL(IP_SRC,MAC_SRC) AS IP_SRC, IFNULL(IP_DST,MAC_DST) AS IP_DST,                    ' +sLineBreak+   {IP IpAddress}   
+                                                               '  PORT_SRC, PORT_DST,                                                                    ' +sLineBreak+   {TCP/UDP}   
+                                                               '  IS_RETRASMISSION, SEQ_NUMBER ,FLOW_ID,                                                 ' +sLineBreak+   {TCP additional}                                                                
+                                                               '  IANA_PROTO,                                                                            ' +sLineBreak+   {IANA}   
+                                                               '  SRC_ASN, SRC_ORGANIZZATION, SRC_LOCATION, SRC_LATITUDE, SRC_LONGITUDE,                 ' +sLineBreak+   {GEOIP SRC}
+                                                               '  DST_ASN, DST_ORGANIZZATION, DST_LOCATION, DST_LATITUDE, DST_LONGITUDE,NOTE_PACKET,     ' +sLineBreak+   {GEOIP DST} 
+                                                               '  ENRICHMENT_PRESENT,COMPRESSION_TYE ,CONTENT_EXT,DIRECTION                              ' +sLineBreak+ 
+                                                               '  FROM VST_PACKETS ORDER BY NPACKET ';            
+
 
   FFDUpdateIngnore                                           := TFDQuery.Create(nil);
   FFDUpdateIngnore.Connection                                := FConnection;
@@ -451,7 +510,7 @@ begin
   FFDViewUpdate.Connection                                   := FConnection;
   FFDViewUpdate.ModifySQL.Text                               := 'UPDATE PACKETS SET NOTE_PACKET = :NOTE_PACKET WHERE NPACKET = :NPACKET ';
   FFDQueryGrid.UpdateObject                                  := FFDViewUpdate;
-end; 
+end;
 
 
 Function TWPcapDBSqLitePacket.GetVarArrayByQuery(aQuery:TFdQuery;out aArray : Variant;out aDescription:String):Boolean;
@@ -501,7 +560,7 @@ end;
 function TWPcapDBSqLitePacket.GetFrameNumberByLabel(var aArrFrameNumber:variant; const aLabel : String;var aDescription:String):boolean;
 CONST QRY_FILTER_SPEAKER = 'SELECT NPACKET FROM PACKETS ' +
                            'WHERE XML_PACKET_DETAIL Like :pLabel';
-var lQuery      : TFdQuery;
+var lQuery  : TFdQuery;
 begin
   lQuery := TFdQuery.Create(nil);
   try
@@ -516,17 +575,51 @@ begin
   end;
 end;   
 
-procedure TWPcapDBSqLitePacket.InsertLabelByLevel(const aListLabelByLevel : TListLabelByLevel);
+procedure TWPcapDBSqLitePacket.InsertDNSRecords(const aDNSList: PTDNSRecordDictionary);
+var AIndex    : Integer; 
+    Literator : TDictionary<Uint16, TDNSRecord>.TPairEnumerator;
+begin
+  if aDNSList.Count = 0 then Exit;
+
+  if not FFDQueryInsertDNS.Prepared then
+    FFDQueryInsertDNS.Prepare;
+
+  FFDQueryInsertDNS.Params.ArraySize := aDNSList.Count-1;
+
+  Literator := aDNSList.GetEnumerator();  
+  AIndex    := 0;
+  Literator.MoveNext;
+  Try
+    while AIndex < aDNSList.Count -1 do
+    begin
+      if not Literator.Current.Value.IPAddress.IsEmpty then
+      begin
+        FFDQueryInsertDNS.ParamByName('pIp').AsStrings[AIndex]    := Literator.Current.Value.IPAddress;
+        FFDQueryInsertDNS.ParamByName('pHostname').AsStrings[AIndex]   := Literator.Current.Value.Hostname;
+        FFDQueryInsertDNS.ParamByName('pTimeStamp').AsStrings[AIndex]  := DateTimeToStr(Literator.Current.Value.Timestamp);
+        FFDQueryInsertDNS.ParamByName('pTTL').AsIntegers[AIndex]       := Literator.Current.Value.TTL;
+        Inc(AIndex);
+      end;
+      Literator.MoveNext;
+    end;   
+    if AIndex > 0 then
+      FFDQueryInsertDNS.Execute(AIndex); // esegue la batch insert            
+  except on e: Exception do 
+    DoLog('TWPcapDBSqLitePacket.InsertDNSRecords',e.message,TWLLException);
+  end;
+end;
+
+
+procedure TWPcapDBSqLitePacket.InsertLabelByLevel(const aListLabelByLevel : PTListLabelByLevel);
 var Literator : TDictionary<String, TLabelByLevel>.TPairEnumerator;
 
     procedure AddLabelFilter(const aIdParent,aLevel: Integer;var AIndex:Integer);
     var aParent : Integer;
     begin
-      aParent := AIndex;  
-      Inc(AIndex);
       if Literator.Current.Value.LabelName.Trim.IsEmpty then exit;
 
-      FFDQueryInsertLabel.ParamByName('pIdLabel').AsIntegers[AIndex]     := AIndex;
+      aParent := AIndex;  
+      FFDQueryInsertLabel.ParamByName('pIdLabel').AsIntegers[AIndex]     := AIndex+1;
       FFDQueryInsertLabel.ParamByName('pLabelName').AsStrings[AIndex]    := Literator.Current.Value.LabelName;
       FFDQueryInsertLabel.ParamByName('pDescription').AsStrings[AIndex]  := Literator.Current.Value.Description;
       FFDQueryInsertLabel.ParamByName('pLevel').AsIntegers[AIndex]       := aLevel;
@@ -535,7 +628,7 @@ var Literator : TDictionary<String, TLabelByLevel>.TPairEnumerator;
         FFDQueryInsertLabel.ParamByName('pIdParent').AsIntegers[AIndex] := aIdParent
       else
         FFDQueryInsertLabel.ParamByName('pIdParent').Clear;
-
+      Inc(AIndex);
       Literator.MoveNext;
       while AIndex < aListLabelByLevel.Count -1 do
       begin
@@ -545,14 +638,14 @@ var Literator : TDictionary<String, TLabelByLevel>.TPairEnumerator;
       end;
    
     end;  
-var I : integer;   
-   
+    
+var I : integer;      
 begin
   if aListLabelByLevel.Count = 0 then Exit;
 
   if not FFDQueryInsertLabel.Prepared then
     FFDQueryInsertLabel.Prepare;
-  FFDQueryInsertLabel.Params.ArraySize := aListLabelByLevel.Count;
+  FFDQueryInsertLabel.Params.ArraySize := aListLabelByLevel.Count-1;
   Literator := aListLabelByLevel.GetEnumerator();  
 
   i := 0;
@@ -560,7 +653,7 @@ begin
   while I < aListLabelByLevel.Count -1 do
     AddLabelFilter(0,Literator.Current.Value.Level,I); 
   Try    
-    FFDQueryInsertLabel.Execute(FFDQueryInsertLabel.Params.ArraySize); // esegue la batch insert        
+    FFDQueryInsertLabel.Execute(I); // esegue la batch insert        
   except on e: Exception do 
     DoLog('TWPcapDBSqLitePacket.InsertLabelByLevel',e.message,TWLLException);
   end;
@@ -643,6 +736,8 @@ begin
   FFDQueryInsert.ParamByName('pIsRetrasmission').AsIntegers[FInsertToArchive]   := ifthen(aInternalPacket.AdditionalInfo.TCP.Retrasmission,1,0);  
   FFDQueryInsert.ParamByName('pEnrichmentPresent').AsIntegers[FInsertToArchive] := ifthen(aInternalPacket.AdditionalInfo.EnrichmentPresent,1,0);  
   FFDQueryInsert.ParamByName('pContentExt').AsStrings[FInsertToArchive]         := aInternalPacket.AdditionalInfo.ContentExt;
+  FFDQueryInsert.ParamByName('pDirection').AsIntegers[FInsertToArchive]         := Integer(aInternalPacket.AdditionalInfo.Direction);
+
   FFDQueryInsert.ParamByName('pIgnore').AsIntegers[FInsertToArchive]            := 0; 
 
   if aInternalPacket.AdditionalInfo.CompressType > -1 then  
@@ -714,6 +809,7 @@ begin
       aAdditionalParameters.SequenceNumber    := FFDGetDataByID.FieldByName('SEQ_NUMBER').AsInteger;
       aAdditionalParameters.PacketDate        := StrToDateTime(FFDGetDataByID.FieldByName('PACKET_DATE').AsString);
       aAdditionalParameters.Info              := FFDGetDataByID.FieldByName('PACKET_INFO').AsString;
+      aAdditionalParameters.DNSList           := nil;
     finally
       LStream.Free;
     end;    
@@ -974,6 +1070,8 @@ begin
   FreeAndNil(FIngnorePacket);    
   FreeAndNil(FFDUpdateIngnore);        
   FreeAndNil(FFDQueryInsert);  
+  FreeAndNil(FFDQueryInsertDNS);  
+  FreeAndNil(FFDQueryDNSGrid);  
   FreeAndNil(FFDQueryInsertLabel);
   FreeAndNil(FFDQueryFlow);
   inherited;
@@ -993,8 +1091,6 @@ begin
   FFDQueryInsert.Params.ArraySize := FMaxInsertCache;  
 end;
 
-
-
 procedure TWPcapDBSqLitePacket.ResetCounterIntsert;
 begin
   FInsertToArchive := -1;
@@ -1012,7 +1108,7 @@ begin
   if FIngnorePacket.Count > 0 then
   begin
     FFDUpdateIngnore.Prepare;
-    FFDUpdateIngnore.Params.ArraySize := FIngnorePacket.Count;    
+    FFDUpdateIngnore.Params.ArraySize := FIngnorePacket.Count-1;    
   end;
 
   for I := 0 to FIngnorePacket.Count-1 do
@@ -1021,7 +1117,7 @@ begin
   if FIngnorePacket.Count > 0 then
   begin
     DoLog('TWPcapDBSqLitePacket.CommitAndClose',Format('Found [%d] elements to be ingored',[FIngnorePacket.Count]),TWLLInfo);
-    FFDUpdateIngnore.Execute(FIngnorePacket.Count);
+    FFDUpdateIngnore.Execute(FIngnorePacket.Count -1);
   end;
     
   inherited;

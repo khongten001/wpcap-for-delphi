@@ -32,7 +32,7 @@ interface
 uses
   System.Generics.Collections, wpcap.Packet, wpcap.BufferUtils, wpcap.StrUtils,
   Windows, idGlobal, System.DateUtils, wpcap.Conts, System.SysUtils, wpcap.Types,
-  Variants, wpcap.IANA.Dbport, winsock2, system.Classes;
+  Variants, wpcap.IANA.Dbport, winsock2, system.Classes,System.Math;
 
 type  
   // This structure contains three fields:
@@ -83,7 +83,7 @@ type
     class function GetNewFlowID : Integer;   
     class function GetFlowTimeOut : Byte;virtual;
     class function GetInfoFlow(const SessionId,aSrcAddr,aDstAddr:String;aSrcPort, aDstPort: Uint16; var aKey:String;aInfo:PTFlowInfo):Boolean;
-    class procedure UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters); virtual;
+    class procedure UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters;ResetIpClient:Boolean); virtual;
     class function CheckLinkLayers(const aEthType: Uint16; const aPacketData: Pbyte;const aPacketSize: Integer;out aNewData: Pbyte; out aNewSize,aLikLayersSize: Integer): Boolean;
     class function GetEthType(const aPacketData: PByte;aPacketSize: Integer):Uint16;
   public
@@ -162,7 +162,7 @@ begin
   aFlowInfo.SeqAckList.AddOrSetValue(Format('%d-%d',[aCurrentSeq,aCurrentAck]),LSeqAckInfoAdd);
 end;
 
-class procedure TWpcapEthHeader.UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters);
+class procedure TWpcapEthHeader.UpdateFlowInfo(const aSessionId,aSrcAddr, aDstAddr: string; aSrcPort, aDstPort: Uint16;aCurrentSeq: Uint32;aAdditionalParameters: PTAdditionalParameters;ResetIpClient:Boolean);
 var LKey         : string; 
     LFlowInfo    : TFlowInfo;
     LFoundFlow   : Boolean;
@@ -172,8 +172,10 @@ begin
   LFoundFlow  := GetInfoFlow(aSessionId,aSrcAddr,aDstAddr,aSrcPort,aDstPort,LKey,@LFlowInfo);
   if LFoundFlow then
   begin
+    if ResetIpClient then
+      LFlowInfo.SrcIP := aSrcAddr;      
     LDeltaMin                            := Abs(MinutesBetween(aAdditionalParameters.PacketDate,LFlowInfo.PacketDate)); 
-     
+    aAdditionalParameters.Direction      := TWpcapDirection( ifthen(LFlowInfo.SrcIP = aSrcAddr,Integer(wdUpload),Integer(WdDownload))); 
     aAdditionalParameters.SequenceNumber := aCurrentSeq;
     LFlowInfo.prevSeqNum                 := aCurrentSeq;
     LFlowInfo.PacketDate                 := aAdditionalParameters.PacketDate;         
@@ -186,21 +188,22 @@ begin
       FlowInfoList.Remove(LKey);
       Exit;
     end;
-    
-    aAdditionalParameters.FlowID  := LFlowInfo.id;             
+
+    aAdditionalParameters.FlowID  := LFlowInfo.id;
     TryAddSeqActList(LFlowInfo,aAdditionalParameters,0,aCurrentSeq, 0);
     FlowInfoList.AddOrSetValue(LKey, LFlowInfo);    
   end
   else
   begin
-    LFlowInfo.SrcIP                       := aSrcAddr;
-    LFlowInfo.DstIP                       := aDstAddr;    
     LFlowInfo.prevSeqNum                  := aCurrentSeq;
+    LFlowInfo.DstIP                       := aDstAddr;        
+    LFlowInfo.SrcIP                       := aSrcAddr;    
     LFlowInfo.FirstSeqNum                 := aCurrentSeq;
     LFlowInfo.FirstIndex                  := aAdditionalParameters.FrameNumber;
     LFlowInfo.PacketDate                  := aAdditionalParameters.PacketDate;
     LFlowInfo.Id                          := GetNewFlowID;
     LFlowInfo.SeqAckList                  := TSeqAckList.Create;
+    aAdditionalParameters.Direction       := wdUpload;
     {AddInfo}
     aAdditionalParameters.FlowID          := LFlowInfo.Id;
     aAdditionalParameters.SequenceNumber  := aCurrentSeq;
@@ -770,6 +773,8 @@ begin
       end;
     end;
   end;
+  if not Result then
+    aKey := Format('%s%s:%d-%s:%d', [SessionId,aSrcAddr, aSrcPort, aDstAddr, aDstPort]);
 end;
 
 class function TWpcapEthHeader.GetFlowTimeOut: Byte;

@@ -179,7 +179,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.NGroupRecords',[AcronymName]), 'Num Group Records:',LNGr,@LHeader.NGroupRec,sizeOf(LHeader.NGroupRec) )); 
 
   if IsFilterMode then  
-    UpdateFlowInfo(String.Empty,aAdditionalParameters.FrameNumber.ToString,aAdditionalParameters.FrameNumber.ToString,0,0,0,aAdditionalParameters);
+    UpdateFlowInfo(String.Empty,aAdditionalParameters.FrameNumber.ToString,aAdditionalParameters.FrameNumber.ToString,0,0,0,aAdditionalParameters,False);
   
   LSizeEthIP  := TWpcapIPHeader.EthAndIPHeaderSize(aPacketData,aPacketSize);
   LCurrentPos := LSizeEthIP+SizeOf(TIGMPHeader);

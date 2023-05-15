@@ -42,7 +42,7 @@ type
     FPcapUtils        : TPCAPUtils;
     FLogger           : TwpcapLogger;        
     procedure DoPCAPCallBackPacket(const aInternalPacket : PTInternalPacket);
-    procedure DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
+    procedure DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:PTListLabelByLevel;aDNSList: PTDNSRecordDictionary);
     procedure DoPCAPCallBackError(const aFileName, aError: String);
     procedure SetAbort(const Value: Boolean);
 
@@ -116,12 +116,13 @@ begin
   FPCAPCallBackError(aFileName,aError)
 end;
 
-procedure TPCAP2SQLite.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:TListLabelByLevel);
+procedure TPCAP2SQLite.DoPCAPCallBeforeBackEnd(const aFileName:String;aListLabelByLevel:PTListLabelByLevel;aDNSList: PTDNSRecordDictionary);
 begin
   FWPcapDBSqLite.FlushArrayInsert;
   FWPcapDBSqLite.InsertLabelByLevel(aListLabelByLevel);
+  FWPcapDBSqLite.InsertDNSRecords(aDNSList);
   FWPcapDBSqLite.CommitAndClose;
-  FPCAPCallBackEnd(aFileName)
+    FPCAPCallBackEnd(aFileName)
 end;
 
 procedure TPCAP2SQLite.PCAP2SQLite( const aFilename, aFilenameDB,aFilter: String;
@@ -156,6 +157,7 @@ begin
   {Create database}
   FWPcapDBSqLite := TWPcapDBSqLitePacket.Create;
   Try
+    FWPcapDBSqLite.OnLog := DoLog;
     FWPcapDBSqLite.CreateDatabase(aFilenameDB);
     FWPcapDBSqLite.ResetCounterIntsert;
     Try
@@ -176,8 +178,7 @@ begin
     end;    
   except on E: Exception do
     DoPCAPCallBackError(aFilenameDB,Format('Exception create database %s',[E.Message]));
-  end;    
-   
+  end;       
 end;
 
 destructor TPCAP2SQLite.Destroy;

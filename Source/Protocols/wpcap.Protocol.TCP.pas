@@ -32,7 +32,7 @@ interface
 uses
   wpcap.Conts, wpcap.Types, wpcap.BufferUtils, System.Types, wpcap.Protocol.Base,
   System.Math, System.Variants, System.SysUtils, wpcap.StrUtils, winsock,
-  wpcap.Packet, System.DateUtils;
+  wpcap.Packet, System.DateUtils,System.StrUtils;
 
 type
   //https://datatracker.ietf.org/doc/html/rfc793#page-15
@@ -149,7 +149,7 @@ type
     /// <param name="aAckNum">The packet acknowledgement number.</param>
     /// <param name="aDatePacket">The date of the packet.</param>
     /// <param name="aAdditionalInfo">Additional packet information.</param>
-    class procedure UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort,aWinSize: Uint16; aTCPFlags: Uint8; aSeqNum, aAckNum: Uint32;aAdditionalParameters: PTAdditionalParameters); overload;
+    class procedure UpdateFlowInfo(const aSrcAddr, aDstAddr: string; aSrcPort, aDstPort,aWinSize: Uint16; aTCPFlags: Uint8; aSeqNum, aAckNum: Uint32;aAdditionalParameters: PTAdditionalParameters); reintroduce;
     ///<summary>
     /// Returns the offset value in bytes based on a given data offset.
     ///</summary>
@@ -165,7 +165,7 @@ type
 
     class function GetFlowTimeOut : Byte;override;  
   public
-    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;  
+//    class function IsValidByPort(aTestPort, aDstPort: Integer;var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;overload;  
 
     /// <summary>
     /// Returns the acronym name of the POP3 protocol.
@@ -353,6 +353,7 @@ var LKey           : string;
       aAdditionalParameters.TCP.AcknowledgmentNumber := 1;    
       aAdditionalParameters.SequenceNumber           := 1;         
       aAdditionalParameters.FlowID                   := LFlowId;
+      aAdditionalParameters.Direction                := wdUpload;
 
       LFlowInfo.Id               := LFlowId;
       LFlowInfo.FirstIndex       := aAdditionalParameters.FrameNumber;
@@ -395,6 +396,8 @@ begin
   // Check if session already exists in the dictionary
   if LFlowFound then
   begin  
+    aAdditionalParameters.Direction := TWpcapDirection( ifthen(LFlowInfo.SrcIP = aSrcAddr,Integer(wdUpload),Integer(WdDownload)));
+                                       
     if ( aTCPFlags and TCP_FLAG_ACK > 0 ) then // Check if ACK flag is set
     begin
       CheckisRetrasmission;   
@@ -407,12 +410,13 @@ begin
           NewFlowInfo(true); 
           Exit;
         end;
-        LFlowInfo.prevSeqNum      := aSeqNum;    
-        LFlowInfo.SrcIP           := aSrcAddr;
-        LFlowInfo.DstIP           := aDstAddr;
-        LFlowInfo.TCP.prevAckNum  := aAckNum;
-        LFlowInfo.TCP.prevWinSize := aWinSize;  
-        LFlowInfo.TCP.SYNIndex    := aAdditionalParameters.FrameNumber;
+        aAdditionalParameters.Direction := wdUpload;
+        LFlowInfo.prevSeqNum            := aSeqNum;    
+        LFlowInfo.SrcIP                 := aSrcAddr;
+        LFlowInfo.DstIP                 := aDstAddr;
+        LFlowInfo.TCP.prevAckNum        := aAckNum;
+        LFlowInfo.TCP.prevWinSize       := aWinSize;  
+        LFlowInfo.TCP.SYNIndex          := aAdditionalParameters.FrameNumber;
       end
       else // Normal packet with ACK flag set
       begin   
@@ -551,20 +555,6 @@ end;
 class function TWPcapProtocolBaseTCP.DstPort(const aTCPPtr: PTCPHdr): Word;
 begin
   Result := wpcapntohs(aTCPPtr.DstPort);
-end;
-
-class function TWPcapProtocolBaseTCP.IsValidByPort(aTestPort,aDstPort: Integer;
-  var aAcronymName: String; var aIdProtoDetected: Byte): Boolean;
-begin
-  Result := False;
-  if aTestPort = 0 then Exit;
-  
-   Result := ( aDstPort = aTestPort );
-
-   if not Result then exit;
-
-   aAcronymName     := AcronymName;
-   aIdProtoDetected := IDDetectProto;   
 end;
 
 class function TWPcapProtocolBaseTCP.GetTCPPayLoad(const AData: PByte; aSize: word): PByte;
@@ -722,12 +712,9 @@ var LPTCPHdr             : PTCPHdr;
     LDstPort             : Uint16;   
     LSeqNum              : Uint32;
     LAckNum              : Uint32;
-    LIsRetransmission    : Boolean;
-    LRelativeSeqNumber   : Integer;
     LSizePayLoad         : Integer;
     LOptionStr           : String;
     LFlagsStr            : String;
-    LHeaderIPv4          : PTIPHeader;
     LInternalIP          : TInternalIP;
     LTCPTimeStamp        : Integer;
     LWinSize             : Uint16;

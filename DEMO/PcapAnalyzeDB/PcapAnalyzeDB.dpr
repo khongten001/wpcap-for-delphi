@@ -65,13 +65,16 @@ uses
   wpcap.Protocol.Gnutella in '..\..\Source\Protocols\wpcap.Protocol.Gnutella.pas',
   UnitFormMemo in 'UnitFormMemo.pas' {FormMemo},
   wpcap.Logger in '..\..\Source\wpcap.Logger.pas',
-  wpcap.MNC in '..\..\Source\wpcap.MNC.pas';
+  wpcap.MNC in '..\..\Source\wpcap.MNC.pas',
+  UnitFormResolution in 'UnitFormResolution.pas' {FormDNS};
 
 {$R *.res}
 
 begin
   Application.Initialize;
+  FastMM_SetOptimizationStrategy(mmosOptimizeForSpeed);
   Application.MainFormOnTaskbar := True;
+  
   Application.CreateForm(TFormMain, FormMain);
   Application.Run;
 end.

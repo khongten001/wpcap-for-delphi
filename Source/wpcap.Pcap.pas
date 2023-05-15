@@ -52,9 +52,16 @@ uses
   /// <param name="aHeader">A pointer to the packet header.</param>
   /// <param name="aGeoLiteDB">Link for MaxMind geoIp database.</param>  
   /// <param name="aListLabelByLevel">Internal list for label filter.</param>  
+  /// <param name="aListLabelByLevel">Internal list for DNS Hostname resolution.</param>  
   /// <param name="aLogFunctoin">Function log.</param>
-  function AnalyzePacketCallBack(const aPacketData: PByte;aFrameNumber:Integer; aHeader: PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID): PTInternalPacket;
-
+  function AnalyzePacketCallBack(const aPacketData : Pbyte;aFrameNumber:Integer;
+                                     aHeader           : PTpcap_pkthdr;
+                                     aGeoLiteDB        : PTWpcapGEOLITE; 
+                                     aListLabelByLevel : PTListLabelByLevel;
+                                     aFlowInfoList     : PTFlowInfoList;
+                                     aDnsList          : PTDNSRecordDictionary;
+                                     aLogFunctoin      : TWpcapLog;                                     
+                                     aGetNewFlowIDFnc  : TWpcapGetNewFlowID) : PTInternalPacket;
 type
   ///<summary>
   /// Structure that represents a packet to be dumped to a file
@@ -212,7 +219,7 @@ type
     FPCapRT                 : Ppcap_t;    
     FDataLink               : Integer;   
     FListLabelByLevel       : TListLabelByLevel;
-
+    FListDNS                : TDNSRecordDictionary; 
   protected
     ///<summary>
     /// Overrides the Execute method from the parent class to start capturing real-time packets
@@ -252,12 +259,13 @@ type
     procedure IncFrameNumber;
     procedure CheckNewDumpFile;
     {Property}
-    Property PCapRT           : Ppcap_t           read FPCapRT; 
-    property DataLink         : Integer           read FDataLink;
-    property ListLabelByLevel : TListLabelByLevel read FListLabelByLevel;
-    property FrameNumber      : Integer           read FFrameNumber       write FFrameNumber;
-    Property SavePcapDump     : Boolean           read FSavePcapDump;
-    property PcapDumper       : ppcap_dumper_t    read FPcapDumper;
+    property FrameNumber      : Integer              read FFrameNumber       write FFrameNumber;   
+    Property PCapRT           : Ppcap_t              read FPCapRT; 
+    property DataLink         : Integer              read FDataLink;
+    property ListLabelByLevel : TListLabelByLevel    read FListLabelByLevel;
+    property ListDNS          : TDNSRecordDictionary read FListDNS;
+    Property SavePcapDump     : Boolean              read FSavePcapDump;
+    property PcapDumper       : ppcap_dumper_t       read FPcapDumper;
   end;
 
   ///<summary>
@@ -486,10 +494,12 @@ begin
       RTThread.IncFrameNumber;
       LTInternalPacket := AnalyzePacketCallBack(@PacketBuffer[0],
                               RTThread.FrameNumber,
-                              aNewHeader,nil,
-                              RTThread.ListLabelByLevel,
-                              RTThread.OnLog,
-                              RTThread.FlowInfoList,
+                              aNewHeader,
+                              nil,
+                              @(RTThread.ListLabelByLevel),
+                              @(RTThread.FlowInfoList),
+                              @(RTThread.ListDNS),      
+                              RTThread.OnLog,                                                      
                               RTThread.GetNewFlowID);
       
       if Assigned(LTInternalPacket) then
@@ -534,7 +544,14 @@ begin
   Result := 0;
 end;
 
-function AnalyzePacketCallBack(const aPacketData : Pbyte;aFrameNumber:Integer;aHeader:PTpcap_pkthdr;aGeoLiteDB : TWpcapGEOLITE; aListLabelByLevel : TListLabelByLevel;aLogFunctoin:TWpcapLog;aFlowInfoList:TFlowInfoList;aGetNewFlowIDFnc: TWpcapGetNewFlowID) : PTInternalPacket;
+function AnalyzePacketCallBack(const aPacketData : Pbyte;aFrameNumber:Integer;
+                                     aHeader           : PTpcap_pkthdr;
+                                     aGeoLiteDB        : PTWpcapGEOLITE; 
+                                     aListLabelByLevel : PTListLabelByLevel;
+                                     aFlowInfoList     : PTFlowInfoList;
+                                     aDnsList          : PTDNSRecordDictionary;
+                                     aLogFunctoin      : TWpcapLog;                                     
+                                     aGetNewFlowIDFnc  : TWpcapGetNewFlowID) : PTInternalPacket;
 var LLen                    : Integer;
     LListDetail             : TListHeaderString;
     LLikLayersSize          : Integer;
@@ -545,7 +562,7 @@ begin
   if not Assigned(aPacketData) then Exit;
   LEthParser :=  TWpcapEthHeader.Create;
   Try
-    LEthParser.FlowInfoList   := aFlowInfoList; 
+    LEthParser.FlowInfoList   := aFlowInfoList^; 
     LEthParser.OnLog          := aLogFunctoin;
     LEthParser.OnGetNewFlowID := aGetNewFlowIDFnc;
     
@@ -561,8 +578,11 @@ begin
     Result.RAW_Text := BufferToASCII(aPacketData,LLen);
     LListDetail     := TListHeaderString.Create;
 
-    Try
+    { add DNS resoulution , but how can search IP on Dictionary without lost in performace ??
+      alternative use database :(
+    }
 
+    Try
       LAdditionalParameters.TCP.Retrasmission         := False;
       LAdditionalParameters.TCP.RetrasmissionFn       := -1;        
       LAdditionalParameters.TCP.AcknowledgmentNumber  := 0;    
@@ -572,10 +592,12 @@ begin
       LAdditionalParameters.FlowID                    := 0;                        
       LAdditionalParameters.Info                      := String.Empty;
       LAdditionalParameters.EnrichmentPresent         := False;
+      LAdditionalParameters.Direction                 := WdDownload;
       LAdditionalParameters.ContentExt                := String.Empty;      
       LAdditionalParameters.CompressType              := -1;
       LAdditionalParameters.FrameNumber               := aFrameNumber;
       LAdditionalParameters.PacketDate                := Result.PacketDate;
+      LAdditionalParameters.DnsList                   := aDnsList;
      
       if LEthParser.HeaderToString(Result.PacketData,Result.PacketSize,0,LListDetail,True,@LAdditionalParameters) then 
       begin         
@@ -583,6 +605,7 @@ begin
         Result.AdditionalInfo.TCP               := LAdditionalParameters.TCP;
         Result.AdditionalInfo.Info              := LAdditionalParameters.Info;
         Result.AdditionalInfo.FlowID            := LAdditionalParameters.FlowID;
+        Result.AdditionalInfo.Direction         := LAdditionalParameters.Direction;
         Result.AdditionalInfo.EnrichmentPresent := LAdditionalParameters.EnrichmentPresent;
         Result.AdditionalInfo.CompressType      := LAdditionalParameters.CompressType;                                
         Result.AdditionalInfo.ContentExt        := LAdditionalParameters.ContentExt;                                        
@@ -957,12 +980,14 @@ begin
   FTimeRecoStop     := aTimeRecoStop;
   FAbort            := False;
   FListLabelByLevel := TListLabelByLevel.Create;
+  FListDNS          := TDNSRecordDictionary.Create;
   DoCreate;
 end;
 
 destructor TPCAPCaptureRT.Destroy;
 begin
   FreeAndNil(FListLabelByLevel);
+  FreeAndNil(FListDNS);  
   inherited;
 end;
 
@@ -1099,6 +1124,7 @@ var LHandlePcap      : Ppcap_t;
     LTolSizePcap     : Int64;
     LTInternalPacket : PTInternalPacket;
     LListLabelByLevel: TListLabelByLevel;
+    LListDNS         : TDNSRecordDictionary;
     LIndex           : Integer;
     LSkypPacket      : boolean;
     LAnonymize       : Boolean;
@@ -1129,73 +1155,78 @@ begin
 
         LListLabelByLevel := TListLabelByLevel.Create;
         try
-          while True do
-          begin      
-             if Terminated then exit;
-            // Read the next packet
-            LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
-            case LResultPcapNext of
-              1:  // packet read correctly
-                begin     
-                  try
-                    LStopwatch := LStopwatch.StartNew;
-                    Inc(LIndex);    
-                    DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d]',[LIndex]),TWLLInfo);                                  
-                    Inc(LLenAnalyze,LHeader^.Len);
-                    {Does using parallel to parse pcap make the management of TCP retransmissions and sequence numbers complicated?}
+          lListDNS := TDNSRecordDictionary.Create;
+          Try
+            while True do
+            begin      
+               if Terminated then exit;
+              // Read the next packet
+              LResultPcapNext := pcap_next_ex(LHandlePcap, LHeader, @LPktData);
+              case LResultPcapNext of
+                1:  // packet read correctly
+                  begin     
+                    try
+                      LStopwatch := LStopwatch.StartNew;
+                      Inc(LIndex);    
+                      DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d]',[LIndex]),TWLLInfo);                                  
+                      Inc(LLenAnalyze,LHeader^.Len);
+                      {Does using parallel to parse pcap make the management of TCP retransmissions and sequence numbers complicated?}
 
-                    LTInternalPacket  := AnalyzePacketCallBack(LPktData,LIndex,LHeader,FGeoLiteDB,LListLabelByLevel,FOnLog,FlowInfoList,GetNewFlowID);
-                    if Assigned(LTInternalPacket) then
-                    begin
-                      Try
-                        LSkypPacket := false;
-                        DoEthMacFound(LTInternalPacket,LSkypPacket,LAnonymize,LNewMacSrc,LNewMacDst);  
+                      LTInternalPacket  := AnalyzePacketCallBack(LPktData,LIndex,LHeader,@FGeoLiteDB,@LListLabelByLevel,@FlowInfoList,@LListDNS,FOnLog,GetNewFlowID);
+                      if Assigned(LTInternalPacket) then
+                      begin
+                        Try
+                          LSkypPacket := false;
+                          DoEthMacFound(LTInternalPacket,LSkypPacket,LAnonymize,LNewMacSrc,LNewMacDst);  
 
-                        if not LSkypPacket then
-                          DoIpFound(LTInternalPacket,LSkypPacket);
+                          if not LSkypPacket then
+                            DoIpFound(LTInternalPacket,LSkypPacket);
 
-                        if not LSkypPacket then
-                          DoProtocolFound(LTInternalPacket,LSkypPacket);
+                          if not LSkypPacket then
+                            DoProtocolFound(LTInternalPacket,LSkypPacket);
                           
-                        DoPacket(LTInternalPacket);
-                      finally
-                        Dispose(LTInternalPacket)
-                      end; 
-                    end;   
+                          DoPacket(LTInternalPacket);
+                        finally
+                          Dispose(LTInternalPacket)
+                        end; 
+                      end;   
                         
-                    DoProgress(LTolSizePcap,LLenAnalyze);
-                  Except on E :Exception do
-                    begin
-                      DoError(FFileName,Format('Exception %s Index packet %d',[e.message,LIndex]));
-                      Break;
-                    end;
-                  End;
+                      DoProgress(LTolSizePcap,LLenAnalyze);
+                    Except on E :Exception do
+                      begin
+                        DoError(FFileName,Format('Exception %s Index packet %d',[e.message,LIndex]));
+                        Break;
+                      end;
+                    End;
                 
-                  if FAbort then Break;
+                    if FAbort then Break;
                 
-                  LMsElp := LStopwatch.ElapsedMilliseconds;
-                  if LMsElp > 5 then    
-                    DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d] execute in [%d ms]',[LIndex,LMsElp]),TWLLTiming);                                                  
-                end;
-              0: // No packets available at the moment
-                  Continue;
-             -1: // Error reading packet 
-                begin                  
-                  DoError(FFileName,string(pcap_geterr(LHandlePcap)));
-                  Break;
-                end;
-             -2: // No packets available, the pcap file instance has been closed
-                begin                  
-                  DoProgress(LTolSizePcap,LTolSizePcap);
-                  TThread.Synchronize(nil,
-                    procedure
-                    begin                                 
-                      FOnPCAPCallBeforeBackEnd(FFileName,LListLabelByLevel);
-                    end);
-                  Break;
-                end;
-            end;
-          end;    
+                    LMsElp := LStopwatch.ElapsedMilliseconds;
+                    if LMsElp > 5 then    
+                      DoLog('TPCAPLoadFile.Execute',Format('Analyze frame number [%d] execute in [%d ms]',[LIndex,LMsElp]),TWLLTiming);                                                  
+                  end;
+                0: // No packets available at the moment
+                    Continue;
+               -1: // Error reading packet 
+                  begin                  
+                    DoError(FFileName,string(pcap_geterr(LHandlePcap)));
+                    Break;
+                  end;
+               -2: // No packets available, the pcap file instance has been closed
+                  begin                  
+                    DoProgress(LTolSizePcap,LTolSizePcap);
+                    TThread.Synchronize(nil,
+                      procedure
+                      begin                                 
+                        FOnPCAPCallBeforeBackEnd(FFileName,@LListLabelByLevel,@LListDNS);
+                      end);
+                    Break;
+                  end;
+              end;
+            end;    
+          finally
+            FreeAndNil(LListDNS);
+          End;
         finally
           FreeAndNil(LListLabelByLevel);
         end;
@@ -1206,7 +1237,7 @@ begin
       LStopwatch.Stop
     End;
   Except on E :Exception do
-    DoError(FFileName,Format('Genesic exception %s',[e.message]));
+    DoError(FFileName,Format('Generic exception %s',[e.message]));
   End;
 end;
 

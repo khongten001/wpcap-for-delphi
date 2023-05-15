@@ -344,7 +344,6 @@ var LTCPPayLoad        : PByte;
     LIsCommand         : Boolean;
     LIsOption          : Boolean;
     LIsSubCommand      : Boolean;
-    LValueWord         : PUint16;
     LValueByte         : Uint8;    
     LValueBuffer       : PByte;
     LBckCurrentPos     : Integer;

@@ -218,7 +218,7 @@ begin
   if not Header(aPacketData,aPacketSize,LHeader) then exit;
 
   if IsFilterMode then  
-    UpdateFlowInfo(String.Empty,aAdditionalParameters.FrameNumber.ToString,aAdditionalParameters.FrameNumber.ToString,0,0,0,aAdditionalParameters);
+    UpdateFlowInfo(String.Empty,aAdditionalParameters.FrameNumber.ToString,aAdditionalParameters.FrameNumber.ToString,0,0,0,aAdditionalParameters,False);
 
   LType := TypeToString(LHeader.TypeICMP);
   LCode := CodeToString(LHeader.TypeICMP,LHeader.Code);

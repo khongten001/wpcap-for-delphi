@@ -362,7 +362,7 @@ end;
 
 function TWPcapDBBase.GetVersion: String;
 begin
-   Result := '2';
+   Result := '3';
 end;
 
 function TWPcapDBBase.GetMetadataTableName: String;

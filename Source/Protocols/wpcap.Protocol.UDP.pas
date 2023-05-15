@@ -289,7 +289,7 @@ begin
   if IsFilterMode then  
   begin
     TWpcapIPHeader.InternalIP(aPacketData,aPacketSize,nil,@LInternalIP,False,False);
-    UpdateFlowInfo(String.Empty,LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,0,aAdditionalParameters);
+    UpdateFlowInfo(String.Empty,LInternalIP.Src,LInternalIP.Dst,LSrcPort,LDstPort,0,aAdditionalParameters,False);
   end;
   
   LSizePayload := UDPPayLoadLength(LPUDPHdr)-8;  

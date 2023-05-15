@@ -125,6 +125,8 @@ type
     dxSaveFileDialog1: TdxSaveFileDialog;
     dxOpenFileDialog1: TdxOpenFileDialog;
     PSSettings: TcxPropertiesStore;
+    BDnsForm: TdxBarButton;
+    GridPcapDBTableView1DIRECTION: TcxGridDBColumn;
     procedure GridPcapTableView1TcxGridDataControllerTcxDataSummaryFooterSummaryItems0GetText(
       Sender: TcxDataSummaryItem; const AValue: Variant; AIsFooter: Boolean;
       var AText: string);
@@ -167,6 +169,7 @@ type
     procedure BWhoiseServerClick(Sender: TObject);
     procedure dxBarButton2Click(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure BDnsFormClick(Sender: TObject);
   private
     { Private declarations }
     FWPcapDBSqLite : TWPcapDBSqLitePacket;
@@ -200,7 +203,7 @@ implementation
 
 uses
   UnFormRecording, UnFormImportGeoLite, UnFormPlayerWave, UnFunctionFilter,
-  UnitCustomOpenDialog, UnitFormLabelFilter,UnitFormMemo;
+  UnitCustomOpenDialog, UnitFormLabelFilter,UnitFormMemo,UnitFormResolution;
 
 
 {$R *.dfm}
@@ -238,28 +241,29 @@ end;
 Procedure TFormMain.OpenDatabase(Const aFileName:String;aCheckVersion:Boolean);
 begin
   FWPcapDBSqLite.OpenDatabase(ChangeFileExt(aFileName,'.db'));
-
-  if FWPcapDBSqLite.Connection.Connected then  
-  begin
-
-
-    if aCheckVersion then
+  Try
+    if FWPcapDBSqLite.Connection.Connected then  
     begin
-      if not FWPcapDBSqLite.IsVersion(2) then
+      if aCheckVersion then
       begin
-        MessageDlg(Format('Database %s: incompatible version',[aFileName]),mtError,[mbOK],0);
-        Exit;
+        if not FWPcapDBSqLite.IsVersion(2) then
+        begin
+          MessageDlg(Format('Database %s: incompatible version',[aFileName]),mtError,[mbOK],0);
+          Exit;
+        end;
       end;
-    end;
 
-    DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;
-    FWPcapDBSqLite.FDQueryGrid.Open;
-    SetButtonGrid(True);    
-  end
-  else
-    MessageDlg(Format('Database %s: unable open database',[aFileName]),mtError,[mbOK],0);
+      DsGrid.DataSet := FWPcapDBSqLite.FDQueryGrid;    
+      FWPcapDBSqLite.FDQueryGrid.Open;
+      SetButtonGrid(True);    
+    end
+    else
+      MessageDlg(Format('Database %s: unable open database',[aFileName]),mtError,[mbOK],0);
     
-  pProgressImport.Visible := False;   
+    pProgressImport.Visible := False;   
+  Except on E: Exception do
+    MessageDlg(Format('Database %s: unable open database %s',[aFileName,e.message]),mtError,[mbOK],0);
+  End;
 end;
 
 
@@ -915,9 +919,7 @@ begin
     FWPcapDBSqLite.FDQueryLabelList.Open();
     aFormLabelFilter.ShowModal;
     if aFormLabelFilter.ModalResult = mrOK then
-    begin
        FilterByLabel(aFormLabelFilter.SelectLabel);
-    end;
   Finally
     FreeAndNil(aFormLabelFilter);
   End;
@@ -968,6 +970,19 @@ begin
   PSSettings.Active := True;
   PSSettings.StoreTo; 
   PSSettings.Active := False;  
+end;
+
+procedure TFormMain.BDnsFormClick(Sender: TObject);
+var LFormDNS: TFormDNS;
+begin
+  LFormDNS := TFormDNS.Create(nil);
+  Try
+    LFormDNS.DataSource1.DataSet := FWPcapDBSqLite.FDQueryDNSGrid;
+    FWPcapDBSqLite.FDQueryDNSGrid.Open();
+    LFormDNS.ShowModal;
+  Finally
+    FreeAndNil(LFormDNS);
+  End;
 end;
 
 end.

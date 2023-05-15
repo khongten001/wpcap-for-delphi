@@ -113,12 +113,12 @@ type
   TWPcapProtocolNBNS = class(TWPcapProtocolDNS)
   private  
     class function NBNSNameToString(const aName:AnsiString): Ansistring;
-    class procedure ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString);static;
+    class procedure ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer; AListDetail: PTListHeaderString);static;
     class function OwnerNodeTypeToStr(aFlags: Byte): String; static;
   protected
     class function ApplyConversionName(const aName: AnsiString): AnsiString;override;  
-    class function DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString; override;        
-    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters;aStartLevel:Integer): AnsiString; override;    
+    class function DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: PTListHeaderString;aStartLevel:Integer): AnsiString; override;        
+    class function DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes; var aOffset,aTotalNameLen: integer; AListDetail: PTListHeaderString;aAdditionalParameters: PTAdditionalParameters;aStartLevel:Integer): AnsiString; override;    
   public
     /// <summary>
     /// Returns the default port number used by the NBNS protocol.
@@ -158,7 +158,7 @@ type
     /// <NBNS>
     ///   A string representation of the DNS flags.
     /// </returns>    
-    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:integer; AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters);override;
+    class procedure GetDNSFlags(aFlags: Uint16;aStartLevel:integer; AListDetail: PTListHeaderString;aAdditionalParameters: PTAdditionalParameters);override;
     
     /// <summary>
     ///  Returns a string representation of a NBNS question class.
@@ -343,7 +343,7 @@ begin
   End;
 end;
 
-class procedure TWPcapProtocolNBNS.ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer;AListDetail: TListHeaderString);
+class procedure TWPcapProtocolNBNS.ParseAnswerName(const aLabelPrefix:String;const aPacket: TBytes;aMaxName,aStartLevel:Integer; var aOffset,aTotalNameLen: integer;AListDetail: PTListHeaderString);
 CONST MAX_LEN =16;
 var  
    LName : Ansistring;
@@ -455,7 +455,7 @@ begin
 end;
 
 
-class function TWPcapProtocolNBNS.DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType; const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aStartLevel:Integer): AnsiString;
+class function TWPcapProtocolNBNS.DecodeDNS_RSS_SRV(const aQuestionClass:String; const aRRsType:TRRsType; const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: PTListHeaderString;aStartLevel:Integer): AnsiString;
 var LNumberName    : Byte;
     LStatisticsRSS : TStatisticsRSS;
     LLabel         : String;
@@ -559,7 +559,7 @@ begin
 
 end;
 
-class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Uint16;aStartLevel:integer;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters);
+class Procedure TWPcapProtocolNBNS.GetDNSFlags(aFlags: Uint16;aStartLevel:integer;AListDetail: PTListHeaderString;aAdditionalParameters: PTAdditionalParameters);
 var LtmpResult       : String;
     LByteValue       : Uint8;
     LByte0           : Uint8;
@@ -703,7 +703,7 @@ begin
   end;   
 end;
 
-class function TWPcapProtocolNBNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: TListHeaderString;aAdditionalParameters: PTAdditionalParameters;aStartLevel:Integer): AnsiString;
+class function TWPcapProtocolNBNS.DecodeDNS_RSS_NIMLOC(const aQuestionClass:String; const aRRsType:TRRsType;const aPacket: TBytes;var aOffset, aTotalNameLen: integer;AListDetail: PTListHeaderString;aAdditionalParameters: PTAdditionalParameters;aStartLevel:Integer): AnsiString;
 var LByte0        : Byte;
     LCardinalTmp  : Cardinal;
     LLabel        : String;

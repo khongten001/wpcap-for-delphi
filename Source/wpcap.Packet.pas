@@ -78,6 +78,7 @@ Type
     RetrasmissionFn       : Integer;
   end;
   
+  TWpcapDirection = ( WdDownload=1,wdUpload=2);
   TAdditionalInfo = record
     Index             : Integer;
     SequenceNumber    : Uint32;
@@ -86,6 +87,7 @@ Type
     FlowID            : Integer;
     EnrichmentPresent : Boolean;
     ContentExt        : String;
+    Direction         : TWpcapDirection;
     CompressType      : Integer;    
   end;
   PTAdditionalInfo = ^TAdditionalInfo;

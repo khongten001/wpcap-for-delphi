@@ -43,8 +43,8 @@ type
     class function IsMulticastIPv6Address(const aAddress: TIPv6AddrBytes): Boolean; static;
 
   protected
-    class procedure ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);override;
-    class procedure ParserDNSTTL(const aQuestionClass:String;const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString); override;
+    class procedure ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: PTListHeaderString);override;
+    class function ParserDNSTTL(const aQuestionClass:String;const aRRsType: TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: PTListHeaderString):Integer; override;
   public
 
     /// <summary>
@@ -141,7 +141,7 @@ begin
   end;    
 end;
 
-class procedure TWPcapProtocolMDNS.ParserDNSTTL(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
+class function TWPcapProtocolMDNS.ParserDNSTTL(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: PTListHeaderString):Integer;
 var Lz         : Uint16;
     LWordValue : Uint16;
 begin
@@ -165,7 +165,7 @@ begin
   end;
 end;
 
-class procedure TWPcapProtocolMDNS.ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: TListHeaderString);
+class procedure TWPcapProtocolMDNS.ParserDNSClass(const aQuestionClass:String;const aRRsType:TRRsType;const aDataRss: TBytes; aInternalOffset,aStartLevel: Integer;AListDetail: PTListHeaderString);
 var   LWordValue : Uint16;
 begin
   case aRRsType of

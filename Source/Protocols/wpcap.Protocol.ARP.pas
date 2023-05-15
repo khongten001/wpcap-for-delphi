@@ -188,7 +188,7 @@ begin
   AListDetail.Add(AddHeaderInfo(aStartLevel+1, Format('%s.TargetMAC',[AcronymName]), 'Target MAC:',LMacDst , PByte(LTmpBytesTarget), LHeaderARP.HardwareSize ));
 
   if IsFilterMode then  
-    UpdateFlowInfo(String.Empty,LMacSrc,LMacDst,0,0,0,aAdditionalParameters);
+    UpdateFlowInfo(String.Empty,LMacSrc,LMacDst,0,0,0,aAdditionalParameters,False);
   
   SetLength(LTmpBytesSender,LHeaderARP.ProtocolSize);
   SetLength(LTmpBytesTarget,LHeaderARP.ProtocolSize);  
